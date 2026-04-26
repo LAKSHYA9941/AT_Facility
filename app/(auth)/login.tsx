@@ -14,13 +14,32 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 1200)); // replace with API call
-    setLoading(false);
-    router.replace("/(customer)/home");
+  const CREDS: Record<string, { pass: string; route: string }> = {
+    customer: { pass: "1234", route: "/(customer)/ride" },
+    driver: { pass: "1234", route: "/(driver)/home" },
+    admin: { pass: "1234", route: "/(admin)/dashboard" },
   };
 
+  const handleLogin = async () => {
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 800));
+    setLoading(false);
+
+    const cred = CREDS[email.trim().toLowerCase()];
+
+    if (!cred) {
+      alert("No account found for this ID");
+      return;
+    }
+
+    if (password !== cred.pass) {
+      alert("Wrong password");
+      return;
+    }
+
+    router.replace(cred.route as any);
+  };
+  
   return (
     <ScreenWrapper variant="light">
       <ScrollView
@@ -60,7 +79,7 @@ export default function LoginScreen() {
                 <Input
                   label="Password"
                   rightLabel="Forgot Password?"
-                  onRightLabelPress={() => {}}
+                  onRightLabelPress={() => { }}
                   placeholder="••••••••"
                   secure
                   value={password}
@@ -89,13 +108,13 @@ export default function LoginScreen() {
                 variant="social"
                 label="Google"
                 leftIcon={<Text className="text-base">G</Text>}
-                onPress={() => {}}
+                onPress={() => { }}
               />
               <Button
                 variant="social"
                 label="Apple"
                 leftIcon={<Text className="text-base">⌘</Text>}
-                onPress={() => {}}
+                onPress={() => { }}
               />
             </Animated.View>
 
@@ -106,7 +125,7 @@ export default function LoginScreen() {
                 <Text className="text-brand-sub font-medium text-sm">
                   Don't have an account?
                 </Text>
-                <TouchableOpacity onPress={() => router.push("/(onboarding)/role-select")} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => { }} activeOpacity={0.7}>
                   <Text className="text-brand-primary font-bold text-sm">Sign Up</Text>
                 </TouchableOpacity>
               </View>
