@@ -1,0 +1,68 @@
+import type { Href } from "expo-router";
+import { router } from "expo-router";
+import { useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, Text, TextInput, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import ScreenWrapper from "../../components/layout/ScreenWrapper";
+import Button from "../../components/ui/Button";
+
+export default function OTPScreen() {
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const inputs = useRef<TextInput[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (val: string, idx: number) => {
+    const next = [...otp];
+    next[idx] = val;
+    setOtp(next);
+    if (val && idx < 5) inputs.current[idx + 1]?.focus();
+    if (!val && idx > 0) inputs.current[idx - 1]?.focus();
+  };
+
+  const handleVerify = async () => {
+    if (otp.join("").length !== 6) return;
+    setLoading(true);
+    await new Promise(r => setTimeout(r, 1000));
+    setLoading(false);
+    router.replace("/(customer)/home" as Href);
+  };
+
+  return (
+    <ScreenWrapper>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
+        <View className="flex-1 px-6 pt-16 pb-10 justify-between">
+
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
+            <Text className="text-brand-text font-bold text-3xl mb-2">Verify OTP</Text>
+            <Text className="text-brand-sub text-base">Sent to your registered number</Text>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(200).springify()} className="flex-row justify-between gap-2">
+            {otp.map((digit, i) => (
+              <TextInput
+                key={i}
+                ref={r => { if (r) inputs.current[i] = r; }}
+                className="flex-1 h-16 bg-brand-card border border-brand-muted rounded-2xl text-brand-text font-bold text-2xl text-center"
+                maxLength={1}
+                keyboardType="number-pad"
+                value={digit}
+                onChangeText={v => handleChange(v, i)}
+                style={{ borderColor: digit ? "#6C47FF" : undefined }}
+              />
+            ))}
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(300).springify()}>
+            <Button
+              label="Verify & Continue"
+              onPress={handleVerify}
+              loading={loading}
+              disabled={otp.join("").length !== 6}
+            />
+          </Animated.View>
+
+        </View>
+      </KeyboardAvoidingView>
+    </ScreenWrapper>
+  );
+}
