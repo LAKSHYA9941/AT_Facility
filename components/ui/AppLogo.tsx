@@ -16,7 +16,7 @@ export default function AppLogo({ size = "md" }: Props) {
         <Text className={`${s.iconText}`}>🏢</Text>
       </View>
       <Text className={`text-brand-primary font-bold ${s.text} tracking-tight`}>
-        @Facility
+        A.T. Facility
       </Text>
     </View>
   );
