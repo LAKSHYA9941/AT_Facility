@@ -100,22 +100,30 @@ const RENTALS = [
   },
 ];
 
-const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+const STATUS_STYLE: Record<
+  string,
+  { bg: string; text: string; label: string }
+> = {
   completed: { bg: "bg-green-50", text: "text-green-700", label: "Completed" },
-  cancelled: { bg: "bg-red-50",   text: "text-red-500",   label: "Cancelled" },
-  confirmed: { bg: "bg-blue-50",  text: "text-blue-700",  label: "Confirmed" },
+  cancelled: { bg: "bg-red-50", text: "text-red-500", label: "Cancelled" },
+  confirmed: { bg: "bg-blue-50", text: "text-blue-700", label: "Confirmed" },
 };
 
-function RideRow({ item }: { item: typeof RIDES[0] }) {
+function RideRow({ item }: { item: (typeof RIDES)[0] }) {
   const s = STATUS_STYLE[item.status];
   return (
-    <Animated.View entering={FadeInDown.springify()} className="flex-row items-center gap-3 px-5 py-4 border-b border-brand-border">
+    <Animated.View
+      entering={FadeInDown.springify()}
+      className="flex-row items-center gap-3 px-5 py-4 border-b border-brand-border"
+    >
       <View className="w-11 h-11 rounded-2xl bg-brand-input items-center justify-center">
         <Text style={{ fontSize: 20 }}>{item.emoji}</Text>
       </View>
       <View className="flex-1">
         <Text className="text-brand-text font-bold text-sm">{item.name}</Text>
-        <Text className="text-brand-sub text-xs mt-0.5">{item.route} · {item.km}</Text>
+        <Text className="text-brand-sub text-xs mt-0.5">
+          {item.route} · {item.km}
+        </Text>
         <Text className="text-brand-sub text-xs mt-0.5">{item.time}</Text>
         <View className={`self-start mt-1.5 px-2 py-0.5 rounded-full ${s.bg}`}>
           <Text className={`text-xs font-semibold ${s.text}`}>{s.label}</Text>
@@ -128,10 +136,13 @@ function RideRow({ item }: { item: typeof RIDES[0] }) {
   );
 }
 
-function PackageRow({ item }: { item: typeof PACKAGES[0] }) {
+function PackageRow({ item }: { item: (typeof PACKAGES)[0] }) {
   const s = STATUS_STYLE[item.status];
   return (
-    <Animated.View entering={FadeInDown.springify()} className="flex-row items-center gap-3 px-5 py-4 border-b border-brand-border">
+    <Animated.View
+      entering={FadeInDown.springify()}
+      className="flex-row items-center gap-3 px-5 py-4 border-b border-brand-border"
+    >
       <View className="w-11 h-11 rounded-2xl bg-brand-input items-center justify-center">
         <Text style={{ fontSize: 20 }}>{item.emoji}</Text>
       </View>
@@ -162,7 +173,9 @@ export default function ActivityScreen() {
           activeOpacity={0.8}
           className="bg-brand-input border border-brand-border rounded-full px-4 py-1.5"
         >
-          <Text className="text-brand-primary font-semibold text-xs">Filter</Text>
+          <Text className="text-brand-primary font-semibold text-xs">
+            Filter
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -172,9 +185,14 @@ export default function ActivityScreen() {
           { val: "24", label: "Total rides" },
           { val: "₹4.2k", label: "Total spent" },
           { val: "4.9★", label: "Avg rating" },
-        ].map(s => (
-          <View key={s.label} className="flex-1 bg-brand-input rounded-2xl py-3 items-center">
-            <Text className="text-brand-primary font-bold text-base">{s.val}</Text>
+        ].map((s) => (
+          <View
+            key={s.label}
+            className="flex-1 bg-brand-input rounded-2xl py-3 items-center"
+          >
+            <Text className="text-brand-primary font-bold text-base">
+              {s.val}
+            </Text>
             <Text className="text-brand-sub text-xs mt-0.5">{s.label}</Text>
           </View>
         ))}
@@ -205,9 +223,14 @@ export default function ActivityScreen() {
 
       {/* Content */}
       <ScrollView showsVerticalScrollIndicator={false}>
-        {tab === 0 && RIDES.map(item => <RideRow key={item.id} item={item} />)}
-        {tab === 1 && PACKAGES.map(item => <PackageRow key={item.id} item={item} />)}
-        {tab === 2 && RENTALS.map(item => <PackageRow key={item.id} item={item as any} />)}
+        {tab === 0 &&
+          RIDES.map((item) => <RideRow key={item.id} item={item} />)}
+        {tab === 1 &&
+          PACKAGES.map((item) => <PackageRow key={item.id} item={item} />)}
+        {tab === 2 &&
+          RENTALS.map((item) => (
+            <PackageRow key={item.id} item={item as any} />
+          ))}
         <View className="h-6" />
       </ScrollView>
     </SafeAreaView>

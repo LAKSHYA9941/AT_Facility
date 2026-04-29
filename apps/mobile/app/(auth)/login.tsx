@@ -22,7 +22,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 800));
     setLoading(false);
 
     const cred = CREDS[email.trim().toLowerCase()];
@@ -39,7 +39,7 @@ export default function LoginScreen() {
 
     router.replace(cred.route as any);
   };
-  
+
   return (
     <ScreenWrapper variant="light">
       <ScrollView
@@ -79,7 +79,7 @@ export default function LoginScreen() {
                 <Input
                   label="Password"
                   rightLabel="Forgot Password?"
-                  onRightLabelPress={() => { }}
+                  onRightLabelPress={() => {}}
                   placeholder="••••••••"
                   secure
                   value={password}
@@ -98,23 +98,29 @@ export default function LoginScreen() {
             </View>
 
             {/* Divider */}
-            <Animated.View entering={FadeInDown.delay(320).springify()} className="my-6">
+            <Animated.View
+              entering={FadeInDown.delay(320).springify()}
+              className="my-6"
+            >
               <Divider label="or continue with" />
             </Animated.View>
 
             {/* Social buttons */}
-            <Animated.View entering={FadeInDown.delay(360).springify()} className="flex-row gap-3">
+            <Animated.View
+              entering={FadeInDown.delay(360).springify()}
+              className="flex-row gap-3"
+            >
               <Button
                 variant="social"
                 label="Google"
                 leftIcon={<Text className="text-base">G</Text>}
-                onPress={() => { }}
+                onPress={() => {}}
               />
               <Button
                 variant="social"
                 label="Apple"
                 leftIcon={<Text className="text-base">⌘</Text>}
-                onPress={() => { }}
+                onPress={() => {}}
               />
             </Animated.View>
 
@@ -125,8 +131,10 @@ export default function LoginScreen() {
                 <Text className="text-brand-sub font-medium text-sm">
                   Don't have an account?
                 </Text>
-                <TouchableOpacity onPress={() => { }} activeOpacity={0.7}>
-                  <Text className="text-brand-primary font-bold text-sm">Sign Up</Text>
+                <TouchableOpacity onPress={() => {}} activeOpacity={0.7}>
+                  <Text className="text-brand-primary font-bold text-sm">
+                    Sign Up
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -134,7 +142,6 @@ export default function LoginScreen() {
                 © 2024 At Facility. All rights reserved.
               </Text>
             </Animated.View>
-
           </Card>
         </Animated.View>
       </ScrollView>

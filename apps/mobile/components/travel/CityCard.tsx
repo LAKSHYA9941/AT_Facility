@@ -10,11 +10,27 @@ type Props = {
   onPress?: () => void;
 };
 
-export default function CityCard({ title, subtitle, price, rating, image, discount, onPress }: Props) {
+export default function CityCard({
+  title,
+  subtitle,
+  price,
+  rating,
+  image,
+  discount,
+  onPress,
+}: Props) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.92} className="w-44 mr-3">
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.92}
+      className="w-44 mr-3"
+    >
       <View className="h-36 rounded-2xl overflow-hidden mb-2">
-        <ImageBackground source={{ uri: image }} className="flex-1" resizeMode="cover">
+        <ImageBackground
+          source={{ uri: image }}
+          className="flex-1"
+          resizeMode="cover"
+        >
           {discount && (
             <View className="absolute top-2 right-2 bg-brand-primary rounded-lg px-2 py-0.5">
               <Text className="text-white font-bold text-xs">-{discount}%</Text>

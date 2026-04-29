@@ -19,7 +19,9 @@ export default function CategoryChip({ label, icon, active, onPress }: Props) {
       }`}
     >
       <Text className="text-sm">{icon}</Text>
-      <Text className={`font-semibold text-sm ${active ? "text-white" : "text-brand-text"}`}>
+      <Text
+        className={`font-semibold text-sm ${active ? "text-white" : "text-brand-text"}`}
+      >
         {label}
       </Text>
     </TouchableOpacity>

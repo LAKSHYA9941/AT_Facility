@@ -7,12 +7,19 @@ type Props = {
   variant?: "light" | "dark";
 };
 
-export default function ScreenWrapper({ children, className, variant = "light" }: Props) {
+export default function ScreenWrapper({
+  children,
+  className,
+  variant = "light",
+}: Props) {
   const insets = useSafeAreaInsets();
   const bg = variant === "light" ? "bg-brand-bg" : "bg-brand-primary";
 
   return (
-    <View className={`flex-1 ${bg} ${className ?? ""}`} style={{ paddingTop: insets.top }}>
+    <View
+      className={`flex-1 ${bg} ${className ?? ""}`}
+      style={{ paddingTop: insets.top }}
+    >
       <StatusBar
         barStyle={variant === "light" ? "dark-content" : "light-content"}
         backgroundColor={variant === "light" ? "#EEF2F7" : "#1B4F8A"}

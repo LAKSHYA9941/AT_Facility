@@ -1,4 +1,13 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, FlatList, ImageBackground, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  FlatList,
+  ImageBackground,
+  Dimensions,
+} from "react-native";
 import { useRef, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
@@ -129,7 +138,9 @@ export default function RideScreen() {
               </View>
             </TouchableOpacity>
             <View className="bg-white/90 px-4 py-1.5 rounded-full">
-              <Text className="text-brand-primary font-bold text-base">At Facility</Text>
+              <Text className="text-brand-primary font-bold text-base">
+                At Facility
+              </Text>
             </View>
             <TouchableOpacity activeOpacity={0.7}>
               <View className="w-9 h-9 rounded-full bg-white/90 items-center justify-center">
@@ -152,10 +163,12 @@ export default function RideScreen() {
         >
           <View className="flex-row items-center gap-3 pb-3 border-b border-brand-border">
             <MapPin size={16} color="#1B4F8A" />
-            <Text className="text-brand-text font-medium text-sm flex-1" numberOfLines={1}>
+            <Text
+              className="text-brand-text font-medium text-sm flex-1"
+              numberOfLines={1}
+            >
               Your Location
             </Text>
-
           </View>
 
           <View className="flex-row items-center gap-3 pt-3">
@@ -185,9 +198,10 @@ export default function RideScreen() {
             entering={FadeInUp.delay(100).springify()}
             className="flex-row items-center justify-between px-5 pt-4 pb-3"
           >
-            <Text className="text-brand-text font-bold text-base">Select a ride</Text>
-            <View className="flex-row gap-2">
-            </View>
+            <Text className="text-brand-text font-bold text-base">
+              Select a ride
+            </Text>
+            <View className="flex-row gap-2"></View>
           </Animated.View>
 
           {/* Fleet cards */}
@@ -200,10 +214,11 @@ export default function RideScreen() {
               <TouchableOpacity
                 onPress={() => setSelectedFleet(item)}
                 activeOpacity={0.85}
-                className={`border rounded-2xl p-4 ${selectedFleet.id === item.id
-                  ? "border-brand-primary border-2"
-                  : "border-brand-border"
-                  }`}
+                className={`border rounded-2xl p-4 ${
+                  selectedFleet.id === item.id
+                    ? "border-brand-primary border-2"
+                    : "border-brand-border"
+                }`}
               >
                 <View className="flex-row items-start justify-between mb-3">
                   <View className="w-12 h-12 bg-brand-input rounded-xl items-center justify-center">
@@ -213,7 +228,9 @@ export default function RideScreen() {
                     ₹{item.price}
                   </Text>
                 </View>
-                <Text className="text-brand-text font-bold text-base">{item.name}</Text>
+                <Text className="text-brand-text font-bold text-base">
+                  {item.name}
+                </Text>
                 <Text
                   className="text-brand-sub text-xs mb-1"
                   style={{ fontStyle: "italic" }}
@@ -224,10 +241,11 @@ export default function RideScreen() {
                 <View className="flex-row items-center gap-1 mt-2">
                   <Text className="text-brand-primary text-xs">⏱</Text>
                   <Text
-                    className={`text-xs font-semibold ${selectedFleet.id === item.id
-                      ? "text-brand-primary"
-                      : "text-brand-sub"
-                      }`}
+                    className={`text-xs font-semibold ${
+                      selectedFleet.id === item.id
+                        ? "text-brand-primary"
+                        : "text-brand-sub"
+                    }`}
                   >
                     {item.eta} away
                   </Text>
@@ -237,7 +255,10 @@ export default function RideScreen() {
           ))}
 
           {/* Promo Carousel */}
-          <Animated.View entering={FadeInUp.delay(500).springify()} className="mt-2 mb-3">
+          <Animated.View
+            entering={FadeInUp.delay(500).springify()}
+            className="mt-2 mb-3"
+          >
             <FlatList
               ref={carouselRef}
               data={CAROUSEL}
@@ -248,9 +269,9 @@ export default function RideScreen() {
               decelerationRate="fast"
               contentContainerStyle={{ paddingHorizontal: 20 }}
               ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-              onMomentumScrollEnd={e => {
+              onMomentumScrollEnd={(e) => {
                 const idx = Math.round(
-                  e.nativeEvent.contentOffset.x / (width - 40)
+                  e.nativeEvent.contentOffset.x / (width - 40),
                 );
                 setCarouselIndex(idx);
               }}
@@ -299,13 +320,19 @@ export default function RideScreen() {
                     }}
                     activeOpacity={0.8}
                   >
-                    <Text style={{ color: "white", fontWeight: "700", fontSize: 12 }}>
+                    <Text
+                      style={{
+                        color: "white",
+                        fontWeight: "700",
+                        fontSize: 12,
+                      }}
+                    >
                       {item.cta}
                     </Text>
                   </TouchableOpacity>
                 </View>
               )}
-              keyExtractor={i => i.id}
+              keyExtractor={(i) => i.id}
             />
             {/* Dots */}
             <View className="flex-row justify-center gap-1.5 mt-3">
@@ -316,7 +343,8 @@ export default function RideScreen() {
                     width: carouselIndex === i ? 16 : 6,
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: carouselIndex === i ? "#1B4F8A" : "#DDE3ED",
+                    backgroundColor:
+                      carouselIndex === i ? "#1B4F8A" : "#DDE3ED",
                   }}
                 />
               ))}
@@ -334,7 +362,9 @@ export default function RideScreen() {
               <Text className="text-brand-text font-bold text-sm">Visa</Text>
             </View>
             <TouchableOpacity activeOpacity={0.7}>
-              <Text className="text-brand-primary font-semibold text-sm">Change</Text>
+              <Text className="text-brand-primary font-semibold text-sm">
+                Change
+              </Text>
             </TouchableOpacity>
           </Animated.View>
 
@@ -346,7 +376,9 @@ export default function RideScreen() {
             <Text className="text-amber-600 text-lg mr-3">🏷️</Text>
             <View className="flex-1">
               <Text className="text-brand-sub text-xs">Promotion applied</Text>
-              <Text className="text-brand-text font-bold text-sm">FACILITY20</Text>
+              <Text className="text-brand-text font-bold text-sm">
+                FACILITY20
+              </Text>
             </View>
             <View className="w-6 h-6 rounded-full bg-amber-100 items-center justify-center">
               <Text className="text-amber-600 text-xs font-bold">✓</Text>
@@ -367,7 +399,8 @@ export default function RideScreen() {
               </Text>
             </TouchableOpacity>
             <Text className="text-brand-sub text-xs text-center mt-2">
-              By confirming, you agree to our terms of service and ride-sharing policies.
+              By confirming, you agree to our terms of service and ride-sharing
+              policies.
             </Text>
           </Animated.View>
         </ScrollView>

@@ -25,7 +25,12 @@ const SECTIONS: Section[] = [
     items: [
       { icon: "💳", label: "Saved cards", sub: "Visa ···· 4242" },
       { icon: "👛", label: "Facility Wallet", sub: "₹340 available" },
-      { icon: "🏷️", label: "Promo codes", sub: "FACILITY20 active", badge: "1" },
+      {
+        icon: "🏷️",
+        label: "Promo codes",
+        sub: "FACILITY20 active",
+        badge: "1",
+      },
     ],
   },
   {
@@ -49,7 +54,12 @@ const SECTIONS: Section[] = [
   {
     title: "Danger zone",
     items: [
-      { icon: "🚪", label: "Log out", danger: true, onPress: () => router.replace("/(auth)/login") },
+      {
+        icon: "🚪",
+        label: "Log out",
+        danger: true,
+        onPress: () => router.replace("/(auth)/login"),
+      },
       { icon: "🗑️", label: "Delete account", danger: true },
     ],
   },
@@ -93,9 +103,7 @@ function MenuRow({ item }: { item: MenuItem }) {
           style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
         />
       ) : (
-        !item.danger && (
-          <Text className="text-brand-sub text-base">›</Text>
-        )
+        !item.danger && <Text className="text-brand-sub text-base">›</Text>
       )}
     </TouchableOpacity>
   );
@@ -105,7 +113,6 @@ export default function AccountScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-
         {/* Profile header */}
         <Animated.View
           entering={FadeInDown.delay(80).springify()}
@@ -117,7 +124,9 @@ export default function AccountScreen() {
             </View>
             <View className="flex-1">
               <Text className="text-white font-bold text-lg">Rahul Kumar</Text>
-              <Text className="text-white/70 text-xs mt-0.5">rahul@atfacility.com</Text>
+              <Text className="text-white/70 text-xs mt-0.5">
+                rahul@atfacility.com
+              </Text>
               <Text className="text-white/70 text-xs">+91 98100 XXXXX</Text>
             </View>
             <TouchableOpacity
@@ -141,7 +150,9 @@ export default function AccountScreen() {
               activeOpacity={0.8}
               className="bg-white rounded-full px-4 py-1.5"
             >
-              <Text className="text-brand-primary font-bold text-xs">Add Money</Text>
+              <Text className="text-brand-primary font-bold text-xs">
+                Add Money
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -156,7 +167,7 @@ export default function AccountScreen() {
               {section.title}
             </Text>
             <View className="border-t border-brand-border">
-              {section.items.map(item => (
+              {section.items.map((item) => (
                 <MenuRow key={item.label} item={item} />
               ))}
             </View>

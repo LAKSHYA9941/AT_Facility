@@ -19,9 +19,31 @@ export default function AdminLayout() {
         tabBarLabelStyle: { fontSize: 10, fontWeight: "600" },
       }}
     >
-      <Tabs.Screen name="dashboard" options={{ title: "Dashboard", tabBarIcon: ({ color, size }) => <LayoutDashboard size={size} color={color} /> }} />
-      <Tabs.Screen name="users"     options={{ title: "Users",     tabBarIcon: ({ color, size }) => <Users       size={size} color={color} /> }} />
-      <Tabs.Screen name="verify"    options={{ title: "Verify",    tabBarIcon: ({ color, size }) => <ShieldCheck size={size} color={color} /> }} />
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <LayoutDashboard size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: "Users",
+          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="verify"
+        options={{
+          title: "Verify",
+          tabBarIcon: ({ color, size }) => (
+            <ShieldCheck size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

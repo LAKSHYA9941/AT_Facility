@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, TextInputProps } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TextInputProps,
+} from "react-native";
 
 type Props = TextInputProps & {
   label: string;
@@ -28,7 +34,9 @@ export default function Input({
         </Text>
         {rightLabel && (
           <TouchableOpacity onPress={onRightLabelPress} activeOpacity={0.7}>
-            <Text className="text-brand-link font-semibold text-sm">{rightLabel}</Text>
+            <Text className="text-brand-link font-semibold text-sm">
+              {rightLabel}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -47,8 +55,13 @@ export default function Input({
           {...props}
         />
         {secure && (
-          <TouchableOpacity onPress={() => setHidden(p => !p)} activeOpacity={0.7}>
-            <Text className="text-brand-sub text-lg">{hidden ? "🙈" : "👁️"}</Text>
+          <TouchableOpacity
+            onPress={() => setHidden((p) => !p)}
+            activeOpacity={0.7}
+          >
+            <Text className="text-brand-sub text-lg">
+              {hidden ? "🙈" : "👁️"}
+            </Text>
           </TouchableOpacity>
         )}
       </View>

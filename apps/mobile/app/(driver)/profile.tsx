@@ -5,30 +5,70 @@ import { router } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 type ToggleItem = { icon: string; label: string; sub: string; key: string };
-type MenuItemType = { icon: string; label: string; sub?: string; danger?: boolean; onPress?: () => void };
+type MenuItemType = {
+  icon: string;
+  label: string;
+  sub?: string;
+  danger?: boolean;
+  onPress?: () => void;
+};
 
 const TOGGLES: ToggleItem[] = [
-  { icon: "🛣️", label: "Outstation rides",   sub: "Accept rides beyond city limits", key: "outstation" },
-  { icon: "👥", label: "Shared rides",        sub: "Allow multiple passengers",       key: "shared" },
-  { icon: "🔔", label: "Ride notifications",  sub: "Sound alerts for new requests",   key: "notifs" },
+  {
+    icon: "🛣️",
+    label: "Outstation rides",
+    sub: "Accept rides beyond city limits",
+    key: "outstation",
+  },
+  {
+    icon: "👥",
+    label: "Shared rides",
+    sub: "Allow multiple passengers",
+    key: "shared",
+  },
+  {
+    icon: "🔔",
+    label: "Ride notifications",
+    sub: "Sound alerts for new requests",
+    key: "notifs",
+  },
 ];
 
 const MENU: MenuItemType[] = [
   { icon: "⭐", label: "My ratings & reviews", sub: "4.9 avg · 142 reviews" },
-  { icon: "📊", label: "Performance stats",    sub: "Acceptance rate, cancellations" },
+  {
+    icon: "📊",
+    label: "Performance stats",
+    sub: "Acceptance rate, cancellations",
+  },
   { icon: "💬", label: "Help & support" },
   { icon: "📋", label: "Terms & conditions" },
-  { icon: "🚪", label: "Log out", danger: true, onPress: () => router.replace("/(auth)/login") },
+  {
+    icon: "🚪",
+    label: "Log out",
+    danger: true,
+    onPress: () => router.replace("/(auth)/login"),
+  },
 ];
 
-function ToggleRow({ item, value, onChange }: { item: ToggleItem; value: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({
+  item,
+  value,
+  onChange,
+}: {
+  item: ToggleItem;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <View className="flex-row items-center gap-3 px-5 py-3.5 border-b border-brand-border">
       <View className="w-9 h-9 rounded-xl bg-brand-input items-center justify-center">
         <Text style={{ fontSize: 16 }}>{item.icon}</Text>
       </View>
       <View className="flex-1">
-        <Text className="text-brand-text font-semibold text-sm">{item.label}</Text>
+        <Text className="text-brand-text font-semibold text-sm">
+          {item.label}
+        </Text>
         <Text className="text-brand-sub text-xs mt-0.5">{item.sub}</Text>
       </View>
       <Switch
@@ -53,10 +93,14 @@ function MenuRow({ item }: { item: MenuItemType }) {
         <Text style={{ fontSize: 16 }}>{item.icon}</Text>
       </View>
       <View className="flex-1">
-        <Text className={`font-semibold text-sm ${item.danger ? "text-red-500" : "text-brand-text"}`}>
+        <Text
+          className={`font-semibold text-sm ${item.danger ? "text-red-500" : "text-brand-text"}`}
+        >
           {item.label}
         </Text>
-        {item.sub && <Text className="text-brand-sub text-xs mt-0.5">{item.sub}</Text>}
+        {item.sub && (
+          <Text className="text-brand-sub text-xs mt-0.5">{item.sub}</Text>
+        )}
       </View>
       {!item.danger && <Text className="text-brand-sub text-base">›</Text>}
     </TouchableOpacity>
@@ -64,15 +108,18 @@ function MenuRow({ item }: { item: MenuItemType }) {
 }
 
 export default function DriverProfile() {
-  const [toggles, setToggles] = useState({ outstation: true, shared: false, notifs: true });
+  const [toggles, setToggles] = useState({
+    outstation: true,
+    shared: false,
+    notifs: true,
+  });
 
   const setToggle = (key: string, val: boolean) =>
-    setToggles(prev => ({ ...prev, [key]: val }));
+    setToggles((prev) => ({ ...prev, [key]: val }));
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-
         {/* Profile header */}
         <Animated.View
           entering={FadeInDown.delay(80).springify()}
@@ -84,7 +131,9 @@ export default function DriverProfile() {
             </View>
             <View className="flex-1">
               <Text className="text-white font-bold text-lg">Ravi Kumar</Text>
-              <Text className="text-white/70 text-xs mt-0.5">ravi@atfacility.com</Text>
+              <Text className="text-white/70 text-xs mt-0.5">
+                ravi@atfacility.com
+              </Text>
               <View className="flex-row items-center gap-1 mt-1">
                 <Text className="text-yellow-400 text-xs">★★★★★</Text>
                 <Text className="text-white/70 text-xs">4.9 · 142 trips</Text>
@@ -102,8 +151,12 @@ export default function DriverProfile() {
           <View className="mt-4 bg-white/10 rounded-2xl px-4 py-3 flex-row items-center gap-3">
             <Text style={{ fontSize: 24 }}>🚙</Text>
             <View>
-              <Text className="text-white font-bold text-sm">Maruti Swift Dzire</Text>
-              <Text className="text-white/70 text-xs">White · DL 01 CA 1234</Text>
+              <Text className="text-white font-bold text-sm">
+                Maruti Swift Dzire
+              </Text>
+              <Text className="text-white/70 text-xs">
+                White · DL 01 CA 1234
+              </Text>
               <Text className="text-white/70 text-xs">Shaana Babu segment</Text>
             </View>
           </View>
@@ -115,12 +168,12 @@ export default function DriverProfile() {
             Preferences
           </Text>
           <View className="border-t border-brand-border">
-            {TOGGLES.map(item => (
+            {TOGGLES.map((item) => (
               <ToggleRow
                 key={item.key}
                 item={item}
                 value={toggles[item.key as keyof typeof toggles]}
-                onChange={v => setToggle(item.key, v)}
+                onChange={(v) => setToggle(item.key, v)}
               />
             ))}
           </View>
@@ -132,7 +185,9 @@ export default function DriverProfile() {
             More
           </Text>
           <View className="border-t border-brand-border">
-            {MENU.map(item => <MenuRow key={item.label} item={item} />)}
+            {MENU.map((item) => (
+              <MenuRow key={item.label} item={item} />
+            ))}
           </View>
         </Animated.View>
 

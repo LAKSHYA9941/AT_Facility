@@ -30,14 +30,18 @@ export default function CustomerLayout() {
         name="travel"
         options={{
           title: "Travel",
-          tabBarIcon: ({ color, size }) => <Compass size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Compass size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="activity"
         options={{
           title: "Activity",
-          tabBarIcon: ({ color, size }) => <Activity size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Activity size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

@@ -11,7 +11,9 @@ export default function SectionHeader({ title, onSeeAll }: Props) {
       <Text className="text-brand-text font-bold text-lg">{title}</Text>
       {onSeeAll && (
         <TouchableOpacity onPress={onSeeAll} activeOpacity={0.7}>
-          <Text className="text-brand-primary font-semibold text-sm">See All →</Text>
+          <Text className="text-brand-primary font-semibold text-sm">
+            See All →
+          </Text>
         </TouchableOpacity>
       )}
     </View>

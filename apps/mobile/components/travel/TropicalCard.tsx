@@ -9,7 +9,14 @@ type Props = {
   onPress?: () => void;
 };
 
-export default function TropicalCard({ title, days, price, rating, image, onPress }: Props) {
+export default function TropicalCard({
+  title,
+  days,
+  price,
+  rating,
+  image,
+  onPress,
+}: Props) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -31,11 +38,13 @@ export default function TropicalCard({ title, days, price, rating, image, onPres
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-1 bg-black/40 rounded-full px-2 py-0.5">
               <Text className="text-yellow-400 text-xs">★ {rating}</Text>
-              <Text className="text-white text-xs">  {days} days</Text>
+              <Text className="text-white text-xs"> {days} days</Text>
             </View>
             <View>
               <Text className="text-white text-xs opacity-80">From</Text>
-              <Text className="text-white font-bold text-sm">${price.toLocaleString()}</Text>
+              <Text className="text-white font-bold text-sm">
+                ${price.toLocaleString()}
+              </Text>
             </View>
           </View>
         </View>

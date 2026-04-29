@@ -5,16 +5,16 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          primary: "#1B4F8A",      // navy blue — buttons, links, logo
-          secondary: "#2563A8",    // slightly lighter navy
-          bg: "#EEF2F7",           // outer screen background
-          card: "#FFFFFF",         // card white
-          input: "#F4F6F9",        // input field bg
-          border: "#DDE3ED",       // input border
-          text: "#111827",         // primary text
-          sub: "#6B7280",          // subtitle/placeholder
-          link: "#1B4F8A",         // forgot password, sign up
-          divider: "#D1D9E6",      // OR divider line
+          primary: "#1B4F8A", // navy blue — buttons, links, logo
+          secondary: "#2563A8", // slightly lighter navy
+          bg: "#EEF2F7", // outer screen background
+          card: "#FFFFFF", // card white
+          input: "#F4F6F9", // input field bg
+          border: "#DDE3ED", // input border
+          text: "#111827", // primary text
+          sub: "#6B7280", // subtitle/placeholder
+          link: "#1B4F8A", // forgot password, sign up
+          divider: "#D1D9E6", // OR divider line
         },
       },
       fontFamily: {

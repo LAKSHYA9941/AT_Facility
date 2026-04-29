@@ -1,5 +1,9 @@
 import { ActivityIndicator, Text, TouchableOpacity } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -21,7 +25,8 @@ const styles: Record<Variant, { container: string; text: string }> = {
     text: "text-white font-bold text-base tracking-wide",
   },
   outline: {
-    container: "border border-brand-border bg-white rounded-xl h-14 flex-row items-center justify-center gap-3",
+    container:
+      "border border-brand-border bg-white rounded-xl h-14 flex-row items-center justify-center gap-3",
     text: "text-brand-text font-semibold text-base",
   },
   ghost: {
@@ -29,7 +34,8 @@ const styles: Record<Variant, { container: string; text: string }> = {
     text: "text-brand-sub font-medium text-sm",
   },
   social: {
-    container: "border border-brand-border bg-white rounded-xl h-14 flex-row items-center justify-center gap-3 flex-1",
+    container:
+      "border border-brand-border bg-white rounded-xl h-14 flex-row items-center justify-center gap-3 flex-1",
     text: "text-brand-text font-semibold text-base",
   },
 };
@@ -53,8 +59,12 @@ export default function Button({
       style={animStyle}
       className={`${styles[variant].container} ${disabled || loading ? "opacity-50" : ""} ${className ?? ""}`}
       onPress={onPress}
-      onPressIn={() => { scale.value = withSpring(0.97, { damping: 15 }); }}
-      onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
+      onPressIn={() => {
+        scale.value = withSpring(0.97, { damping: 15 });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 15 });
+      }}
       disabled={disabled || loading}
       activeOpacity={1}
     >

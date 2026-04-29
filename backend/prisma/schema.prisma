@@ -1,13 +1,469 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+// ==================== ENUMS ====================
+
+enum Role {
+  CUSTOMER
+  DRIVER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  PENDING
+}
+
+enum KYCStatus {
+  UNSUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DocumentType {
+  AADHAAR
+  DRIVING_LICENSE
+  VEHICLE_RC
+  PAN
+  BANK_DETAILS
+  SELFIE
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VehicleSegment {
+  SWIFT       // Hatchback — affordable
+  COMFORT     // Sedan — comfortable
+  PRESTIGE    // SUV — luxury
+  VOYAGER     // 6-10 seater — group
+  ECORIDE     // Electric — sustainable
+  FLEXDRIVE   // Self-drive rental
+}
+
+enum RideStatus {
+  SEARCHING
+  CONFIRMED
+  ARRIVING
+  IN_RIDE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  UPI
+  CARD
+  WALLET
+  CASH
+}
+
+enum PackageCategory {
+  BEACH
+  HILLS
+  CITYBREAK
+  WILD
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum ExtraChargeType {
+  EXTRA_KM
+  EXTRA_HOURS
+  FUEL
+  DAMAGE
+  DRIVER_ADDON
+  OTHER
+}
+
+// ==================== CORE USER ====================
+
+model User {
+  id               String         @id @default(cuid())
+  phone            String         @unique
+  name             String?
+  email            String?        @unique
+  role             Role           @default(CUSTOMER)
+  aadhaarNumber    String?
+  aadhaarVerified  Boolean        @default(false)
+  profileComplete  Boolean        @default(false)
+  status           UserStatus     @default(ACTIVE)
+  fcmToken         String?
+
+  refreshTokens    RefreshToken[]
+  driverProfile    DriverProfile?
+  ridesAsCustomer  Ride[]         @relation("CustomerRides")
+  ratingsGiven     RideRating[]   @relation("RatingsGiven")
+  ratingsReceived  RideRating[]   @relation("RatingsReceived")
+  packageBookings  PackageBooking[]
+  rentals          Rental[]
+  notifications    Notification[]
+
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+// ==================== AUTH ====================
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId    String
+  deviceName  String?
+  lastUsedAt  DateTime @default(now())
+  expiresAt   DateTime
+  revoked     Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String   // 6 digits
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  attempts  Int      @default(0) // max 3 wrong attempts
+
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+// ==================== DRIVER ====================
+
+model DriverProfile {
+  id              String         @id @default(cuid())
+  userId          String         @unique
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rating          Float          @default(0)
+  totalTrips      Int            @default(0)
+  totalEarnings   Float          @default(0)
+  isOnline        Boolean        @default(false)
+  isAvailable     Boolean        @default(false)
+
+  currentLat      Float?
+  currentLng      Float?
+  lastLocationAt  DateTime?
+
+  kycStatus       KYCStatus      @default(UNSUBMITTED)
+  segment         VehicleSegment?
+
+  // Bank details for payouts
+  bankAccountNumber  String?
+  bankIFSC           String?
+  bankAccountName    String?
+  bankVerified       Boolean     @default(false)
+
+  vehicle         Vehicle?
+  documents       Document[]
+  ridesAsDriver   Ride[]         @relation("DriverRides")
+  earnings        Earning[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([isOnline, isAvailable, kycStatus])
+}
+
+model Vehicle {
+  id                   String         @id @default(cuid())
+  driverId             String         @unique
+  driver               DriverProfile  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  make                 String
+  model                String
+  color                String
+  year                 Int
+  plateNumber          String         @unique
+  registrationNumber   String         @unique
+  segment              VehicleSegment
+
+  // Capacity
+  maxCapacity          Int            // max passengers
+  perHeadExtraCharge   Float          @default(0) // charge if exceeded
+
+  insuranceExpiry      DateTime?
+  fitnessExpiry        DateTime?
+
+  isAvailableForRental Boolean        @default(false)
+  rentalPricePerDay    Float?
+  rentalKmLimit        Int?           // daily km limit for rentals
+  rentalExtraKmCharge  Float?         // per km beyond limit
+
+  rentals              Rental[]
+
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+model Document {
+  id            String         @id @default(cuid())
+  driverId      String
+  driver        DriverProfile  @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  type          DocumentType
+  fileUrl       String
+  status        DocumentStatus @default(PENDING)
+  rejectReason  String?
+  verifiedAt    DateTime?
+  verifiedBy    String?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([driverId, type])
+  @@index([driverId])
+  @@index([status])
+}
+
+// ==================== RIDES ====================
+
+model Ride {
+  id              String         @id @default(cuid())
+
+  customerId      String
+  customer        User           @relation("CustomerRides", fields: [customerId], references: [id])
+
+  driverId        String?
+  driver          DriverProfile? @relation("DriverRides", fields: [driverId], references: [id])
+
+  pickupAddress   String
+  pickupLat       Float
+  pickupLng       Float
+  dropAddress     String
+  dropLat         Float
+  dropLng         Float
+
+  segment         VehicleSegment
+  status          RideStatus     @default(SEARCHING)
+
+  // Passenger count
+  passengerCount  Int            @default(1)
+  extraHeadCharge Float          @default(0) // charged if over capacity
+
+  // Fare breakdown
+  baseFare        Float          @default(0)
+  perKmFare       Float          @default(0)
+  surgeFare       Float          @default(0)
+  extraHeadFare   Float          @default(0)
+  totalFare       Float          @default(0)
+  distance        Float?
+  duration        Int?
+
+  // Payment — default CASH, paid at destination
+  paymentMethod   PaymentMethod  @default(CASH)
+  paymentStatus   PaymentStatus  @default(PENDING)
+  razorpayOrderId String?
+
+  // 6 digit OTP — customer shows driver before ride starts
+  otp             String?
+
+  cancelledBy     String?
+  cancelReason    String?
+
+  acceptedAt      DateTime?
+  arrivedAt       DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+
+  ratings         RideRating[]
+  earning         Earning?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([customerId])
+  @@index([driverId])
+  @@index([status])
+}
+
+model RideRating {
+  id          String   @id @default(cuid())
+  rideId      String
+  ride        Ride     @relation(fields: [rideId], references: [id])
+  ratingById  String
+  ratingBy    User     @relation("RatingsGiven",    fields: [ratingById],  references: [id])
+  ratingForId String
+  ratingFor   User     @relation("RatingsReceived", fields: [ratingForId], references: [id])
+  score       Int      // 1-5
+  comment     String?
+
+  createdAt   DateTime @default(now())
+
+  @@unique([rideId, ratingById])
+}
+
+model Earning {
+  id         String        @id @default(cuid())
+  driverId   String
+  driver     DriverProfile @relation(fields: [driverId], references: [id])
+  rideId     String        @unique
+  ride       Ride          @relation(fields: [rideId], references: [id])
+
+  gross      Float         // total fare
+  commission Float         // platform cut
+  net        Float         // driver receives
+
+  createdAt  DateTime      @default(now())
+}
+
+// ==================== PACKAGES ====================
+
+model Package {
+  id           String          @id @default(cuid())
+  title        String
+  subtitle     String
+  description  String          // full description
+  category     PackageCategory
+  price        Float           // base price per person
+  durationDays Int
+  maxPeople    Int             @default(2)
+
+  // What's covered
+  inclusions   String[]        // "Flights", "4-star hotel", "Breakfast"
+  exclusions   String[]        // "Visa fees", "Personal expenses"
+
+  // Day by day plan — JSON array
+  // [{ day: 1, title: "Arrival", description: "...", activities: [] }]
+  itinerary    Json            @default("[]")
+
+  imageUrls    String[]
+  isActive     Boolean         @default(true)
+
+  bookings     PackageBooking[]
+
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([category, isActive])
+}
+
+model PackageBooking {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  packageId       String
+  package         Package       @relation(fields: [packageId], references: [id])
+
+  travelDate      DateTime
+  numPeople       Int
+  pricePerPerson  Float
+  totalPrice      Float         // pricePerPerson × numPeople
+
+  // Extra people beyond maxPeople
+  extraPeople     Int           @default(0)
+  extraPeopleCharge Float       @default(0)
+
+  status          BookingStatus @default(PENDING)
+  razorpayOrderId String?
+  paymentStatus   PaymentStatus @default(PENDING)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+// ==================== RENTALS ====================
+
+model Rental {
+  id               String        @id @default(cuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
+  vehicleId        String
+  vehicle          Vehicle       @relation(fields: [vehicleId], references: [id])
+
+  pickupLocation   String
+  returnLocation   String
+  startDate        DateTime
+  endDate          DateTime
+  totalDays        Int
+
+  pricePerDay      Float
+  baseTotalPrice   Float         // pricePerDay × totalDays — PREPAID
+
+  // Optional driver add-on — prepaid
+  withDriver       Boolean       @default(false)
+  driverCharge     Float         @default(0) // per day
+  driverTotalCharge Float        @default(0)
+
+  // Total prepaid amount
+  prepaidAmount    Float
+
+  // Postpaid extras — filled after return
+  extraCharges     RentalExtraCharge[]
+  extraTotal       Float         @default(0)
+  extraPaid        Boolean       @default(false)
+  extraRazorpayId  String?
+
+  status           BookingStatus @default(PENDING)
+  razorpayOrderId  String?       // prepaid order
+  paymentStatus    PaymentStatus @default(PENDING)
+
+  returnedAt       DateTime?
+  returnNotes      String?       // admin notes on return condition
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+model RentalExtraCharge {
+  id          String          @id @default(cuid())
+  rentalId    String
+  rental      Rental          @relation(fields: [rentalId], references: [id])
+
+  type        ExtraChargeType
+  description String          // "Drove 45km extra", "Returned 2hrs late"
+  amount      Float
+
+  createdAt   DateTime        @default(now())
+}
+
+// ==================== NOTIFICATIONS ====================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String
+  body      String
+  data      Json?    // { rideId, screen } for deep linking
+  read      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
 }

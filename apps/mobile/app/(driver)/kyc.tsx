@@ -15,31 +15,89 @@ type Doc = {
 };
 
 const INITIAL_DOCS: Doc[] = [
-  { id: "aadhaar",  label: "Aadhaar Card",                 sub: "Front & back photo",           emoji: "🪪", status: "empty" },
-  { id: "dl",       label: "Driving License",              sub: "Valid DL — all vehicle classes", emoji: "🚗", status: "empty" },
-  { id: "rc",       label: "Vehicle RC",                   sub: "Registration certificate",      emoji: "📄", status: "empty" },
-  { id: "pan",      label: "PAN Card",                     sub: "For payment & tax purposes",    emoji: "💳", status: "empty" },
-  { id: "police",   label: "Police Verification Cert.",    sub: "Issued by local police station", emoji: "🛡️", status: "empty" },
-  { id: "selfie",   label: "Live Selfie",                  sub: "Face must match Aadhaar photo", emoji: "🤳", status: "empty" },
+  {
+    id: "aadhaar",
+    label: "Aadhaar Card",
+    sub: "Front & back photo",
+    emoji: "🪪",
+    status: "empty",
+  },
+  {
+    id: "dl",
+    label: "Driving License",
+    sub: "Valid DL — all vehicle classes",
+    emoji: "🚗",
+    status: "empty",
+  },
+  {
+    id: "rc",
+    label: "Vehicle RC",
+    sub: "Registration certificate",
+    emoji: "📄",
+    status: "empty",
+  },
+  {
+    id: "pan",
+    label: "PAN Card",
+    sub: "For payment & tax purposes",
+    emoji: "💳",
+    status: "empty",
+  },
+  {
+    id: "police",
+    label: "Police Verification Cert.",
+    sub: "Issued by local police station",
+    emoji: "🛡️",
+    status: "empty",
+  },
+  {
+    id: "selfie",
+    label: "Live Selfie",
+    sub: "Face must match Aadhaar photo",
+    emoji: "🤳",
+    status: "empty",
+  },
 ];
 
 const STATUS_CONFIG = {
-  empty:    { bg: "bg-brand-input",  text: "text-brand-sub",     label: "Upload",   border: "border-brand-border" },
-  uploaded: { bg: "bg-blue-50",      text: "text-blue-700",      label: "Uploaded", border: "border-blue-200" },
-  verified: { bg: "bg-green-50",     text: "text-green-700",     label: "Verified ✓", border: "border-green-200" },
-  rejected: { bg: "bg-red-50",       text: "text-red-600",       label: "Rejected", border: "border-red-200" },
+  empty: {
+    bg: "bg-brand-input",
+    text: "text-brand-sub",
+    label: "Upload",
+    border: "border-brand-border",
+  },
+  uploaded: {
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    label: "Uploaded",
+    border: "border-blue-200",
+  },
+  verified: {
+    bg: "bg-green-50",
+    text: "text-green-700",
+    label: "Verified ✓",
+    border: "border-green-200",
+  },
+  rejected: {
+    bg: "bg-red-50",
+    text: "text-red-600",
+    label: "Rejected",
+    border: "border-red-200",
+  },
 };
 
 export default function KYCScreen() {
   const [docs, setDocs] = useState<Doc[]>(INITIAL_DOCS);
 
-  const uploadedCount = docs.filter(d => d.status === "uploaded" || d.status === "verified").length;
+  const uploadedCount = docs.filter(
+    (d) => d.status === "uploaded" || d.status === "verified",
+  ).length;
   const allUploaded = uploadedCount === docs.length;
   const progress = uploadedCount / docs.length;
 
   const handleUpload = (id: string) => {
-    setDocs(prev =>
-      prev.map(d => d.id === id ? { ...d, status: "uploaded" } : d)
+    setDocs((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, status: "uploaded" } : d)),
     );
   };
 
@@ -47,17 +105,21 @@ export default function KYCScreen() {
     Alert.alert(
       "Docs Submitted!",
       "Our team will verify your documents within 24–48 hours. You'll be notified once approved.",
-      [{ text: "Got it" }]
+      [{ text: "Got it" }],
     );
   };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
+      >
         {/* Header */}
         <View className="px-5 pt-4 pb-2">
-          <Text className="text-brand-text font-bold text-xl">Verification</Text>
+          <Text className="text-brand-text font-bold text-xl">
+            Verification
+          </Text>
           <Text className="text-brand-sub text-sm mt-1">
             Submit all documents to start accepting rides
           </Text>
@@ -88,7 +150,8 @@ export default function KYCScreen() {
           </View>
           {!allUploaded && (
             <Text className="text-brand-sub text-xs mt-2">
-              ⚠️ You won't be able to accept rides until all docs are submitted and verified
+              ⚠️ You won't be able to accept rides until all docs are submitted
+              and verified
             </Text>
           )}
           {allUploaded && (
@@ -112,10 +175,16 @@ export default function KYCScreen() {
                   <Text style={{ fontSize: 22 }}>{doc.emoji}</Text>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-brand-text font-bold text-sm">{doc.label}</Text>
-                  <Text className="text-brand-sub text-xs mt-0.5">{doc.sub}</Text>
+                  <Text className="text-brand-text font-bold text-sm">
+                    {doc.label}
+                  </Text>
+                  <Text className="text-brand-sub text-xs mt-0.5">
+                    {doc.sub}
+                  </Text>
                   {doc.status === "rejected" && doc.rejectReason && (
-                    <Text className="text-red-500 text-xs mt-1">Reason: {doc.rejectReason}</Text>
+                    <Text className="text-red-500 text-xs mt-1">
+                      Reason: {doc.rejectReason}
+                    </Text>
                   )}
                 </View>
                 {doc.status === "empty" || doc.status === "rejected" ? (
@@ -130,7 +199,9 @@ export default function KYCScreen() {
                   </TouchableOpacity>
                 ) : (
                   <View className={`rounded-xl px-3 py-2 ${cfg.bg}`}>
-                    <Text className={`font-bold text-xs ${cfg.text}`}>{cfg.label}</Text>
+                    <Text className={`font-bold text-xs ${cfg.text}`}>
+                      {cfg.label}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -139,7 +210,10 @@ export default function KYCScreen() {
         })}
 
         {/* Submit button */}
-        <Animated.View entering={FadeInDown.delay(500).springify()} className="mx-5 mt-2">
+        <Animated.View
+          entering={FadeInDown.delay(500).springify()}
+          className="mx-5 mt-2"
+        >
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={!allUploaded}
@@ -158,7 +232,6 @@ export default function KYCScreen() {
             Verification usually takes 24–48 hours after submission
           </Text>
         </Animated.View>
-
       </ScrollView>
     </SafeAreaView>
   );

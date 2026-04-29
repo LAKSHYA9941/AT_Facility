@@ -12,7 +12,9 @@ export default function AppLogo({ size = "md" }: Props) {
   const s = sizes[size];
   return (
     <View className="flex-row items-center gap-3">
-      <View className={`${s.icon} bg-brand-primary items-center justify-center`}>
+      <View
+        className={`${s.icon} bg-brand-primary items-center justify-center`}
+      >
         <Text className={`${s.iconText}`}>🏢</Text>
       </View>
       <Text className={`text-brand-primary font-bold ${s.text} tracking-tight`}>
