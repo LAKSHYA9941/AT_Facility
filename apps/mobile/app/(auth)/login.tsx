@@ -8,6 +8,7 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import Divider from "../../components/ui/Divider";
 import AppLogo from "../../components/ui/AppLogo";
+import { useAuthStore } from "../../store/auth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -20,24 +21,18 @@ export default function LoginScreen() {
     admin: { pass: "1234", route: "/(admin)/dashboard" },
   };
 
+  const adminLogin = useAuthStore((s) => s.adminLogin);
+
   const handleLogin = async () => {
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-
-    const cred = CREDS[email.trim().toLowerCase()];
-
-    if (!cred) {
-      alert("No account found for this ID");
-      return;
+    try {
+      await adminLogin(email.trim(), password);
+      router.replace("/(admin)/dashboard");
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
-
-    if (password !== cred.pass) {
-      alert("Wrong password");
-      return;
-    }
-
-    router.replace(cred.route as any);
   };
 
   return (

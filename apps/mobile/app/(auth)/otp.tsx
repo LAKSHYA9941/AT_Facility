@@ -11,11 +11,16 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import ScreenWrapper from "../../components/layout/ScreenWrapper";
 import Button from "../../components/ui/Button";
+import { useLocalSearchParams } from "expo-router";
+import { useAuthStore } from "../../store/auth";
 
 export default function OTPScreen() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputs = useRef<TextInput[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const verifyOtp = useAuthStore((s) => s.verifyOtp);
 
   const handleChange = (val: string, idx: number) => {
     const next = [...otp];
@@ -28,11 +33,21 @@ export default function OTPScreen() {
   const handleVerify = async () => {
     if (otp.join("").length !== 6) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    router.replace("/(customer)/home" as Href);
+    try {
+      const result = await verifyOtp(phone, otp.join(""));
+      if (result.isNewUser) {
+        router.replace("/(auth)/complete-profile");
+      } else {
+        if (result.role === "CUSTOMER") router.replace("/(customer)/ride");
+        if (result.role === "DRIVER") router.replace("/(driver)/home");
+        if (result.role === "ADMIN") router.replace("/(admin)/dashboard");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || "Invalid OTP");
+    } finally {
+      setLoading(false);
+    }
   };
-
   return (
     <ScreenWrapper>
       <KeyboardAvoidingView

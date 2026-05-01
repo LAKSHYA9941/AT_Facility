@@ -10,6 +10,7 @@ import {
   PlusJakartaSans_700Bold,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import * as SplashScreen from "expo-splash-screen";
+import { useAuthStore } from "../store/auth";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,14 +22,21 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
   });
 
+  const initialize = useAuthStore((s) => s.initialize);
+  const isLoading = useAuthStore((s) => s.isLoading);
+
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
+    if (loaded) initialize();
   }, [loaded]);
 
-  if (!loaded) return null;
+  useEffect(() => {
+    if (loaded && !isLoading) SplashScreen.hideAsync();
+  }, [loaded, isLoading]);
+
+  if (!loaded || isLoading) return null;
 
   return (
-    <GestureHandlerRootView className="flex-1">
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false, animation: "fade" }} />
     </GestureHandlerRootView>
   );

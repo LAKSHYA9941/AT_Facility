@@ -11,17 +11,26 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import ScreenWrapper from "../../components/layout/ScreenWrapper";
 import Button from "../../components/ui/Button";
+import { useAuthStore } from "../../store/auth";
 
 export default function PhoneScreen() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const sendOtp = useAuthStore((s) => s.sendOtp);
+  const selectedRole = useAuthStore((s) => s.selectedRole);
+
   const handleSend = async () => {
     if (phone.length !== 10) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000)); // replace with API call
-    setLoading(false);
-    router.push("/(auth)/otp" as Href);
+    try {
+      await sendOtp(phone);
+      router.push({ pathname: "/(auth)/otp", params: { phone } });
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

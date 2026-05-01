@@ -1,7 +1,8 @@
-import type { Href } from "expo-router";
 import { Redirect } from "expo-router";
+import { useAuthStore } from "../store/auth";
 
 export default function Index() {
-  // Later: check auth store and redirect accordingly
-  return <Redirect href={"/(auth)/login" as Href} />;
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  if (isAuthenticated) return null; // initialize() handles routing
+  return <Redirect href="/(onboarding)/welcome" />;
 }

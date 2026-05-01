@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: atfacility_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: atfacility
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: atfacility_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build: .
+    container_name: atfacility_backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/atfacility
+      DIRECT_URL: postgresql://postgres:postgres@postgres:5432/atfacility
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: local_access_secret
+      JWT_REFRESH_SECRET: local_refresh_secret
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 30d
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./src:/app/src # hot reload in dev
+
+volumes:
+  postgres_data:
+  redis_data:

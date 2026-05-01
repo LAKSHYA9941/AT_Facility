@@ -1,6 +1,9 @@
 {
   "name": "atfacility-backend",
   "version": "1.0.0",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec tsx src/server.ts",
     "build": "tsc",
@@ -13,11 +16,11 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
     "@aws-sdk/s3-request-presigner": "^3.0.0",
-    "@fastify/cors": "^9.0.0",
-    "@fastify/helmet": "^11.0.0",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/helmet": "^13.0.2",
     "@fastify/jwt": "^10.0.0",
-    "@fastify/multipart": "^8.0.0",
-    "@fastify/rate-limit": "^9.0.0",
+    "@fastify/multipart": "^10.0.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^5.0.0",
     "axios": "^1.6.0",
@@ -26,6 +29,8 @@
     "dotenv": "^16.0.0",
     "fastify": "^5.8.5",
     "ioredis": "^5.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "libphonenumber-js": "^1.12.42",
     "pg": "^8.20.0",
     "razorpay": "^2.9.0",
     "uuid": "^14.0.0",
@@ -33,6 +38,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.0.0",
     "@types/pg": "^8.20.0",
     "@types/uuid": "^9.0.0",

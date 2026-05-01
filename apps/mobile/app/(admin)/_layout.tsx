@@ -1,7 +1,9 @@
 import { Tabs } from "expo-router";
 import { LayoutDashboard, Users, ShieldCheck } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AdminLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -10,8 +12,8 @@ export default function AdminLayout() {
           backgroundColor: "#FFFFFF",
           borderTopColor: "#DDE3ED",
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 10,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: 6,
         },
         tabBarActiveTintColor: "#1B4F8A",

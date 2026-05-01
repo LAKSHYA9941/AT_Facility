@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "atfacility",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "bundler": "metro",
     "ios": {
@@ -21,7 +21,10 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.laksh28.atfacility"
+      "package": "com.laksh28.atfacility",
+      "navigationBar": {
+        "backgroundColor": "#FFFFFF"
+      }
     },
     "web": {
       "output": "static",
