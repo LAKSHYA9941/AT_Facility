@@ -11,7 +11,7 @@ import {
 import { useRef, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { MapplsGL } from "../../utils/mappls";
 import TopBar from "../../components/layout/TopBar";
 import { MapPin } from "lucide-react-native";
 
@@ -110,20 +110,26 @@ export default function RideScreen() {
     <View className="flex-1 bg-white">
       {/* MAP — top ~35% of screen */}
       <View style={{ height: 260 }}>
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={{ flex: 1 }}
-          initialRegion={{
-            latitude: 28.6139,
-            longitude: 77.209,
-            latitudeDelta: 0.04,
-            longitudeDelta: 0.04,
-          }}
-          customMapStyle={mapStyle}
-          showsUserLocation
-          showsMyLocationButton={false}
-        />
-
+        <MapplsGL.MapView
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          logoEnabled={true}
+          compassEnabled={true}
+          zoomEnabled={true}
+          scrollEnabled={true}
+          pitchEnabled={true}
+          rotateEnabled={true}
+        >
+          <MapplsGL.Camera
+            zoomLevel={12}
+            centerCoordinate={[77.209, 28.6139]}
+            animationMode="flyTo"
+            animationDuration={1000}
+          />
+          <MapplsGL.UserLocation
+            visible={true}
+            showsUserHeadingIndicator={true}
+          />
+        </MapplsGL.MapView>
         {/* Topbar overlay */}
         <SafeAreaView
           edges={["top"]}
@@ -408,32 +414,3 @@ export default function RideScreen() {
     </View>
   );
 }
-
-const mapStyle = [
-  { elementType: "geometry", stylers: [{ color: "#e8edf5" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#1B4F8A" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#ffffff" }],
-  },
-  {
-    featureType: "road.arterial",
-    elementType: "geometry",
-    stylers: [{ color: "#dde3ed" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#c8d8e4" }],
-  },
-  {
-    featureType: "poi",
-    stylers: [{ visibility: "off" }],
-  },
-  {
-    featureType: "transit",
-    stylers: [{ visibility: "off" }],
-  },
-];

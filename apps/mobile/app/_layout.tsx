@@ -11,6 +11,7 @@ import {
 } from "@expo-google-fonts/plus-jakarta-sans";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "../store/auth";
+import { initMappls } from "../utils/mappls";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,6 +35,10 @@ export default function RootLayout() {
   }, [loaded, isLoading]);
 
   if (!loaded || isLoading) return null;
+
+  useEffect(() => {
+    initMappls();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
