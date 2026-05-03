@@ -11,7 +11,6 @@ import {
 } from "@expo-google-fonts/plus-jakarta-sans";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "../store/auth";
-import { initMappls } from "../utils/mappls";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,19 +25,22 @@ export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const isLoading = useAuthStore((s) => s.isLoading);
 
+  // Initialize auth when fonts are loaded
   useEffect(() => {
     if (loaded) initialize();
-  }, [loaded]);
+  }, [loaded, initialize]);
 
+  // Hide splash screen when everything is ready
   useEffect(() => {
-    if (loaded && !isLoading) SplashScreen.hideAsync();
+    if (loaded && !isLoading) {
+      SplashScreen.hideAsync();
+    }
   }, [loaded, isLoading]);
 
-  if (!loaded || isLoading) return null;
-
-  useEffect(() => {
-    initMappls();
-  }, []);
+  // Loading screen
+  if (!loaded || isLoading) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

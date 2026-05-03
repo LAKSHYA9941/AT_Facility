@@ -2,7 +2,6 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import MapplsGL from "mappls-map-react-native";
 
 const TODAY_STATS = [
