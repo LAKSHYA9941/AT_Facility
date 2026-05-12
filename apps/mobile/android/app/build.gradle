@@ -88,9 +88,6 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace 'com.laksh28.atfacility'
-    aaptOptions {
-        noCompress "conf", "olf"
-    }
     defaultConfig {
         applicationId 'com.laksh28.atfacility'
         minSdkVersion rootProject.ext.minSdkVersion

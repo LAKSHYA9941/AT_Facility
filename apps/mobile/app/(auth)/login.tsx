@@ -1,13 +1,13 @@
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
-import { useState } from "react";
 import { router } from "expo-router";
+import { useState } from "react";
+import { ScrollView, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import ScreenWrapper from "../../components/layout/ScreenWrapper";
-import Card from "../../components/ui/Card";
-import Input from "../../components/ui/Input";
-import Button from "../../components/ui/Button";
-import Divider from "../../components/ui/Divider";
 import AppLogo from "../../components/ui/AppLogo";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Divider from "../../components/ui/Divider";
+import Input from "../../components/ui/Input";
 import { useAuthStore } from "../../store/auth";
 
 export default function LoginScreen() {
@@ -126,11 +126,12 @@ export default function LoginScreen() {
                 <Text className="text-brand-sub font-medium text-sm">
                   Don't have an account?
                 </Text>
-                <TouchableOpacity onPress={() => {}} activeOpacity={0.7}>
-                  <Text className="text-brand-primary font-bold text-sm">
-                    Sign Up
-                  </Text>
-                </TouchableOpacity>
+                <Button
+                  variant="ghost"
+                  label="Sign Up"
+                  className="text-brand-primary  font-bold text-sm"
+                  onPress={() => router.push("/(onboarding)/welcome")}
+                />
               </View>
 
               <Text className="text-brand-sub text-xs text-center mt-6">

@@ -2,7 +2,8 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import MapplsGL from "mappls-map-react-native";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+import { useDriverStore } from "../../store/driver";
 
 const TODAY_STATS = [
   { val: "6", label: "Trips" },
@@ -11,66 +12,71 @@ const TODAY_STATS = [
   { val: "5.2hr", label: "Online" },
 ];
 
-const MOCK_REQUEST = {
-  passenger: "Priya Sharma",
-  rating: 4.8,
-  pickup: "Connaught Place, New Delhi",
-  drop: "Indira Gandhi Airport T3",
-  distance: "22.4 km",
-  fare: "₹520",
-  segment: "Shaana Babu",
-};
+const MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#e8edf5" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#1B4F8A" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
+  },
+  {
+    featureType: "road.arterial",
+    elementType: "geometry",
+    stylers: [{ color: "#dde3ed" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#c8d8e4" }],
+  },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+];
 
 export default function DriverHome() {
   const [online, setOnline] = useState(false);
-  const [showRequest, setShowRequest] = useState(false);
-  const [countdown, setCountdown] = useState(15);
 
-  const toggleOnline = () => {
-    const next = !online;
-    setOnline(next);
-    if (next) {
-      setTimeout(() => {
-        setShowRequest(true);
-        let c = 15;
-        const interval = setInterval(() => {
-          c -= 1;
-          setCountdown(c);
-          if (c <= 0) {
-            clearInterval(interval);
-            setShowRequest(false);
-            setCountdown(15);
-          }
-        }, 1000);
-      }, 2000);
+  const goOnline = useDriverStore((s) => s.goOnline);
+  const goOffline = useDriverStore((s) => s.goOffline);
+  const isOnline = useDriverStore((s) => s.isOnline);
+  const rideRequest = useDriverStore((s) => s.rideRequest);
+  const acceptRide = useDriverStore((s) => s.acceptRide);
+  const declineRide = useDriverStore((s) => s.declineRide);
+
+  const toggleOnline = async () => {
+    if (isOnline) {
+      await goOffline();
+    } else {
+      await goOnline();
     }
   };
 
   return (
     <View style={{ flex: 1 }}>
       {/* Map — root level, full screen */}
-      <MapplsGL.MapView
+      <MapView
+        provider={PROVIDER_GOOGLE}
         style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        logoEnabled={true}
-        compassEnabled={true}
-        zoomEnabled={true}
-        scrollEnabled={true}
-        pitchEnabled={true}
-        rotateEnabled={true}
-      >
-        <MapplsGL.Camera
-          zoomLevel={12}
-          centerCoordinate={[77.209, 28.6139]}
-          animationMode="flyTo"
-          animationDuration={1000}
-        />
-        <MapplsGL.UserLocation
-          visible={true}
-          showsUserHeadingIndicator={true}
-        />
-      </MapplsGL.MapView>
+        initialRegion={{
+          latitude: 28.6139,
+          longitude: 77.209,
+          latitudeDelta: 0.04,
+          longitudeDelta: 0.04,
+        }}
+        customMapStyle={MAP_STYLE}
+        showsUserLocation
+        showsMyLocationButton={false}
+        scrollEnabled
+        zoomEnabled
+        pitchEnabled
+        rotateEnabled
+        zoomTapEnabled
+        moveOnMarkerPress={false}
+      />
 
-      {/* Overlay — box-none so map gets gestures in empty space */}
+      {/* Overlay — box-none so map gets gestures */}
       <View
         style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
         pointerEvents="box-none"
@@ -232,11 +238,10 @@ export default function DriverHome() {
             </View>
           )}
 
-          {/* Spacer — box-none so map gets touches here */}
+          {/* Spacer */}
           <View style={{ flex: 1 }} pointerEvents="box-none" />
 
-          {/* Incoming ride request sheet */}
-          {showRequest && (
+          {rideRequest && (
             <Animated.View
               entering={FadeInUp.springify()}
               style={{
@@ -286,7 +291,7 @@ export default function DriverHome() {
                       fontSize: 18,
                     }}
                   >
-                    {MOCK_REQUEST.segment}
+                    {rideRequest.segment}
                   </Text>
                 </View>
                 <View
@@ -299,17 +304,7 @@ export default function DriverHome() {
                     alignItems: "center",
                     justifyContent: "center",
                   }}
-                >
-                  <Text
-                    style={{
-                      color: "#1B4F8A",
-                      fontWeight: "700",
-                      fontSize: 18,
-                    }}
-                  >
-                    {countdown}
-                  </Text>
-                </View>
+                ></View>
               </View>
 
               <View
@@ -336,7 +331,8 @@ export default function DriverHome() {
                   <Text
                     style={{ color: "white", fontWeight: "700", fontSize: 13 }}
                   >
-                    PS
+                    {rideRequest.passenger.name?.slice(0, 2).toUpperCase() ||
+                      "PS"}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -347,16 +343,13 @@ export default function DriverHome() {
                       fontSize: 14,
                     }}
                   >
-                    {MOCK_REQUEST.passenger}
-                  </Text>
-                  <Text style={{ color: "#F59E0B", fontSize: 12 }}>
-                    ★ {MOCK_REQUEST.rating}
+                    {rideRequest.passenger.name}
                   </Text>
                 </View>
                 <Text
                   style={{ color: "#1B4F8A", fontWeight: "700", fontSize: 16 }}
                 >
-                  {MOCK_REQUEST.fare}
+                  ₹{rideRequest.fare}
                 </Text>
               </View>
 
@@ -389,7 +382,7 @@ export default function DriverHome() {
                     style={{ color: "#111827", fontSize: 13, flex: 1 }}
                     numberOfLines={1}
                   >
-                    {MOCK_REQUEST.pickup}
+                    {rideRequest.pickup.address}
                   </Text>
                 </View>
                 <View
@@ -419,7 +412,7 @@ export default function DriverHome() {
                     style={{ color: "#111827", fontSize: 13, flex: 1 }}
                     numberOfLines={1}
                   >
-                    {MOCK_REQUEST.drop}
+                    {rideRequest.drop.address}
                   </Text>
                 </View>
               </View>
@@ -432,15 +425,12 @@ export default function DriverHome() {
                   marginBottom: 16,
                 }}
               >
-                {MOCK_REQUEST.distance} · Est. fare {MOCK_REQUEST.fare}
+                {rideRequest.distance} km · Est. fare ₹{rideRequest.fare}
               </Text>
 
               <View style={{ flexDirection: "row", gap: 12 }}>
                 <TouchableOpacity
-                  onPress={() => {
-                    setShowRequest(false);
-                    setCountdown(15);
-                  }}
+                  onPress={() => declineRide(rideRequest.rideId)}
                   activeOpacity={0.8}
                   style={{
                     flex: 1,
@@ -462,10 +452,7 @@ export default function DriverHome() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => {
-                    setShowRequest(false);
-                    setCountdown(15);
-                  }}
+                  onPress={() => acceptRide(rideRequest.rideId)}
                   activeOpacity={0.8}
                   style={{
                     flex: 1,

@@ -5,14 +5,12 @@ import {
   TouchableOpacity,
   ScrollView,
   FlatList,
-  ImageBackground,
   Dimensions,
 } from "react-native";
 import { useRef, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import { MapplsGL } from "../../utils/mappls";
-import TopBar from "../../components/layout/TopBar";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { MapPin } from "lucide-react-native";
 
 const { width } = Dimensions.get("window");
@@ -96,7 +94,7 @@ const FLEET = [
     hindi: "अपनी मर्ज़ी",
     sub: "Self-drive, main apna dost",
     eta: "Now",
-    price: "999 /km",
+    price: "999 /day",
     emoji: "🔑",
   },
 ];
@@ -108,34 +106,38 @@ export default function RideScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      {/* MAP — top ~35% of screen */}
+      {/* MAP */}
       <View style={{ height: 260 }}>
-        <MapplsGL.MapView
+        <MapView
+          provider={PROVIDER_GOOGLE}
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-          logoEnabled={true}
-          compassEnabled={true}
-          zoomEnabled={true}
-          scrollEnabled={true}
-          pitchEnabled={true}
-          rotateEnabled={true}
-        >
-          <MapplsGL.Camera
-            zoomLevel={12}
-            centerCoordinate={[77.209, 28.6139]}
-            animationMode="flyTo"
-            animationDuration={1000}
-          />
-          <MapplsGL.UserLocation
-            visible={true}
-            showsUserHeadingIndicator={true}
-          />
-        </MapplsGL.MapView>
+          initialRegion={{
+            latitude: 28.6139,
+            longitude: 77.209,
+            latitudeDelta: 0.04,
+            longitudeDelta: 0.04,
+          }}
+          customMapStyle={MAP_STYLE}
+          showsUserLocation
+          showsMyLocationButton={false}
+          scrollEnabled
+          zoomEnabled
+          pitchEnabled
+          rotateEnabled
+          zoomTapEnabled
+          moveOnMarkerPress={false}
+        />
+
         {/* Topbar overlay */}
         <SafeAreaView
           edges={["top"]}
           style={{ position: "absolute", top: 0, left: 0, right: 0 }}
+          pointerEvents="box-none"
         >
-          <View className="flex-row items-center justify-between px-5 py-3">
+          <View
+            className="flex-row items-center justify-between px-5 py-3"
+            pointerEvents="box-none"
+          >
             <TouchableOpacity activeOpacity={0.7}>
               <View className="gap-1">
                 <View className="w-5 h-0.5 bg-brand-primary" />
@@ -156,7 +158,7 @@ export default function RideScreen() {
           </View>
         </SafeAreaView>
 
-        {/* Location inputs floating on map */}
+        {/* Location inputs */}
         <View
           className="absolute left-4 right-4 bg-white rounded-2xl px-4 py-3"
           style={{
@@ -176,18 +178,13 @@ export default function RideScreen() {
               Your Location
             </Text>
           </View>
-
           <View className="flex-row items-center gap-3 pt-3">
             <Text className="text-brand-primary text-base">🔍</Text>
             <TextInput
               className="flex-1 text-brand-text font-medium text-sm"
               placeholder="Where to?"
               placeholderTextColor="#9CA3AF"
-              style={{
-                borderWidth: 0,
-                padding: 0,
-                margin: 0,
-              }}
+              style={{ borderWidth: 0, padding: 0, margin: 0 }}
             />
           </View>
         </View>
@@ -199,7 +196,6 @@ export default function RideScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 24 }}
         >
-          {/* Ride / Travel toggle + heading */}
           <Animated.View
             entering={FadeInUp.delay(100).springify()}
             className="flex-row items-center justify-between px-5 pt-4 pb-3"
@@ -207,7 +203,6 @@ export default function RideScreen() {
             <Text className="text-brand-text font-bold text-base">
               Select a ride
             </Text>
-            <View className="flex-row gap-2"></View>
           </Animated.View>
 
           {/* Fleet cards */}
@@ -220,11 +215,7 @@ export default function RideScreen() {
               <TouchableOpacity
                 onPress={() => setSelectedFleet(item)}
                 activeOpacity={0.85}
-                className={`border rounded-2xl p-4 ${
-                  selectedFleet.id === item.id
-                    ? "border-brand-primary border-2"
-                    : "border-brand-border"
-                }`}
+                className={`border rounded-2xl p-4 ${selectedFleet.id === item.id ? "border-brand-primary border-2" : "border-brand-border"}`}
               >
                 <View className="flex-row items-start justify-between mb-3">
                   <View className="w-12 h-12 bg-brand-input rounded-xl items-center justify-center">
@@ -247,11 +238,7 @@ export default function RideScreen() {
                 <View className="flex-row items-center gap-1 mt-2">
                   <Text className="text-brand-primary text-xs">⏱</Text>
                   <Text
-                    className={`text-xs font-semibold ${
-                      selectedFleet.id === item.id
-                        ? "text-brand-primary"
-                        : "text-brand-sub"
-                    }`}
+                    className={`text-xs font-semibold ${selectedFleet.id === item.id ? "text-brand-primary" : "text-brand-sub"}`}
                   >
                     {item.eta} away
                   </Text>
@@ -340,7 +327,6 @@ export default function RideScreen() {
               )}
               keyExtractor={(i) => i.id}
             />
-            {/* Dots */}
             <View className="flex-row justify-center gap-1.5 mt-3">
               {CAROUSEL.map((_, i) => (
                 <View
@@ -374,7 +360,7 @@ export default function RideScreen() {
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Promo code row */}
+          {/* Promo row */}
           <Animated.View
             entering={FadeInUp.delay(600).springify()}
             className="mx-5 mb-4 bg-brand-input border border-brand-border rounded-2xl px-4 py-3 flex-row items-center"
@@ -414,3 +400,26 @@ export default function RideScreen() {
     </View>
   );
 }
+
+const MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#e8edf5" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#1B4F8A" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#ffffff" }] },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
+  },
+  {
+    featureType: "road.arterial",
+    elementType: "geometry",
+    stylers: [{ color: "#dde3ed" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#c8d8e4" }],
+  },
+  { featureType: "poi", stylers: [{ visibility: "off" }] },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+];

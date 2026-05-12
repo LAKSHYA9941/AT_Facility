@@ -1,18 +1,26 @@
 import axios from "axios";
 import { SecureStorage } from "./secureStorage";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.147:3000";
-
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.147:4000";
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true", // add this
+  },
 });
 
 // attach access token to every request
 api.interceptors.request.use(async (config) => {
   const token = await SecureStorage.getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  console.log(
+    "🌐 API Request:",
+    config.method?.toUpperCase(),
+    config.baseURL,
+    config.url,
+  );
   return config;
 });
 
