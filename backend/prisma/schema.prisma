@@ -50,6 +50,8 @@ enum VehicleSegment {
   VOYAGER     // 6-10 seater — group
   ECORIDE     // Electric — sustainable
   FLEXDRIVE   // Self-drive rental
+  TEMPO       // Tempo Traveller — 12 seats
+  BUS         // Bus — 20+ seats
 }
 
 enum RideStatus {
@@ -61,11 +63,21 @@ enum RideStatus {
   CANCELLED
 }
 
+enum TripStatus {
+  OPEN
+  ACCEPTED
+  DRIVER_ENROUTE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 enum PaymentStatus {
   PENDING
   PAID
   FAILED
   REFUNDED
+  PARTIAL_REFUND
 }
 
 enum PaymentMethod {
@@ -122,6 +134,20 @@ model User {
   rentals          Rental[]
   notifications    Notification[]
 
+  // Trip relations
+  tripsAsCustomer      Trip[]       @relation("CustomerTrips")
+  tripRatingsGiven     TripRating[] @relation("TripRatingsGiven")
+  tripRatingsReceived  TripRating[] @relation("TripRatingsReceived")
+
+  // ID Verification
+  idProofType      String?    // AADHAAR | PAN | PASSPORT | VOTER_ID | DRIVING_LICENCE
+  idProofFront     String?    // S3 URL
+  idProofBack      String?    // S3 URL (null for single-sided docs)
+  idVerified       Boolean    @default(false)
+  idVerifiedAt     DateTime?
+  idVerifiedBy     String?    // admin userId
+  idSubmittedAt    DateTime?
+
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 }
@@ -170,6 +196,7 @@ model DriverProfile {
   totalEarnings   Float          @default(0)
   isOnline        Boolean        @default(false)
   isAvailable     Boolean        @default(false)
+  strikes         Int            @default(0) // 3 strikes = suspension
 
   currentLat      Float?
   currentLng      Float?
@@ -188,6 +215,10 @@ model DriverProfile {
   documents       Document[]
   ridesAsDriver   Ride[]         @relation("DriverRides")
   earnings        Earning[]
+
+  // Trip relations
+  tripsAsDriver   Trip[]         @relation("DriverTrips")
+  tripEarnings    TripEarning[]
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -246,7 +277,7 @@ model Document {
   @@index([status])
 }
 
-// ==================== RIDES ====================
+// ==================== RIDES (legacy) ====================
 
 model Ride {
   id              String         @id @default(cuid())
@@ -336,6 +367,119 @@ model Earning {
   net        Float         // driver receives
 
   createdAt  DateTime      @default(now())
+}
+
+// ==================== TRIPS ====================
+
+model Trip {
+  id                String         @id @default(cuid())
+  customerId        String
+  customer          User           @relation("CustomerTrips", fields: [customerId], references: [id])
+  driverId          String?
+  driver            DriverProfile? @relation("DriverTrips", fields: [driverId], references: [id])
+
+  // Route
+  pickupAddress     String
+  pickupLat         Float
+  pickupLng         Float
+  dropAddress       String
+  dropLat           Float
+  dropLng           Float
+  isRoundTrip       Boolean        @default(false)
+  waypoints         TripWaypoint[]
+
+  // People & Vehicle
+  passengerCount    Int            @default(1)
+  suggestedSegment  VehicleSegment
+  actualSegment     VehicleSegment
+  extraPassengers   Int            @default(0)
+  extraHeadCharge   Float          @default(0)
+  forceUpgraded     Boolean        @default(false)
+
+  // Duration
+  startDate         DateTime
+  endDate           DateTime
+  totalDays         Int
+  isMultiDay        Boolean        @default(false)
+
+  // Pricing
+  distanceKm        Float          @default(0)
+  perKmRate         Float          @default(0)
+  baseFare          Float          @default(0)
+  driverAllowance   Float          @default(0)
+  roundTripDiscount Float          @default(0)
+  totalFare         Float          @default(0)
+
+  // Status & Payment
+  status            TripStatus     @default(OPEN)
+  paymentStatus     PaymentStatus  @default(PENDING)
+  razorpayOrderId   String?
+  paidAt            DateTime?
+
+  // Cancellation
+  cancelledBy       String?
+  cancelReason      String?
+  refundAmount      Float?
+  refundStatus      String?
+
+  // Timestamps
+  acceptedAt        DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+
+  earning           TripEarning?
+  ratings           TripRating[]
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([customerId])
+  @@index([driverId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model TripWaypoint {
+  id                String    @id @default(cuid())
+  tripId            String
+  trip              Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  address           String
+  lat               Float
+  lng               Float
+  order             Int
+  estimatedArrival  DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([tripId])
+}
+
+model TripEarning {
+  id         String        @id @default(cuid())
+  driverId   String
+  driver     DriverProfile @relation(fields: [driverId], references: [id])
+  tripId     String        @unique
+  trip       Trip          @relation(fields: [tripId], references: [id])
+  gross      Float
+  commission Float
+  allowance  Float
+  net        Float
+  createdAt  DateTime      @default(now())
+}
+
+model TripRating {
+  id          String   @id @default(cuid())
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id])
+  ratingById  String
+  ratingBy    User     @relation("TripRatingsGiven", fields: [ratingById], references: [id])
+  ratingForId String
+  ratingFor   User     @relation("TripRatingsReceived", fields: [ratingForId], references: [id])
+  score       Int
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  @@unique([tripId, ratingById])
 }
 
 // ==================== PACKAGES ====================

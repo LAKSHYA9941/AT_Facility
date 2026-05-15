@@ -26,6 +26,15 @@ export enum RideStatus {
   CANCELLED = "CANCELLED",
 }
 
+export enum TripStatus {
+  OPEN = "OPEN",
+  ACCEPTED = "ACCEPTED",
+  DRIVER_ENROUTE = "DRIVER_ENROUTE",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED",
+}
+
 export enum VehicleSegment {
   SWIFT = "SWIFT",
   COMFORT = "COMFORT",
@@ -33,6 +42,8 @@ export enum VehicleSegment {
   VOYAGER = "VOYAGER",
   ECORIDE = "ECORIDE",
   FLEXDRIVE = "FLEXDRIVE",
+  TEMPO = "TEMPO",
+  BUS = "BUS",
 }
 
 export enum PaymentStatus {
@@ -40,6 +51,7 @@ export enum PaymentStatus {
   PAID = "PAID",
   FAILED = "FAILED",
   REFUNDED = "REFUNDED",
+  PARTIAL_REFUND = "PARTIAL_REFUND",
 }
 
 export enum PaymentMethod {

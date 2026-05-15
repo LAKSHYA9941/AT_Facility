@@ -94,24 +94,4 @@ export const authController = {
       return sendError(reply, err.message);
     }
   },
-
-  adminLogin: async (req: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const { email, password, deviceId, deviceName } = req.body as {
-        email: string;
-        password: string;
-        deviceId: string;
-        deviceName?: string;
-      };
-      const result = await authService.adminLogin(
-        email,
-        password,
-        deviceId,
-        deviceName || "Unknown device",
-      );
-      return sendSuccess(reply, result, "Admin login successful");
-    } catch (err: any) {
-      return sendError(reply, err.message, 401);
-    }
-  },
 };

@@ -8,6 +8,25 @@ export async function adminRoutes(fastify: FastifyInstance) {
   const adminController = new AdminController();
   const preHandler = [authGuard, roleGuard(Role.ADMIN)];
 
+  // Customer ID Proofs Endpoints
+  fastify.get(
+    "/id-proofs/queue",
+    { preHandler },
+    adminController.getCustomerIdQueue,
+  );
+
+  fastify.put<{ Params: { userId: string } }>(
+    "/id-proofs/:userId/approve",
+    { preHandler },
+    adminController.approveCustomerId,
+  );
+
+  fastify.put<{ Params: { userId: string }; Body: { reason: string } }>(
+    "/id-proofs/:userId/reject",
+    { preHandler },
+    adminController.rejectCustomerId,
+  );
+
   // KYC Endpoints
   fastify.get("/kyc/queue", { preHandler }, adminController.getKycQueue);
 
@@ -42,6 +61,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/kyc/:driverId/reject",
     { preHandler },
     adminController.rejectDriverKyc,
+  );
+
+  // Packages
+  fastify.put<{ Params: { bookingId: string } }>(
+    "/packages/bookings/:bookingId/approve",
+    { preHandler },
+    adminController.approvePackageBooking,
   );
 
   // Dashboard Stats

@@ -35,8 +35,16 @@ export default function OTPScreen() {
     setLoading(true);
     try {
       const result = await verifyOtp(phone, otp.join(""));
-      if (result.isNewUser) {
+      const user = useAuthStore.getState().user;
+
+      if (
+        result.isNewUser ||
+        !user?.profileComplete ||
+        (!user?.idVerified && !user?.idSubmittedAt)
+      ) {
         router.replace("/(auth)/complete-profile");
+      } else if (!user.idVerified && user.idSubmittedAt) {
+        router.replace("/(auth)/pending-verification");
       } else {
         if (result.role === "CUSTOMER") router.replace("/(customer)/ride");
         if (result.role === "DRIVER") router.replace("/(driver)/home");

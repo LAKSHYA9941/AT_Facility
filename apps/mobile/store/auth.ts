@@ -14,6 +14,8 @@ type User = {
   role: Role;
   profileComplete: boolean;
   status: string;
+  idVerified: boolean;
+  idSubmittedAt: string | null;
 };
 
 type AuthStore = {
@@ -33,6 +35,11 @@ type AuthStore = {
   refresh: () => Promise<boolean>;
   logout: () => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
+  uploadIdProof: (
+    idProofType: string,
+    frontUri: string,
+    backUri?: string,
+  ) => Promise<void>;
 };
 
 const routeByRole = (role: Role) => {
@@ -172,5 +179,60 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     );
     await SecureStorage.setUser(data.data.user);
     set({ user: data.data.user, isAuthenticated: true });
+  },
+
+  uploadIdProof: async (
+    idProofType: string,
+    frontUri: string,
+    backUri?: string,
+  ) => {
+    const { data: frontData } = await api.post(
+      "/api/customer/id-proof/upload",
+      {
+        idProofType,
+        side: "front",
+      },
+    );
+
+    const frontBlob = await (await fetch(frontUri)).blob();
+    await fetch(frontData.data.uploadUrl, {
+      method: "PUT",
+      body: frontBlob,
+      headers: { "Content-Type": "image/jpeg" },
+    });
+
+    let backKey;
+    if (backUri) {
+      const { data: backData } = await api.post(
+        "/api/customer/id-proof/upload",
+        {
+          idProofType,
+          side: "back",
+        },
+      );
+      const backBlob = await (await fetch(backUri)).blob();
+      await fetch(backData.data.uploadUrl, {
+        method: "PUT",
+        body: backBlob,
+        headers: { "Content-Type": "image/jpeg" },
+      });
+      backKey = backData.data.fileKey;
+    }
+
+    const { data: confirmData } = await api.put(
+      "/api/customer/id-proof/confirm",
+      {
+        idProofType,
+        frontKey: frontData.data.fileKey,
+        backKey,
+      },
+    );
+
+    const user = get().user;
+    if (user) {
+      const updatedUser = { ...user, ...confirmData.data };
+      await SecureStorage.setUser(updatedUser);
+      set({ user: updatedUser });
+    }
   },
 }));

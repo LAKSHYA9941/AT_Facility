@@ -1,4 +1,4 @@
-import { prisma } from "../../shared/db/prisma";
+import prisma from "../../shared/db/prisma";
 import { PackageCategory, BookingStatus } from "../../shared/types/enums";
 
 export class PackagesService {
@@ -13,9 +13,7 @@ export class PackagesService {
   }
 
   async getPackage(id: string) {
-    const pkg = await prisma.package.findUnique({
-      where: { id },
-    });
+    const pkg = await prisma.package.findUnique({ where: { id } });
     if (!pkg) throw new Error("Package not found");
     return pkg;
   }

@@ -9,25 +9,22 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding database...");
 
-  // Create admin user
-  const adminPassword = process.env.ADMIN_PASSWORD || "Admin@1234";
-  const hashedPassword = await bcrypt.hash(adminPassword, 12);
-
   const admin = await prisma.user.upsert({
     where: { email: process.env.ADMIN_EMAIL || "admin@atfacility.com" },
-    update: {},
+    update: {
+      phone: "9999999999",
+    },
     create: {
-      phone: "0000000000",
+      phone: "9999999999",
       email: process.env.ADMIN_EMAIL || "admin@atfacility.com",
       name: "AT Facility Admin",
       role: "ADMIN",
-      password: hashedPassword,
       profileComplete: true,
       status: "ACTIVE",
     },
   });
 
-  console.log(`✅ Admin created: ${admin.email}`);
+  console.log(`✅ Admin created: ${admin.phone}`);
 
   // Seed packages
   await prisma.package.createMany({
@@ -144,10 +141,8 @@ async function main() {
   console.log("✅ Packages seeded");
   console.log("\n🎉 Seed complete!");
   console.log(`\nAdmin credentials:`);
-  console.log(
-    `  Email:    ${process.env.ADMIN_EMAIL || "admin@atfacility.com"}`,
-  );
-  console.log(`  Password: ${adminPassword}`);
+  console.log(`  Phone: 9999999999`);
+  console.log(`  Role:  ADMIN`);
 }
 
 main()

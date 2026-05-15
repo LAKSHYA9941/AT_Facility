@@ -3,6 +3,7 @@ import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useAuthStore } from "../../store/auth";
 
 type MenuItem = {
   icon: string;
@@ -18,52 +19,6 @@ type Section = {
   title: string;
   items: MenuItem[];
 };
-
-const SECTIONS: Section[] = [
-  {
-    title: "Payments",
-    items: [
-      { icon: "💳", label: "Saved cards", sub: "Visa ···· 4242" },
-      { icon: "👛", label: "Facility Wallet", sub: "₹340 available" },
-      {
-        icon: "🏷️",
-        label: "Promo codes",
-        sub: "FACILITY20 active",
-        badge: "1",
-      },
-    ],
-  },
-  {
-    title: "Trips",
-    items: [
-      { icon: "📍", label: "Saved addresses", sub: "Home, Office" },
-      { icon: "⭐", label: "Favourite drivers", sub: "3 drivers" },
-      { icon: "🔔", label: "Ride notifications", toggle: true },
-    ],
-  },
-  {
-    title: "Account",
-    items: [
-      { icon: "🔒", label: "Aadhaar verification", sub: "Verified ✓" },
-      { icon: "🛡️", label: "Privacy & safety" },
-      { icon: "🌐", label: "Language", sub: "English" },
-      { icon: "⭐", label: "Rate the app" },
-      { icon: "💬", label: "Help & support" },
-    ],
-  },
-  {
-    title: "Danger zone",
-    items: [
-      {
-        icon: "🚪",
-        label: "Log out",
-        danger: true,
-        onPress: () => router.replace("/(auth)/login"),
-      },
-      { icon: "🗑️", label: "Delete account", danger: true },
-    ],
-  },
-];
 
 function MenuRow({ item }: { item: MenuItem }) {
   const [toggled, setToggled] = useState(true);
@@ -110,6 +65,80 @@ function MenuRow({ item }: { item: MenuItem }) {
 }
 
 export default function AccountScreen() {
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+
+  let idVerificationItem: MenuItem = {
+    icon: "🔒",
+    label: "Identity Verification",
+  };
+  if (user?.idVerified) {
+    idVerificationItem = {
+      ...idVerificationItem,
+      label: "✓ Identity Verified",
+      sub: "Verified",
+      onPress: undefined,
+    };
+  } else if (user?.idSubmittedAt) {
+    idVerificationItem = {
+      ...idVerificationItem,
+      label: "⏳ Verification Pending",
+      onPress: () => router.push("/(auth)/pending-verification"),
+    };
+  } else {
+    idVerificationItem = {
+      ...idVerificationItem,
+      label: "🪪 Verify Identity",
+      onPress: () => router.push("/(auth)/complete-profile"),
+    };
+  }
+
+  const SECTIONS: Section[] = [
+    {
+      title: "Payments",
+      items: [
+        { icon: "💳", label: "Saved cards", sub: "Visa ···· 4242" },
+        { icon: "👛", label: "Facility Wallet", sub: "₹340 available" },
+        {
+          icon: "🏷️",
+          label: "Promo codes",
+          sub: "FACILITY20 active",
+          badge: "1",
+        },
+      ],
+    },
+    {
+      title: "Trips",
+      items: [
+        { icon: "📍", label: "Saved addresses", sub: "Home, Office" },
+        { icon: "⭐", label: "Favourite drivers", sub: "3 drivers" },
+        { icon: "🔔", label: "Ride notifications", toggle: true },
+      ],
+    },
+    {
+      title: "Account",
+      items: [
+        idVerificationItem,
+        { icon: "🛡️", label: "Privacy & safety" },
+        { icon: "🌐", label: "Language", sub: "English" },
+        { icon: "⭐", label: "Rate the app" },
+        { icon: "💬", label: "Help & support" },
+      ],
+    },
+    {
+      title: "Danger zone",
+      items: [
+        {
+          icon: "🚪",
+          label: "Log out",
+          danger: true,
+          onPress: () => logout(),
+        },
+        { icon: "🗑️", label: "Delete account", danger: true },
+      ],
+    },
+  ];
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -120,14 +149,20 @@ export default function AccountScreen() {
         >
           <View className="flex-row items-center gap-4">
             <View className="w-16 h-16 rounded-full bg-white items-center justify-center">
-              <Text className="text-brand-primary font-bold text-xl">RK</Text>
+              <Text className="text-brand-primary font-bold text-xl">
+                {user?.name ? user.name.substring(0, 2).toUpperCase() : "US"}
+              </Text>
             </View>
             <View className="flex-1">
-              <Text className="text-white font-bold text-lg">Rahul Kumar</Text>
-              <Text className="text-white/70 text-xs mt-0.5">
-                rahul@atfacility.com
+              <Text className="text-white font-bold text-lg">
+                {user?.name || "User"}
               </Text>
-              <Text className="text-white/70 text-xs">+91 98100 XXXXX</Text>
+              {user?.email && (
+                <Text className="text-white/70 text-xs mt-0.5">
+                  {user.email}
+                </Text>
+              )}
+              <Text className="text-white/70 text-xs">{user?.phone}</Text>
             </View>
             <TouchableOpacity
               activeOpacity={0.8}

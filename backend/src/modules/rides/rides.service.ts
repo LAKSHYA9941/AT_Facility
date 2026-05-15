@@ -1,10 +1,11 @@
 import prisma from "../../shared/db/prisma";
+import { notificationsService } from "../notifications/notifications.service";
 import { calculateFare } from "./rides.fare";
 import { findSingleNearestDriver } from "./rides.dispatch";
 import { getRouteInfo } from "./rides.mappls";
 import { VehicleSegment, RideStatus } from "../../shared/types/enums";
 import { generateOTP } from "../../shared/utils/otp";
-import { sendRideRequest } from "../../shared/socket/socket";
+import { io, sendRideRequest } from "../../shared/socket/socket";
 import { SOCKET_EVENTS } from "../../shared/socket/socket.events";
 
 export const ridesService = {
@@ -189,6 +190,13 @@ export const ridesService = {
       }),
     ]);
 
+    await notificationsService.sendPushNotification(
+      updated.customerId,
+      "Ride Confirmed!",
+      "A driver has been assigned and is on the way.",
+      { rideId },
+    );
+
     return updated;
   },
 
@@ -331,7 +339,6 @@ const dispatchRide = async (
           data: { status: "CANCELLED", cancelReason: "No drivers available" },
         });
         // Notify customer
-        const { io } = await import("../../shared/socket/socket");
         const updatedRide = await prisma.ride.findUnique({
           where: { id: rideId },
         });

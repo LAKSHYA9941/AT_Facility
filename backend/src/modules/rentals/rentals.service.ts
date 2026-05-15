@@ -1,4 +1,4 @@
-import { prisma } from "../../shared/db/prisma";
+import prisma from "../../shared/db/prisma";
 import { BookingStatus } from "../../shared/types/enums";
 
 export class RentalsService {
@@ -35,17 +35,11 @@ export class RentalsService {
     const timeDiff = endDate.getTime() - startDate.getTime();
     const totalDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
-    const pricePerDay = vehicle.rentalPricePerDay || 0;
+    const pricePerDay = vehicle.rentalPricePerDay ?? 0;
     const baseTotalPrice = pricePerDay * totalDays;
 
-    let driverCharge = 0;
-    let driverTotalCharge = 0;
-
-    if (withDriver) {
-      driverCharge = 500;
-      driverTotalCharge = driverCharge * totalDays;
-    }
-
+    const driverCharge = withDriver ? 500 : 0;
+    const driverTotalCharge = driverCharge * totalDays;
     const prepaidAmount = baseTotalPrice + driverTotalCharge;
 
     return prisma.rental.create({
@@ -77,9 +71,7 @@ export class RentalsService {
   }
 
   async cancelRental(userId: string, rentalId: string) {
-    const rental = await prisma.rental.findUnique({
-      where: { id: rentalId },
-    });
+    const rental = await prisma.rental.findUnique({ where: { id: rentalId } });
 
     if (!rental || rental.userId !== userId) {
       throw new Error("Rental not found");

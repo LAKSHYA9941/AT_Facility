@@ -22,6 +22,15 @@ export const SOCKET_EVENTS = {
   RIDE_COMPLETED: "ride:completed",
   RIDE_NO_DRIVERS: "ride:no:drivers",
 
+  // ── Trip Events ──────────────────────────────────────────
+  TRIP_OPEN: "trip:open",
+  TRIP_ACCEPTED: "trip:accepted",
+  TRIP_ENROUTE: "trip:driver_enroute",
+  TRIP_STARTED: "trip:started",
+  TRIP_COMPLETED: "trip:completed",
+  TRIP_CANCELLED: "trip:cancelled",
+  TRIP_REASSIGNING: "trip:reassigning",
+
   // Server → Admin
   ADMIN_STATS: "admin:stats:update",
   ADMIN_KYC: "admin:kyc:submitted",

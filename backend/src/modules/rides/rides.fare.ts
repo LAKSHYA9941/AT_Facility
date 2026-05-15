@@ -61,6 +61,22 @@ const FARE_CONFIG: Record<
     extraPerHead: 0,
     // Flexdrive uses daily rental pricing — not per km
   },
+  [VehicleSegment.TEMPO]: {
+    base: 150,
+    perKm: 35,
+    perMin: 3,
+    minFare: 300,
+    capacity: 12,
+    extraPerHead: 200,
+  },
+  [VehicleSegment.BUS]: {
+    base: 300,
+    perKm: 55,
+    perMin: 5,
+    minFare: 500,
+    capacity: 20,
+    extraPerHead: 0,
+  },
 };
 
 // Surge multiplier based on hour of day

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Car, Compass, Activity, User } from "lucide-react-native";
+import { Car, Compass, Activity, User, Map } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CustomerLayout() {
@@ -24,8 +24,8 @@ export default function CustomerLayout() {
       <Tabs.Screen
         name="ride"
         options={{
-          title: "Ride",
-          tabBarIcon: ({ color, size }) => <Car size={size} color={color} />,
+          title: "Plan Trip",
+          tabBarIcon: ({ color, size }) => <Map size={size} color={color} />,
         }}
       />
       <Tabs.Screen

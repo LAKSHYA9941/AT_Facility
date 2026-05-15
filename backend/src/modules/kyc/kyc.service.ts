@@ -1,14 +1,18 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { prisma } from "../../shared/db/prisma";
+import prisma from "../../shared/db/prisma";
 import {
   DocumentType,
   DocumentStatus,
   KYCStatus,
 } from "../../shared/types/enums";
 
-const s3Client = new S3Client({
-  region: "us-east-1",
+const s3 = new S3Client({
+  region: process.env.AWS_REGION || "ap-south-1",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
 });
 
 export class KycService {
@@ -38,9 +42,7 @@ export class KycService {
       ContentType: "image/jpeg",
     });
 
-    const presignedUrl = await getSignedUrl(s3Client, command, {
-      expiresIn: 3600,
-    });
+    const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
     const fileUrl = `https://${bucketName}.s3.amazonaws.com/${fileKey}`;
 
     const document = await prisma.document.upsert({
@@ -63,17 +65,12 @@ export class KycService {
       },
     });
 
-    return {
-      presignedUrl,
-      document,
-    };
+    return { presignedUrl, document };
   }
 
   async submitKyc(userId: string) {
     const driverId = await this.getDriverProfileId(userId);
-    const docs = await prisma.document.findMany({
-      where: { driverId },
-    });
+    const docs = await prisma.document.findMany({ where: { driverId } });
 
     const requiredDocs: DocumentType[] = [
       DocumentType.AADHAAR,
@@ -93,20 +90,16 @@ export class KycService {
       throw new Error(`Missing required documents: ${missingDocs.join(", ")}`);
     }
 
-    const driverProfile = await prisma.driverProfile.update({
+    return prisma.driverProfile.update({
       where: { userId },
       data: { kycStatus: KYCStatus.PENDING },
     });
-
-    return driverProfile;
   }
 
   async getKycStatus(userId: string) {
     const driverProfile = await prisma.driverProfile.findUnique({
       where: { userId },
-      include: {
-        documents: true,
-      },
+      include: { documents: true },
     });
 
     if (!driverProfile) {

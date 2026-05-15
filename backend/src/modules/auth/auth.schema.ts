@@ -4,6 +4,7 @@ export const sendOtpSchema = {
     required: ["phone"],
     properties: {
       phone: { type: "string" },
+      role: { type: "string" },
     },
   },
 };
@@ -17,6 +18,7 @@ export const verifyOtpSchema = {
       otp: { type: "string", minLength: 6, maxLength: 6 },
       deviceId: { type: "string" },
       deviceName: { type: "string" },
+      role: { type: "string" },
     },
   },
 };
@@ -49,19 +51,6 @@ export const logoutSchema = {
     required: ["refreshToken"],
     properties: {
       refreshToken: { type: "string" },
-    },
-  },
-};
-
-export const adminLoginSchema = {
-  body: {
-    type: "object",
-    required: ["email", "password", "deviceId"],
-    properties: {
-      email: { type: "string" },
-      password: { type: "string", minLength: 6 },
-      deviceId: { type: "string" },
-      deviceName: { type: "string" },
     },
   },
 };

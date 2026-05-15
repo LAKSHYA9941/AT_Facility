@@ -1,13 +1,76 @@
-import { prisma } from "../../shared/db/prisma";
+import prisma from "../../shared/db/prisma";
+import { notificationsService } from "../notifications/notifications.service";
 import {
   DocumentStatus,
   KYCStatus,
   Role,
   UserStatus,
   PaymentStatus,
+  BookingStatus,
 } from "../../shared/types/enums";
 
 export class AdminService {
+  async getCustomerIdQueue() {
+    return prisma.user.findMany({
+      where: {
+        idSubmittedAt: { not: null },
+        idVerified: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        idProofType: true,
+        idProofFront: true,
+        idProofBack: true,
+        idSubmittedAt: true,
+      },
+      orderBy: { idSubmittedAt: "desc" },
+    });
+  }
+
+  async approveCustomerId(userId: string, adminUserId: string) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        idVerified: true,
+        idVerifiedAt: new Date(),
+        idVerifiedBy: adminUserId,
+      },
+    });
+
+    await notificationsService.sendPushNotification(
+      user.id,
+      "ID Verified",
+      "Your ID has been verified. You can now book trips.",
+      { type: "ID_VERIFICATION_UPDATE", status: "VERIFIED" },
+    );
+
+    return user;
+  }
+
+  async rejectCustomerId(userId: string, reason: string) {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        idVerified: false,
+        idProofFront: null,
+        idProofBack: null,
+        idSubmittedAt: null,
+      },
+    });
+
+    await notificationsService.sendPushNotification(
+      user.id,
+      "ID Verification Failed",
+      "Your ID verification failed. Please resubmit. Reason: " + reason,
+      { type: "ID_VERIFICATION_UPDATE", status: "REJECTED", reason },
+    );
+
+    return user;
+  }
+
   async getKycQueue() {
     return prisma.driverProfile.findMany({
       where: { kycStatus: KYCStatus.PENDING },
@@ -41,7 +104,7 @@ export class AdminService {
         status: DocumentStatus.APPROVED,
         verifiedAt: new Date(),
         verifiedBy: adminUserId,
-        rejectReason: null, // Clear any previous reject reason
+        rejectReason: null,
       },
     });
   }
@@ -62,9 +125,7 @@ export class AdminService {
   }
 
   async approveDriverKyc(driverId: string) {
-    const docs = await prisma.document.findMany({
-      where: { driverId },
-    });
+    const docs = await prisma.document.findMany({ where: { driverId } });
 
     const allApproved = docs.every(
       (doc) => doc.status === DocumentStatus.APPROVED,
@@ -75,17 +136,51 @@ export class AdminService {
       );
     }
 
-    return prisma.driverProfile.update({
+    const updated = await prisma.driverProfile.update({
       where: { id: driverId },
       data: { kycStatus: KYCStatus.VERIFIED },
     });
+
+    await notificationsService.sendPushNotification(
+      updated.userId,
+      "KYC Approved",
+      "Your documents have been verified. You can now accept rides!",
+      { type: "KYC_UPDATE", status: "VERIFIED" },
+    );
+
+    return updated;
   }
 
   async rejectDriverKyc(driverId: string) {
-    return prisma.driverProfile.update({
+    const updated = await prisma.driverProfile.update({
       where: { id: driverId },
       data: { kycStatus: KYCStatus.REJECTED },
     });
+
+    await notificationsService.sendPushNotification(
+      updated.userId,
+      "KYC Rejected",
+      "Your documents were rejected. Please check the app and upload them again.",
+      { type: "KYC_UPDATE", status: "REJECTED" },
+    );
+
+    return updated;
+  }
+
+  async approvePackageBooking(bookingId: string) {
+    const updated = await prisma.packageBooking.update({
+      where: { id: bookingId },
+      data: { status: BookingStatus.CONFIRMED },
+    });
+
+    await notificationsService.sendPushNotification(
+      updated.userId,
+      "Package Booking Confirmed",
+      "Your package booking has been confirmed! Get ready for your trip.",
+      { type: "PACKAGE_UPDATE", bookingId: updated.id, status: "CONFIRMED" },
+    );
+
+    return updated;
   }
 
   async getDashboardStats() {
@@ -97,7 +192,7 @@ export class AdminService {
       totalDrivers,
       ridesTotal,
       ridesToday,
-      kycPending,
+      pendingKyc,
       revenueQuery,
     ] = await Promise.all([
       prisma.user.count({ where: { role: Role.CUSTOMER } }),
@@ -116,8 +211,8 @@ export class AdminService {
       totalDrivers,
       ridesTotal,
       ridesToday,
-      revenueToday: revenueQuery._sum.totalFare || 0,
-      kycPending,
+      revenueToday: revenueQuery._sum.totalFare ?? 0,
+      pendingKyc,
     };
   }
 

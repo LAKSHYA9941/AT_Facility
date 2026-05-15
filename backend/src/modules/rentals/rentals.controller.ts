@@ -1,6 +1,11 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { RentalsService } from "./rentals.service";
 import { JWTPayload } from "../../shared/types";
+import {
+  sendSuccess,
+  sendCreated,
+  sendError,
+} from "../../shared/utils/response";
 
 const rentalsService = new RentalsService();
 
@@ -17,11 +22,9 @@ export class RentalsController {
   getAvailableVehicles = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = await rentalsService.getAvailableVehicles();
-      return reply.send({ success: true, message: "Vehicles retrieved", data });
-    } catch (error: any) {
-      return reply
-        .status(400)
-        .send({ success: false, message: error.message, data: null });
+      return sendSuccess(reply, data, "Vehicles retrieved");
+    } catch (err: any) {
+      return sendError(reply, err.message);
     }
   };
 
@@ -47,7 +50,8 @@ export class RentalsController {
         !pickupLocation ||
         !returnLocation
       ) {
-        throw new Error(
+        return sendError(
+          reply,
           "vehicleId, startDate, endDate, pickupLocation, and returnLocation are required",
         );
       }
@@ -62,15 +66,9 @@ export class RentalsController {
         withDriver || false,
       );
 
-      return reply.send({
-        success: true,
-        message: "Rental created successfully",
-        data,
-      });
-    } catch (error: any) {
-      return reply
-        .status(400)
-        .send({ success: false, message: error.message, data: null });
+      return sendCreated(reply, data, "Rental created successfully");
+    } catch (err: any) {
+      return sendError(reply, err.message);
     }
   };
 
@@ -78,15 +76,9 @@ export class RentalsController {
     try {
       const user = req.user as JWTPayload;
       const data = await rentalsService.getMyRentals(user.userId);
-      return reply.send({
-        success: true,
-        message: "My rentals retrieved",
-        data,
-      });
-    } catch (error: any) {
-      return reply
-        .status(400)
-        .send({ success: false, message: error.message, data: null });
+      return sendSuccess(reply, data, "My rentals retrieved");
+    } catch (err: any) {
+      return sendError(reply, err.message);
     }
   };
 
@@ -98,15 +90,9 @@ export class RentalsController {
       const user = req.user as JWTPayload;
       const { id } = req.params;
       const data = await rentalsService.cancelRental(user.userId, id);
-      return reply.send({
-        success: true,
-        message: "Rental cancelled successfully",
-        data,
-      });
-    } catch (error: any) {
-      return reply
-        .status(400)
-        .send({ success: false, message: error.message, data: null });
+      return sendSuccess(reply, data, "Rental cancelled successfully");
+    } catch (err: any) {
+      return sendError(reply, err.message);
     }
   };
 }

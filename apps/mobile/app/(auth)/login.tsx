@@ -1,35 +1,27 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View, TextInput } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import ScreenWrapper from "../../components/layout/ScreenWrapper";
 import AppLogo from "../../components/ui/AppLogo";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
-import Divider from "../../components/ui/Divider";
-import Input from "../../components/ui/Input";
 import { useAuthStore } from "../../store/auth";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const CREDS: Record<string, { pass: string; route: string }> = {
-    customer: { pass: "1234", route: "/(customer)/ride" },
-    driver: { pass: "1234", route: "/(driver)/home" },
-    admin: { pass: "1234", route: "/(admin)/dashboard" },
-  };
+  const sendOtp = useAuthStore((s) => s.sendOtp);
 
-  const adminLogin = useAuthStore((s) => s.adminLogin);
-
-  const handleLogin = async () => {
+  const handleSendOtp = async () => {
+    if (phone.length !== 10) return;
     setLoading(true);
     try {
-      await adminLogin(email.trim(), password);
-      router.replace("/(admin)/dashboard");
+      await sendOtp(phone);
+      router.push({ pathname: "/(auth)/otp", params: { phone } });
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || "Login failed");
+      alert(err.response?.data?.message || err.message || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
@@ -38,104 +30,61 @@ export default function LoginScreen() {
   return (
     <ScreenWrapper variant="light">
       <ScrollView
-        className="flex-1"
+        className="flex-1 bg-[#EEF2F7]"
         contentContainerClassName="flex-grow justify-center px-5 py-8"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.delay(80).springify()}>
-          <Card>
-            {/* Logo */}
+          <View className="items-center mb-8">
             <AppLogo size="md" />
+          </View>
 
+          <Card>
             {/* Heading */}
-            <View className="mt-5 mb-8">
-              <Text className="text-brand-primary font-bold text-2xl mb-1">
-                Welcome Back
+            <View className="mt-2 mb-6">
+              <Text className="text-[#1B4F8A] font-bold text-2xl mb-1 text-center">
+                Enter your phone number
               </Text>
-              <Text className="text-brand-sub font-medium text-sm leading-5">
-                Log in to manage your rides and travel plans.
+              <Text className="text-[#9CA3AF] font-medium text-sm leading-5 text-center">
+                We'll send you a verification code
               </Text>
             </View>
 
             {/* Form */}
             <View className="gap-5">
               <Animated.View entering={FadeInDown.delay(160).springify()}>
-                <Input
-                  label="Email Address"
-                  placeholder="alex@example.com"
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </Animated.View>
-
-              <Animated.View entering={FadeInDown.delay(220).springify()}>
-                <Input
-                  label="Password"
-                  rightLabel="Forgot Password?"
-                  onRightLabelPress={() => {}}
-                  placeholder="••••••••"
-                  secure
-                  value={password}
-                  onChangeText={setPassword}
-                />
+                <View className="flex-row items-center border border-[#DDE3ED] rounded-xl h-14 px-4 bg-white">
+                  <Text className="text-xl mr-2">🇮🇳</Text>
+                  <Text className="text-base font-medium text-[#111827] mr-2">
+                    +91
+                  </Text>
+                  <View className="w-[1px] h-6 bg-[#DDE3ED] mr-3" />
+                  <TextInput
+                    className="flex-1 text-base font-medium text-[#111827]"
+                    placeholder="9999999999"
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    value={phone}
+                    onChangeText={setPhone}
+                  />
+                </View>
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(280).springify()}>
                 <Button
-                  label="Log In"
-                  onPress={handleLogin}
+                  label="Send OTP"
+                  onPress={handleSendOtp}
                   loading={loading}
-                  disabled={!email || !password}
+                  disabled={phone.length !== 10}
                 />
               </Animated.View>
             </View>
 
-            {/* Divider */}
-            <Animated.View
-              entering={FadeInDown.delay(320).springify()}
-              className="my-6"
-            >
-              <Divider label="or continue with" />
-            </Animated.View>
-
-            {/* Social buttons */}
-            <Animated.View
-              entering={FadeInDown.delay(360).springify()}
-              className="flex-row gap-3"
-            >
-              <Button
-                variant="social"
-                label="Google"
-                leftIcon={<Text className="text-base">G</Text>}
-                onPress={() => {}}
-              />
-              <Button
-                variant="social"
-                label="Apple"
-                leftIcon={<Text className="text-base">⌘</Text>}
-                onPress={() => {}}
-              />
-            </Animated.View>
-
             {/* Footer */}
             <Animated.View entering={FadeInDown.delay(400).springify()}>
-              <Divider />
-              <View className="flex-row justify-center items-center gap-1">
-                <Text className="text-brand-sub font-medium text-sm">
-                  Don't have an account?
-                </Text>
-                <Button
-                  variant="ghost"
-                  label="Sign Up"
-                  className="text-brand-primary  font-bold text-sm"
-                  onPress={() => router.push("/(onboarding)/welcome")}
-                />
-              </View>
-
-              <Text className="text-brand-sub text-xs text-center mt-6">
-                © 2024 At Facility. All rights reserved.
+              <Text className="text-[#9CA3AF] text-xs text-center mt-6">
+                By continuing you agree to our Terms & Privacy Policy
               </Text>
             </Animated.View>
           </Card>

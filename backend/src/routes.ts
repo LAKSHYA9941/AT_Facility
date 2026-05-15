@@ -1,8 +1,24 @@
 import { FastifyInstance } from "fastify";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { ridesRoutes } from "./modules/rides/rides.routes";
+import { kycRoutes } from "./modules/kyc/kyc.routes";
+import { adminRoutes } from "./modules/admin/admin.routes";
+import { packagesRoutes } from "./modules/packages/packages.routes";
+import { rentalsRoutes } from "./modules/rentals/rentals.routes";
+import { paymentsRoutes } from "./modules/payments/payments.routes";
+import { notificationsRoutes } from "./modules/notifications/notifications.routes";
+import { tripsRoutes } from "./modules/trips/trips.routes";
+import { customerRoutes } from "./modules/customer/customer.routes";
 
 export const registerRoutes = async (app: FastifyInstance) => {
   app.register(authRoutes, { prefix: "/api/auth" });
   app.register(ridesRoutes, { prefix: "/api/rides" });
+  app.register(kycRoutes, { prefix: "/api/kyc" });
+  app.register(adminRoutes, { prefix: "/api/admin" });
+  app.register(packagesRoutes, { prefix: "/api/packages" });
+  app.register(rentalsRoutes, { prefix: "/api/rentals" });
+  app.register(paymentsRoutes, { prefix: "/api/payments" });
+  app.register(notificationsRoutes, { prefix: "/api/notifications" });
+  app.register(tripsRoutes, { prefix: "/api/trips" });
+  app.register(customerRoutes, { prefix: "/api/customer" });
 };

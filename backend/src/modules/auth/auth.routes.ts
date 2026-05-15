@@ -7,7 +7,6 @@ import {
   refreshSchema,
   completeProfileSchema,
   logoutSchema,
-  adminLoginSchema,
 } from "./auth.schema";
 
 export const authRoutes = async (app: FastifyInstance) => {
@@ -26,11 +25,6 @@ export const authRoutes = async (app: FastifyInstance) => {
     "/refresh",
     { schema: { body: refreshSchema.body } },
     authController.refresh,
-  );
-  app.post(
-    "/admin/login",
-    { schema: { body: adminLoginSchema.body } },
-    authController.adminLogin,
   );
 
   // Protected routes — need valid access token
