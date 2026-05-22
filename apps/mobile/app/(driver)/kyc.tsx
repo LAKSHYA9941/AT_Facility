@@ -1,7 +1,16 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
-import { useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import * as ImagePicker from "expo-image-picker";
+import { api } from "../../utils/api";
 
 type DocStatus = "empty" | "uploaded" | "verified" | "rejected";
 
@@ -12,46 +21,40 @@ type Doc = {
   emoji: string;
   status: DocStatus;
   rejectReason?: string;
+  uploading?: boolean;
 };
 
 const INITIAL_DOCS: Doc[] = [
   {
-    id: "aadhaar",
+    id: "AADHAAR",
     label: "Aadhaar Card",
     sub: "Front & back photo",
     emoji: "🪪",
     status: "empty",
   },
   {
-    id: "dl",
+    id: "DRIVING_LICENSE",
     label: "Driving License",
     sub: "Valid DL — all vehicle classes",
     emoji: "🚗",
     status: "empty",
   },
   {
-    id: "rc",
+    id: "VEHICLE_RC",
     label: "Vehicle RC",
     sub: "Registration certificate",
     emoji: "📄",
     status: "empty",
   },
   {
-    id: "pan",
+    id: "PAN",
     label: "PAN Card",
     sub: "For payment & tax purposes",
     emoji: "💳",
     status: "empty",
   },
   {
-    id: "police",
-    label: "Police Verification Cert.",
-    sub: "Issued by local police station",
-    emoji: "🛡️",
-    status: "empty",
-  },
-  {
-    id: "selfie",
+    id: "SELFIE",
     label: "Live Selfie",
     sub: "Face must match Aadhaar photo",
     emoji: "🤳",
@@ -88,6 +91,37 @@ const STATUS_CONFIG = {
 
 export default function KYCScreen() {
   const [docs, setDocs] = useState<Doc[]>(INITIAL_DOCS);
+  const [overallStatus, setOverallStatus] = useState<string>("UNSUBMITTED");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchKYCStatus();
+  }, []);
+
+  const fetchKYCStatus = async () => {
+    try {
+      const res = await api.get("/api/kyc/status");
+      const { status, documents } = res.data.data;
+      setOverallStatus(status);
+
+      setDocs((prev) =>
+        prev.map((doc) => {
+          const serverDoc = documents.find((d: any) => d.type === doc.id);
+          if (serverDoc) {
+            let s: DocStatus = "uploaded";
+            if (serverDoc.status === "APPROVED") s = "verified";
+            if (serverDoc.status === "REJECTED") s = "rejected";
+            return { ...doc, status: s, rejectReason: serverDoc.rejectReason };
+          }
+          return doc;
+        }),
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const uploadedCount = docs.filter(
     (d) => d.status === "uploaded" || d.status === "verified",
@@ -95,19 +129,68 @@ export default function KYCScreen() {
   const allUploaded = uploadedCount === docs.length;
   const progress = uploadedCount / docs.length;
 
-  const handleUpload = (id: string) => {
-    setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: "uploaded" } : d)),
-    );
+  const handleUpload = async (id: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+      const asset = result.assets[0];
+
+      setDocs((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, uploading: true } : d)),
+      );
+
+      // 1. Get presigned URL
+      const { data } = await api.get(`/api/kyc/presigned-url/${id}`);
+      const presignedUrl = data.data.uploadUrl;
+
+      // 2. Upload to S3
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      await fetch(presignedUrl, {
+        method: "PUT",
+        body: blob,
+        headers: { "Content-Type": "image/jpeg" }, // Simplification
+      });
+
+      setDocs((prev) =>
+        prev.map((d) =>
+          d.id === id ? { ...d, status: "uploaded", uploading: false } : d,
+        ),
+      );
+    } catch (err: any) {
+      Alert.alert("Upload Failed", err.message || "Failed to upload document");
+      setDocs((prev) =>
+        prev.map((d) => (d.id === id ? { ...d, uploading: false } : d)),
+      );
+    }
   };
 
-  const handleSubmit = () => {
-    Alert.alert(
-      "Docs Submitted!",
-      "Our team will verify your documents within 24–48 hours. You'll be notified once approved.",
-      [{ text: "Got it" }],
-    );
+  const handleSubmit = async () => {
+    try {
+      await api.post("/api/kyc/submit");
+      Alert.alert(
+        "Docs Submitted!",
+        "Our team will verify your documents within 24–48 hours. You'll be notified once approved.",
+        [{ text: "Got it" }],
+      );
+      fetchKYCStatus();
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.message || "Submission failed");
+    }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+        <ActivityIndicator size="large" color="#1B4F8A" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -115,17 +198,15 @@ export default function KYCScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
       >
-        {/* Header */}
         <View className="px-5 pt-4 pb-2">
           <Text className="text-brand-text font-bold text-xl">
             Verification
           </Text>
           <Text className="text-brand-sub text-sm mt-1">
-            Submit all documents to start accepting rides
+            Submit all documents to start accepting jobs
           </Text>
         </View>
 
-        {/* Progress meter */}
         <Animated.View
           entering={FadeInDown.delay(80).springify()}
           className="mx-5 mt-2 mb-4 bg-brand-input rounded-2xl px-5 py-4"
@@ -138,7 +219,6 @@ export default function KYCScreen() {
               {Math.round(progress * 100)}%
             </Text>
           </View>
-          {/* Bar */}
           <View className="h-3 bg-white rounded-full overflow-hidden border border-brand-border">
             <View
               className="h-full rounded-full"
@@ -150,18 +230,22 @@ export default function KYCScreen() {
           </View>
           {!allUploaded && (
             <Text className="text-brand-sub text-xs mt-2">
-              ⚠️ You won't be able to accept rides until all docs are submitted
+              ⚠️ You won't be able to accept jobs until all docs are submitted
               and verified
             </Text>
           )}
-          {allUploaded && (
+          {allUploaded && overallStatus !== "APPROVED" && (
             <Text className="text-green-600 font-semibold text-xs mt-2">
               ✓ All documents uploaded — tap Submit below
             </Text>
           )}
+          {overallStatus === "APPROVED" && (
+            <Text className="text-green-600 font-semibold text-xs mt-2">
+              ✓ KYC Approved. You can now accept jobs.
+            </Text>
+          )}
         </Animated.View>
 
-        {/* Doc rows */}
         {docs.map((doc, i) => {
           const cfg = STATUS_CONFIG[doc.status];
           return (
@@ -190,12 +274,17 @@ export default function KYCScreen() {
                 {doc.status === "empty" || doc.status === "rejected" ? (
                   <TouchableOpacity
                     onPress={() => handleUpload(doc.id)}
+                    disabled={doc.uploading}
                     activeOpacity={0.8}
                     className="bg-brand-primary rounded-xl px-3 py-2"
                   >
-                    <Text className="text-white font-bold text-xs">
-                      {doc.status === "rejected" ? "Re-upload" : "Upload"}
-                    </Text>
+                    {doc.uploading ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text className="text-white font-bold text-xs">
+                        {doc.status === "rejected" ? "Re-upload" : "Upload"}
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 ) : (
                   <View className={`rounded-xl px-3 py-2 ${cfg.bg}`}>
@@ -209,23 +298,44 @@ export default function KYCScreen() {
           );
         })}
 
-        {/* Submit button */}
         <Animated.View
           entering={FadeInDown.delay(500).springify()}
           className="mx-5 mt-2"
         >
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={!allUploaded}
+            disabled={
+              !allUploaded ||
+              overallStatus === "APPROVED" ||
+              overallStatus === "PENDING"
+            }
             activeOpacity={0.9}
             className="rounded-2xl py-4 items-center"
-            style={{ backgroundColor: allUploaded ? "#1B4F8A" : "#DDE3ED" }}
+            style={{
+              backgroundColor:
+                allUploaded &&
+                overallStatus !== "APPROVED" &&
+                overallStatus !== "PENDING"
+                  ? "#1B4F8A"
+                  : "#DDE3ED",
+            }}
           >
             <Text
               className="font-bold text-base"
-              style={{ color: allUploaded ? "#fff" : "#9CA3AF" }}
+              style={{
+                color:
+                  allUploaded &&
+                  overallStatus !== "APPROVED" &&
+                  overallStatus !== "PENDING"
+                    ? "#fff"
+                    : "#9CA3AF",
+              }}
             >
-              Submit for Verification
+              {overallStatus === "PENDING"
+                ? "Verification Pending"
+                : overallStatus === "APPROVED"
+                  ? "Verified"
+                  : "Submit for Verification"}
             </Text>
           </TouchableOpacity>
           <Text className="text-brand-sub text-xs text-center mt-2">

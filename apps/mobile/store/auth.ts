@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import { router } from "expo-router";
+import { create } from "zustand";
 import { api } from "../utils/api";
 import { SecureStorage } from "../utils/secureStorage";
 import { connectSocket } from "../utils/socket";
@@ -43,7 +43,7 @@ type AuthStore = {
 };
 
 const routeByRole = (role: Role) => {
-  if (role === "CUSTOMER") router.replace("/(customer)/ride");
+  if (role === "CUSTOMER") router.replace("/(customer)/plan-trip");
   if (role === "DRIVER") router.replace("/(driver)/home");
   if (role === "ADMIN") router.replace("/(admin)/dashboard");
 };

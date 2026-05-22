@@ -1,5 +1,11 @@
 import { Tabs } from "expo-router";
-import { Navigation, Wallet, User, ShieldCheck } from "lucide-react-native";
+import {
+  Navigation,
+  Wallet,
+  User,
+  ShieldCheck,
+  Briefcase,
+} from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DriverLayout() {
@@ -27,6 +33,15 @@ export default function DriverLayout() {
           title: "Drive",
           tabBarIcon: ({ color, size }) => (
             <Navigation size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="jobs"
+        options={{
+          title: "Jobs",
+          tabBarIcon: ({ color, size }) => (
+            <Briefcase size={size} color={color} />
           ),
         }}
       />

@@ -22,7 +22,7 @@ export default function CustomerLayout() {
       }}
     >
       <Tabs.Screen
-        name="ride"
+        name="plan-trip"
         options={{
           title: "Plan Trip",
           tabBarIcon: ({ color, size }) => <Map size={size} color={color} />,

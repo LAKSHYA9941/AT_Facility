@@ -14,6 +14,26 @@ dotenv.config();
 
 const start = async () => {
   try {
+    const requiredEnvVars = [
+      "DATABASE_URL",
+      "JWT_ACCESS_SECRET",
+      "AWS_BUCKET_NAME",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_REGION",
+      "RAZORPAY_KEY_ID",
+      "RAZORPAY_KEY_SECRET",
+      "FIREBASE_PROJECT_ID",
+      "GOOGLE_MAPS_API_KEY",
+    ];
+    const missing = requiredEnvVars.filter((k) => !process.env[k]);
+    if (missing.length > 0) {
+      console.error(
+        `FATAL: Missing environment variables: ${missing.join(", ")}`,
+      );
+      process.exit(1);
+    }
+
     const app = await buildApp();
     const port = parseInt(process.env.PORT || "4000");
 
@@ -126,17 +146,18 @@ const start = async () => {
               });
             }
 
-            const activeRide = await prisma.ride.findFirst({
+            const activeTrip = await prisma.trip.findFirst({
               where: {
                 driverId: driver.id,
-                status: { in: ["CONFIRMED", "ARRIVING", "IN_RIDE"] },
+                status: { in: ["DRIVER_ASSIGNED", "ACTIVE"] },
               },
             });
-            if (activeRide) {
-              io.to(`user:${activeRide.customerId}`).emit(
-                SOCKET_EVENTS.RIDE_DRIVER_LOCATION,
-                { lat: data.lat, lng: data.lng, heading: data.heading },
-              );
+            if (activeTrip) {
+              io.to(`user:${activeTrip.userId}`).emit("trip:driver_location", {
+                lat: data.lat,
+                lng: data.lng,
+                heading: data.heading,
+              });
             }
           } catch (err) {
             console.error("Location error:", err);
@@ -144,163 +165,68 @@ const start = async () => {
         },
       );
 
-      // ── DRIVER ACCEPT ───────────────────────────────────
+      // ── DRIVER ACCEPT JOB (Phase 5) ─────────────────────
       socket.on(
-        SOCKET_EVENTS.DRIVER_ACCEPT,
-        async (data: { rideId: string }) => {
+        SOCKET_EVENTS.DRIVER_ACCEPT_JOB,
+        async ({ tripId, driverId }) => {
           if (role !== Role.DRIVER) return;
           try {
+            // 1. Verify driver KYC status
             const driver = await prisma.driverProfile.findUnique({
-              where: { userId },
-              include: { user: true, vehicle: true },
+              where: { id: driverId },
+              include: { user: true },
             });
-            if (!driver) return;
-
-            const ride = await prisma.ride.update({
-              where: { id: data.rideId },
-              data: {
-                driverId: driver.id,
-                status: "CONFIRMED",
-                acceptedAt: new Date(),
-              },
-            });
-
-            await prisma.driverProfile.update({
-              where: { id: driver.id },
-              data: { isAvailable: false },
-            });
-
-            io.to(`user:${ride.customerId}`).emit(SOCKET_EVENTS.RIDE_ASSIGNED, {
-              rideId: ride.id,
-              driver: {
-                name: driver.user.name,
-                phone: driver.user.phone,
-                rating: driver.rating,
-              },
-              vehicle: driver.vehicle
-                ? {
-                    make: driver.vehicle.make,
-                    model: driver.vehicle.model,
-                    color: driver.vehicle.color,
-                    plateNumber: driver.vehicle.plateNumber,
-                  }
-                : null,
-            });
-            console.log(`✅ Ride ${data.rideId} accepted by ${userId}`);
-          } catch (err) {
-            console.error("Accept error:", err);
-          }
-        },
-      );
-
-      // ── DRIVER DECLINE ──────────────────────────────────
-      socket.on(SOCKET_EVENTS.DRIVER_DECLINE, (data: { rideId: string }) => {
-        console.log(`❌ Ride ${data.rideId} declined by ${userId}`);
-      });
-
-      // ── DRIVER ARRIVED ──────────────────────────────────
-      socket.on(
-        SOCKET_EVENTS.DRIVER_ARRIVED,
-        async (data: { rideId: string }) => {
-          if (role !== Role.DRIVER) return;
-          try {
-            const ride = await prisma.ride.update({
-              where: { id: data.rideId },
-              data: { status: "ARRIVING", arrivedAt: new Date() },
-            });
-            io.to(`user:${ride.customerId}`).emit(
-              SOCKET_EVENTS.RIDE_DRIVER_ARRIVED,
-              { rideId: ride.id },
-            );
-          } catch (err) {
-            console.error("Arrived error:", err);
-          }
-        },
-      );
-
-      // ── DRIVER STARTED ──────────────────────────────────
-      socket.on(
-        SOCKET_EVENTS.DRIVER_STARTED,
-        async (data: { rideId: string; otp: string }) => {
-          if (role !== Role.DRIVER) return;
-          try {
-            const ride = await prisma.ride.findUnique({
-              where: { id: data.rideId },
-            });
-            if (!ride || ride.otp !== data.otp) {
-              socket.emit(SOCKET_EVENTS.ERROR, { message: "Invalid OTP" });
+            if (!driver || driver.kycStatus !== "VERIFIED") {
+              socket.emit(SOCKET_EVENTS.ERROR, {
+                message: "KYC not approved. You cannot accept jobs.",
+              });
               return;
             }
-            const updated = await prisma.ride.update({
-              where: { id: data.rideId },
-              data: { status: "IN_RIDE", startedAt: new Date() },
+
+            // 2. Atomic check-and-assign
+            const tripUpdateRes = await prisma.trip.updateMany({
+              where: { id: tripId, status: "CONFIRMED", driverId: null },
+              data: { driverId, status: "DRIVER_ASSIGNED" },
             });
-            io.to(`user:${updated.customerId}`).emit(
-              SOCKET_EVENTS.RIDE_STARTED,
-              { rideId: updated.id },
-            );
-          } catch (err) {
-            console.error("Start error:", err);
-          }
-        },
-      );
 
-      // ── DRIVER COMPLETED ────────────────────────────────
-      socket.on(
-        SOCKET_EVENTS.DRIVER_COMPLETED,
-        async (data: { rideId: string }) => {
-          if (role !== Role.DRIVER) return;
-          try {
-            const driver = await prisma.driverProfile.findUnique({
-              where: { userId },
+            if (tripUpdateRes.count === 0) {
+              socket.emit(SOCKET_EVENTS.ERROR, {
+                message: "Job no longer available.",
+              });
+              return;
+            }
+
+            // 3. Fetch the updated trip with driver details for the customer
+            const updatedTrip = await prisma.trip.findUnique({
+              where: { id: tripId },
+              include: {
+                driver: { include: { user: true, vehicle: true } },
+                waypoints: true,
+              },
             });
-            const ride = await prisma.ride.findUnique({
-              where: { id: data.rideId },
-            });
-            if (!driver || !ride) return;
 
-            const commission = parseFloat((ride.totalFare * 0.2).toFixed(2));
-            const net = parseFloat((ride.totalFare - commission).toFixed(2));
+            if (!updatedTrip) return;
 
-            const [updated] = await Promise.all([
-              prisma.ride.update({
-                where: { id: data.rideId },
-                data: { status: "COMPLETED", completedAt: new Date() },
-              }),
-              prisma.earning.create({
-                data: {
-                  driverId: driver.id,
-                  rideId: data.rideId,
-                  gross: ride.totalFare,
-                  commission,
-                  net,
-                },
-              }),
-              prisma.driverProfile.update({
-                where: { id: driver.id },
-                data: {
-                  isAvailable: true,
-                  totalTrips: { increment: 1 },
-                  totalEarnings: { increment: net },
-                },
-              }),
-            ]);
-
-            io.to(`user:${updated.customerId}`).emit(
-              SOCKET_EVENTS.RIDE_COMPLETED,
+            // 4. Emit to the specific customer
+            io.to(`user:${updatedTrip.userId}`).emit(
+              SOCKET_EVENTS.DRIVER_ASSIGNED,
               {
-                rideId: updated.id,
-                fare: updated.totalFare,
-                earnings: { gross: ride.totalFare, commission, net },
+                driverId: driver.id,
+                driverName: updatedTrip.driver?.user?.name,
+                driverPhoto: null, // Add photo logic if needed
+                vehiclePlate: updatedTrip.driver?.vehicle?.plateNumber,
+                phone: updatedTrip.driver?.user?.phone,
               },
             );
-            io.to("role:ADMIN").emit(SOCKET_EVENTS.ADMIN_STATS, {
-              event: "ride_completed",
-              fare: ride.totalFare,
-            });
-            console.log(`✅ Ride ${data.rideId} completed`);
+            io.to(`user:${updatedTrip.userId}`).emit(
+              SOCKET_EVENTS.TRIP_STATUS_UPDATED,
+              { status: "DRIVER_ASSIGNED" },
+            );
+
+            // 5. Notify other drivers the job is gone
+            socket.broadcast.emit("trip:job_taken", { tripId }); // using broadcast or io.emit
           } catch (err) {
-            console.error("Complete error:", err);
+            console.error("Accept job error:", err);
           }
         },
       );

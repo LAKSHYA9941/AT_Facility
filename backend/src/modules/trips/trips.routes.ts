@@ -54,11 +54,11 @@ export const tripsRoutes = async (app: FastifyInstance) => {
 
   // ── Driver routes ───────────────────────────────────────────
 
-  // GET /api/trips/jobs — open jobs matching driver segment
+  // GET /api/trips/available-jobs — open jobs matching driver segment
   app.get(
-    "/jobs",
+    "/available-jobs",
     { preHandler: [authGuard, roleGuard(Role.DRIVER)] },
-    tripsController.getOpenJobs,
+    tripsController.getAvailableJobs,
   );
 
   // GET /api/trips/driver/my — driver trip history

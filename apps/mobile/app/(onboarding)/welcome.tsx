@@ -1,7 +1,7 @@
-import { View, Text } from "react-native";
 import { router } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Image, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Button from "../../components/ui/Button";
 
 export default function WelcomeScreen() {
@@ -13,9 +13,6 @@ export default function WelcomeScreen() {
           entering={FadeInDown.delay(100).springify()}
           className="items-center mt-10"
         >
-          <View className="w-20 h-20 rounded-3xl bg-brand-primary items-center justify-center mb-4">
-            <Text className="text-white font-bold text-3xl">@</Text>
-          </View>
           <Text className="text-brand-primary font-bold text-4xl tracking-tight">
             At Facility
           </Text>
@@ -30,7 +27,11 @@ export default function WelcomeScreen() {
           className="flex-1 items-center justify-center"
         >
           <View className="w-72 h-72 rounded-full bg-brand-input items-center justify-center">
-            <Text style={{ fontSize: 80 }}>🚗</Text>
+            <Image
+              source={require("../../assets/images/icon.jpeg")}
+              style={{ width: 140, height: 140, borderRadius: 70 }}
+              resizeMode="cover"
+            />
           </View>
         </Animated.View>
 

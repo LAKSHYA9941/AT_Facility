@@ -76,7 +76,7 @@ export default function TravelScreen() {
   const mapToMountainSmall = (item: any) => ({
     id: item.id,
     title: item.title,
-    price: `$${item.price} / person`,
+    price: `₹${item.price} / person`,
     image:
       item.imageUrls?.[0] ||
       "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800",

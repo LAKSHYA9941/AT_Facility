@@ -9,13 +9,13 @@ export async function paymentsRoutes(fastify: FastifyInstance) {
   fastify.post(
     "/create-order",
     { preHandler: [authGuard] },
-    paymentsController.createOrder,
+    paymentsController.createOrder as any,
   );
 
   fastify.post(
     "/verify",
     { preHandler: [authGuard] },
-    paymentsController.verifySignature,
+    paymentsController.verifySignature as any,
   );
 
   // Webhook is called directly by Razorpay's servers (unauthenticated)

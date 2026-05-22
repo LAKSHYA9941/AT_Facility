@@ -190,18 +190,18 @@ export class AdminService {
     const [
       totalCustomers,
       totalDrivers,
-      ridesTotal,
-      ridesToday,
+      tripsTotal,
+      tripsToday,
       pendingKyc,
       revenueQuery,
     ] = await Promise.all([
       prisma.user.count({ where: { role: Role.CUSTOMER } }),
       prisma.user.count({ where: { role: Role.DRIVER } }),
-      prisma.ride.count(),
-      prisma.ride.count({ where: { createdAt: { gte: today } } }),
+      prisma.trip.count(),
+      prisma.trip.count({ where: { createdAt: { gte: today } } }),
       prisma.driverProfile.count({ where: { kycStatus: KYCStatus.PENDING } }),
-      prisma.ride.aggregate({
-        where: { createdAt: { gte: today }, paymentStatus: PaymentStatus.PAID },
+      prisma.trip.aggregate({
+        where: { createdAt: { gte: today }, status: "COMPLETED" },
         _sum: { totalFare: true },
       }),
     ]);
@@ -209,8 +209,8 @@ export class AdminService {
     return {
       totalCustomers,
       totalDrivers,
-      ridesTotal,
-      ridesToday,
+      tripsTotal,
+      tripsToday,
       revenueToday: revenueQuery._sum.totalFare ?? 0,
       pendingKyc,
     };

@@ -1,51 +1,54 @@
 import { create } from "zustand";
 import { connectSocket, getSocket, EVENTS } from "../utils/socket";
 import { api } from "../utils/api";
-
-type RideRequest = {
-  rideId: string;
-  passenger: { name: string; phone: string };
-  pickup: { address: string; lat: number; lng: number };
-  drop: { address: string; lat: number; lng: number };
-  fare: number;
-  distance: number;
-  segment: string;
-  etaToPickup: number;
-};
+import { useAuthStore } from "./auth";
 
 type DriverStore = {
   isOnline: boolean;
-  rideRequest: RideRequest | null;
-  activeRideId: string | null;
-  rideStatus: string | null;
-
   goOnline: () => Promise<void>;
   goOffline: () => Promise<void>;
   sendLocation: (lat: number, lng: number, heading?: number) => void;
-  acceptRide: (rideId: string) => void;
-  declineRide: (rideId: string) => void;
-  markArrived: (rideId: string) => void;
-  startRide: (rideId: string, otp: string) => void;
-  completeRide: (rideId: string) => void;
-  listenForRides: () => Promise<void>;
+  acceptJob: (tripId: string) => void;
+  rideRequest: any | null;
+  acceptRide: (rideId: string) => Promise<void>;
+  declineRide: (rideId: string) => Promise<void>;
 };
 
 export const useDriverStore = create<DriverStore>((set, get) => ({
   isOnline: false,
   rideRequest: null,
-  activeRideId: null,
-  rideStatus: null,
 
   goOnline: async () => {
     const socket = await connectSocket();
     socket.emit(EVENTS.DRIVER_ONLINE);
     set({ isOnline: true });
-    get().listenForRides();
+
+    // Listen to new trip job requests when online
+    socket.on(EVENTS.TRIP_JOB_AVAILABLE, (job) => {
+      const mappedRequest = {
+        rideId: job.id || job.tripId,
+        segment: job.vehicleSegment,
+        passenger: { name: job.passengerName || "Passenger" },
+        fare: job.totalFare,
+        pickup: {
+          address: job.waypoints?.[0]?.address || job.pickupAddress || "",
+        },
+        drop: {
+          address:
+            job.waypoints?.[job.waypoints.length - 1]?.address ||
+            job.destinationAddress ||
+            "",
+        },
+        distance: job.distance || 0,
+      };
+      set({ rideRequest: mappedRequest });
+    });
   },
 
   goOffline: async () => {
     const socket = getSocket();
     socket?.emit(EVENTS.DRIVER_OFFLINE);
+    socket?.off(EVENTS.TRIP_JOB_AVAILABLE);
     set({ isOnline: false, rideRequest: null });
   },
 
@@ -54,46 +57,30 @@ export const useDriverStore = create<DriverStore>((set, get) => ({
     socket?.emit(EVENTS.DRIVER_LOCATION, { lat, lng, heading });
   },
 
-  acceptRide: (rideId) => {
+  acceptJob: (tripId) => {
     const socket = getSocket();
-    socket?.emit(EVENTS.DRIVER_ACCEPT, { rideId });
-    set({ rideRequest: null, activeRideId: rideId, rideStatus: "confirmed" });
+    const state = useAuthStore.getState();
+    if (state.user) {
+      socket?.emit(EVENTS.DRIVER_ACCEPT_JOB, {
+        tripId,
+        driverId: state.user.id,
+      });
+    }
   },
 
-  declineRide: (rideId) => {
+  acceptRide: async (rideId) => {
     const socket = getSocket();
-    socket?.emit(EVENTS.DRIVER_DECLINE, { rideId });
+    const state = useAuthStore.getState();
+    if (socket && state.user) {
+      socket.emit(EVENTS.DRIVER_ACCEPT_JOB, {
+        tripId: rideId,
+        driverId: state.user.id,
+      });
+    }
     set({ rideRequest: null });
   },
 
-  markArrived: (rideId) => {
-    const socket = getSocket();
-    socket?.emit(EVENTS.DRIVER_ARRIVED, { rideId });
-    set({ rideStatus: "arriving" });
-  },
-
-  startRide: (rideId, otp) => {
-    const socket = getSocket();
-    socket?.emit(EVENTS.DRIVER_STARTED, { rideId, otp });
-    set({ rideStatus: "in_ride" });
-  },
-
-  completeRide: (rideId) => {
-    const socket = getSocket();
-    socket?.emit(EVENTS.DRIVER_COMPLETED, { rideId });
-    set({ activeRideId: null, rideStatus: null });
-  },
-
-  listenForRides: async () => {
-    const socket = await connectSocket();
-
-    socket.on(EVENTS.RIDE_REQUEST, (data: RideRequest) => {
-      console.log("📨 New ride request:", data.rideId);
-      set({ rideRequest: data });
-    });
-
-    socket.on(EVENTS.RIDE_CANCELLED, () => {
-      set({ rideRequest: null, activeRideId: null, rideStatus: null });
-    });
+  declineRide: async (rideId) => {
+    set({ rideRequest: null });
   },
 }));

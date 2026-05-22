@@ -3,24 +3,6 @@ export const SOCKET_EVENTS = {
   DRIVER_ONLINE: "driver:online",
   DRIVER_OFFLINE: "driver:offline",
   DRIVER_LOCATION: "driver:location",
-  DRIVER_ACCEPT: "driver:ride:accept",
-  DRIVER_DECLINE: "driver:ride:decline",
-  DRIVER_ARRIVED: "driver:ride:arrived",
-  DRIVER_STARTED: "driver:ride:started",
-  DRIVER_COMPLETED: "driver:ride:completed",
-
-  // Server → Driver
-  RIDE_REQUEST: "ride:request",
-  RIDE_CANCELLED: "ride:cancelled",
-
-  // Server → Customer
-  RIDE_SEARCHING: "ride:searching",
-  RIDE_ASSIGNED: "ride:driver:assigned",
-  RIDE_DRIVER_LOCATION: "ride:driver:location",
-  RIDE_DRIVER_ARRIVED: "ride:driver:arrived",
-  RIDE_STARTED: "ride:started",
-  RIDE_COMPLETED: "ride:completed",
-  RIDE_NO_DRIVERS: "ride:no:drivers",
 
   // ── Trip Events ──────────────────────────────────────────
   TRIP_OPEN: "trip:open",
@@ -30,6 +12,13 @@ export const SOCKET_EVENTS = {
   TRIP_COMPLETED: "trip:completed",
   TRIP_CANCELLED: "trip:cancelled",
   TRIP_REASSIGNING: "trip:reassigning",
+
+  // ── New Trip Job Board Events (Phase 5) ──────────────────
+  TRIP_JOB_AVAILABLE: "trip:job_available",
+  DRIVER_ACCEPT_JOB: "driver:accept_job",
+  TRIP_JOB_ACCEPTED: "trip:job_accepted",
+  TRIP_STATUS_UPDATED: "trip:status_updated",
+  DRIVER_ASSIGNED: "trip:driver_assigned",
 
   // Server → Admin
   ADMIN_STATS: "admin:stats:update",

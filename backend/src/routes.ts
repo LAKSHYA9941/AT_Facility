@@ -1,6 +1,5 @@
 import { FastifyInstance } from "fastify";
 import { authRoutes } from "./modules/auth/auth.routes";
-import { ridesRoutes } from "./modules/rides/rides.routes";
 import { kycRoutes } from "./modules/kyc/kyc.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
 import { packagesRoutes } from "./modules/packages/packages.routes";
@@ -12,7 +11,6 @@ import { customerRoutes } from "./modules/customer/customer.routes";
 
 export const registerRoutes = async (app: FastifyInstance) => {
   app.register(authRoutes, { prefix: "/api/auth" });
-  app.register(ridesRoutes, { prefix: "/api/rides" });
   app.register(kycRoutes, { prefix: "/api/kyc" });
   app.register(adminRoutes, { prefix: "/api/admin" });
   app.register(packagesRoutes, { prefix: "/api/packages" });

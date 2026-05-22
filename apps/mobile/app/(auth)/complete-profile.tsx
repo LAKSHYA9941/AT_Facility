@@ -1,25 +1,25 @@
+import * as ImagePicker from "expo-image-picker";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
+  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
-  Image,
   ScrollView,
-  Alert,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useState, useEffect } from "react";
-import { router } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   FadeInDown,
   FadeInRight,
   FadeOutLeft,
 } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Button from "../../components/ui/Button";
 import { useAuthStore } from "../../store/auth";
-import * as ImagePicker from "expo-image-picker";
 
 const ID_TYPES = [
   { label: "Aadhaar Card", value: "AADHAAR", sides: ["front", "back"] },
@@ -102,7 +102,7 @@ export default function CompleteProfileScreen() {
     setLoading(true);
     try {
       await uploadIdProof(idType.value, frontImage, backImage || undefined);
-      if (user?.role === "CUSTOMER") router.replace("/(customer)/ride");
+      if (user?.role === "CUSTOMER") router.replace("/(customer)/plan-trip");
       if (user?.role === "DRIVER") router.replace("/(driver)/home");
       if (user?.role === "ADMIN") router.replace("/(admin)/dashboard");
     } catch (err: any) {

@@ -15,29 +15,14 @@ export const tripsController = {
 
   estimate: async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const {
-        pickupLat,
-        pickupLng,
-        dropLat,
-        dropLng,
-        passengerCount,
-        startDate,
-        endDate,
-        isRoundTrip,
-        preferredSegment,
-      } = req.body as any;
+      const { waypoints, startDate, endDate, passengerCount } = req.body as any;
 
-      const result = await tripsService.estimate(
-        pickupLat,
-        pickupLng,
-        dropLat,
-        dropLng,
-        passengerCount,
+      const result = await tripsService.estimate({
+        waypoints,
         startDate,
         endDate,
-        isRoundTrip,
-        preferredSegment,
-      );
+        passengerCount,
+      });
 
       return sendSuccess(reply, result, "Trip fare estimated");
     } catch (err: any) {
@@ -53,18 +38,14 @@ export const tripsController = {
       const body = req.body as any;
 
       const trip = await tripsService.create(user.userId, {
-        pickupAddress: body.pickupAddress,
-        pickupLat: body.pickupLat,
-        pickupLng: body.pickupLng,
-        dropAddress: body.dropAddress,
-        dropLat: body.dropLat,
-        dropLng: body.dropLng,
-        passengerCount: body.passengerCount,
+        tripType: body.tripType,
+        waypoints: body.waypoints,
         startDate: body.startDate,
         endDate: body.endDate,
-        isRoundTrip: body.isRoundTrip,
-        preferredSegment: body.preferredSegment,
-        waypoints: body.waypoints,
+        passengerCount: body.passengerCount,
+        vehicleSegment: body.vehicleSegment,
+        totalFare: body.totalFare,
+        selectedPercentage: body.selectedPercentage,
       });
 
       return sendCreated(reply, trip, "Trip created");
@@ -122,23 +103,13 @@ export const tripsController = {
     }
   },
 
-  // ── Driver: get open jobs ───────────────────────────────────
+  // ── Driver: get available jobs ──────────────────────────────
 
-  getOpenJobs: async (req: FastifyRequest, reply: FastifyReply) => {
+  getAvailableJobs: async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const user = req.user as JWTPayload;
-
-      const driver = await prisma.driverProfile.findUnique({
-        where: { userId: user.userId },
-      });
-      if (!driver) return sendError(reply, "Driver profile not found");
-      if (!driver.segment)
-        return sendError(reply, "Driver vehicle segment not set");
-
-      const trips = await tripsService.getOpenJobs(
-        driver.segment as VehicleSegment,
-      );
-      return sendSuccess(reply, trips, "Open jobs retrieved");
+      const trips = await tripsService.getAvailableJobs(user.userId);
+      return sendSuccess(reply, trips, "Available jobs retrieved");
     } catch (err: any) {
       return sendError(reply, err.message);
     }

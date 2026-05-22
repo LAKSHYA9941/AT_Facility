@@ -46,7 +46,7 @@ export default function OTPScreen() {
       } else if (!user.idVerified && user.idSubmittedAt) {
         router.replace("/(auth)/pending-verification");
       } else {
-        if (result.role === "CUSTOMER") router.replace("/(customer)/ride");
+        if (result.role === "CUSTOMER") router.replace("/(customer)/plan-trip");
         if (result.role === "DRIVER") router.replace("/(driver)/home");
         if (result.role === "ADMIN") router.replace("/(admin)/dashboard");
       }

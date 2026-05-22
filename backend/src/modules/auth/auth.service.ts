@@ -96,9 +96,12 @@ export const authService = {
         id: user.id,
         phone: user.phone,
         name: user.name,
+        email: user.email,
         role: user.role,
         profileComplete: user.profileComplete,
         status: user.status,
+        idVerified: user.idVerified,
+        idSubmittedAt: user.idSubmittedAt,
       },
     };
   },

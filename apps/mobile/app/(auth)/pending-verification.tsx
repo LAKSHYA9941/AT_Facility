@@ -1,7 +1,7 @@
-import { View, Text } from "react-native";
 import { router } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Button from "../../components/ui/Button";
 import { useAuthStore } from "../../store/auth";
 
@@ -9,7 +9,7 @@ export default function PendingVerificationScreen() {
   const user = useAuthStore((s) => s.user);
 
   const handleExplore = () => {
-    if (user?.role === "CUSTOMER") router.replace("/(customer)/ride");
+    if (user?.role === "CUSTOMER") router.replace("/(customer)/plan-trip");
     if (user?.role === "DRIVER") router.replace("/(driver)/home");
     if (user?.role === "ADMIN") router.replace("/(admin)/dashboard");
   };

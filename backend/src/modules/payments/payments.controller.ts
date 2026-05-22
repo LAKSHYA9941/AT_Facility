@@ -10,16 +10,18 @@ import {
 const paymentsService = new PaymentsService();
 
 interface CreateOrderBody {
-  amount: number;
+  amount?: number;
   currency?: string;
-  receipt: string;
+  receipt?: string;
   notes?: any;
+  tripId?: string;
 }
 
 interface VerifySignatureBody {
   razorpay_order_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
+  tripId?: string;
 }
 
 export class PaymentsController {
@@ -28,7 +30,14 @@ export class PaymentsController {
     reply: FastifyReply,
   ) => {
     try {
-      const { amount, currency = "INR", receipt, notes } = req.body;
+      const { amount, currency = "INR", receipt, notes, tripId } = req.body;
+      const user = (req as any).user;
+
+      if (tripId) {
+        const data = await paymentsService.createTripOrder(tripId, user.userId);
+        return sendCreated(reply, data, "Order created successfully");
+      }
+
       if (!amount || !receipt)
         return sendError(reply, "Amount and receipt are required");
 
@@ -49,10 +58,28 @@ export class PaymentsController {
     reply: FastifyReply,
   ) => {
     try {
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-        req.body;
+      const {
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+        tripId,
+      } = req.body;
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         return sendError(reply, "Missing required payment verification fields");
+      }
+
+      if (tripId) {
+        await paymentsService.verifyTripSignature(
+          tripId,
+          razorpay_order_id,
+          razorpay_payment_id,
+          razorpay_signature,
+        );
+        return sendSuccess(
+          reply,
+          { success: true, tripId },
+          "Payment verified successfully",
+        );
       }
 
       await paymentsService.verifySignature(
