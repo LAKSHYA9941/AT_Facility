@@ -51,10 +51,8 @@ export default function DriverJobsScreen() {
       const kycRes = await api.get("/api/kyc/status");
       setKycStatus(kycRes.data.data.status);
 
-      if (kycRes.data.data.status === "APPROVED") {
-        const jobsRes = await api.get("/api/trips/available-jobs");
-        setJobs(jobsRes.data.data);
-      }
+      const jobsRes = await api.get("/api/trips/available-jobs");
+      setJobs(jobsRes.data.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -77,7 +75,7 @@ export default function DriverJobsScreen() {
   };
 
   const renderHeader = () => {
-    if (kycStatus === "APPROVED") {
+    if (kycStatus === "VERIFIED") {
       return (
         <View className="bg-green-100 p-3 rounded-lg mb-4 flex-row items-center">
           <Text className="text-green-800 font-bold flex-1 text-center">
@@ -123,7 +121,7 @@ export default function DriverJobsScreen() {
       <View className="flex-1 px-4 pt-4">
         {renderHeader()}
 
-        {jobs.length === 0 && kycStatus === "APPROVED" ? (
+        {jobs.length === 0 && kycStatus === "VERIFIED" ? (
           <View className="flex-1 items-center justify-center pb-20">
             <Text className="text-4xl mb-4">🗺️</Text>
             <Text className="text-gray-500 text-center px-10">
@@ -139,19 +137,18 @@ export default function DriverJobsScreen() {
               <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm border border-gray-100">
                 <View className="flex-row justify-between items-start border-b border-gray-100 pb-3 mb-3">
                   <View className="flex-1 mr-2">
-                    <Text
-                      className="font-bold text-gray-800 text-base mb-1"
-                      numberOfLines={1}
-                    >
-                      {item.waypoints?.[0]?.address.split(",")[0] ||
-                        item.pickupAddress?.split(",")[0]}{" "}
-                      →{" "}
-                      {item.waypoints?.[
-                        item.waypoints.length - 1
-                      ]?.address.split(",")[0] ||
-                        item.destinationAddress?.split(",")[0]}
+                    <Text className="font-bold text-gray-800 text-base mb-1">
+                      {item.tripType === "ROUND_TRIP" ? "🔄 ROUND TRIP\n" : ""}
+                      {item.waypoints
+                        ?.map((w: any) => w.address.split(",")[0])
+                        .join(" → ") ||
+                        `${item.pickupAddress?.split(",")[0]} → ${item.destinationAddress?.split(",")[0]}`}
                     </Text>
-                    <Text className="text-xs text-gray-500" numberOfLines={1}>
+                    <Text
+                      className="text-xs text-gray-500 mt-1"
+                      numberOfLines={2}
+                    >
+                      Pickup:{" "}
                       {item.waypoints?.[0]?.address || item.pickupAddress}
                     </Text>
                   </View>
@@ -162,13 +159,30 @@ export default function DriverJobsScreen() {
                   </View>
                 </View>
 
-                <View className="flex-row mb-3 space-x-4">
+                <View className="flex-row mb-3 flex-wrap gap-y-2">
                   <View className="flex-row items-center mr-4">
                     <Calendar size={14} color="#6b7280" />
                     <Text className="text-xs text-gray-600 ml-1">
                       {new Date(item.startDate).toLocaleDateString()}
                     </Text>
                   </View>
+                  <View className="flex-row items-center mr-4">
+                    <Text className="text-[12px] text-gray-500 mr-1">🕒</Text>
+                    <Text className="text-xs text-gray-600">
+                      {new Date(item.startDate).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                  {item.endDate && (
+                    <View className="flex-row items-center mr-4">
+                      <Text className="text-[12px] text-gray-500 mr-1">🏁</Text>
+                      <Text className="text-xs text-gray-600">
+                        {new Date(item.endDate).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  )}
                   <View className="flex-row items-center">
                     <Text className="text-xs text-gray-600">
                       👤 {item.passengerCount} Pax
@@ -196,12 +210,12 @@ export default function DriverJobsScreen() {
                 </View>
 
                 <TouchableOpacity
-                  disabled={kycStatus !== "APPROVED"}
+                  disabled={kycStatus !== "VERIFIED"}
                   onPress={() => handleAccept(item.id || item.tripId)}
-                  className={`py-3 rounded-xl items-center ${kycStatus !== "APPROVED" ? "bg-gray-300" : "bg-brand-primary"}`}
+                  className={`py-3 rounded-xl items-center ${kycStatus !== "VERIFIED" ? "bg-gray-300" : "bg-brand-primary"}`}
                 >
                   <Text className="text-white font-bold">
-                    {kycStatus !== "APPROVED"
+                    {kycStatus !== "VERIFIED"
                       ? "Verify KYC to Accept"
                       : "Accept Job"}
                   </Text>

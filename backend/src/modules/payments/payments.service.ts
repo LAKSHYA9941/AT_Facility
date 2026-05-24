@@ -134,6 +134,7 @@ export class PaymentsService {
         totalFare: trip.totalFare,
         driverEarning: trip.balanceRemaining,
         waypoints: trip.waypoints,
+        tripType: trip.tripType,
       });
     }
 
@@ -145,6 +146,79 @@ export class PaymentsService {
     );
 
     return true;
+  }
+
+  async bypassTripSignature(tripId: string, userId: string) {
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip) throw new Error("Trip not found");
+    if (trip.status !== "PENDING_PAYMENT")
+      throw new Error("Trip is not pending payment");
+    if (trip.userId !== userId) throw new Error("Unauthorized");
+
+    const updatedTrip = await prisma.trip.update({
+      where: { id: tripId },
+      data: { status: "CONFIRMED" },
+      include: { waypoints: { orderBy: { orderIndex: "asc" } } },
+    });
+
+    await prisma.payment.create({
+      data: {
+        tripId,
+        razorpayOrderId: `bypass_${Date.now()}`,
+        amount: trip.amountPaidUpfront,
+        status: "CAPTURED",
+      },
+    });
+
+    if (io) {
+      io.emit(SOCKET_EVENTS.TRIP_JOB_AVAILABLE, {
+        tripId: updatedTrip.id,
+        vehicleSegment: updatedTrip.vehicleSegment,
+        pickupAddress: updatedTrip.waypoints[0]?.address,
+        destinationAddress:
+          updatedTrip.waypoints[updatedTrip.waypoints.length - 1]?.address,
+        startDate: updatedTrip.startDate,
+        endDate: updatedTrip.endDate,
+        passengerCount: updatedTrip.passengerCount,
+        totalKm: 0,
+        totalFare: updatedTrip.totalFare,
+        driverEarning: updatedTrip.balanceRemaining,
+        waypoints: updatedTrip.waypoints,
+        tripType: updatedTrip.tripType,
+      });
+    }
+
+    await notificationsService.sendPushNotification(
+      updatedTrip.userId,
+      "Your booking is confirmed!",
+      `Your trip is confirmed. OTP: ${updatedTrip.startOtp}`,
+      { tripId },
+    );
+
+    return true;
+  }
+
+  async bypassTripBalance(tripId: string, userId: string) {
+    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
+    if (!trip) throw new Error("Trip not found");
+    if (trip.userId !== userId) throw new Error("Unauthorized");
+    if (trip.balanceRemaining <= 0) throw new Error("No balance remaining");
+
+    const updatedTrip = await prisma.trip.update({
+      where: { id: tripId },
+      data: { balanceRemaining: 0 },
+    });
+
+    await prisma.payment.create({
+      data: {
+        tripId,
+        razorpayOrderId: `bypass_bal_${Date.now()}`,
+        amount: trip.balanceRemaining,
+        status: "CAPTURED",
+      },
+    });
+
+    return updatedTrip;
   }
 
   async handleWebhook(event: string, payload: any) {

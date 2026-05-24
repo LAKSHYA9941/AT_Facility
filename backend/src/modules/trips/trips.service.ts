@@ -58,23 +58,47 @@ export const tripsService = {
       Math.ceil((end.getTime() - start.getTime()) / 86400000),
     );
 
-    // Check round trip
+    // We no longer double the totalKm here because the frontend will
+    // silently append the return leg to the waypoints array for round trips,
+    // meaning the loop above already calculates the full distance.
     const isRoundTrip =
       waypoints.length > 1 &&
       waypoints[0].lat === waypoints[waypoints.length - 1].lat &&
       waypoints[0].lng === waypoints[waypoints.length - 1].lng;
 
-    if (isRoundTrip) {
-      totalKm *= 2;
-    }
-
-    const effectiveKm = Math.max(totalKm, days * 250);
-    const driverAllowance = days * 500;
+    const FLAT_RATES: Record<string, number> = {
+      [VehicleSegment.HATCHBACK]: 3500,
+      [VehicleSegment.SEDAN]: 3500,
+      [VehicleSegment.MINI_SUV]: 4000,
+      [VehicleSegment.SUV]: 5000,
+      [VehicleSegment.TEMPO]: 6000,
+    };
 
     const estimates = Object.entries(SEGMENT_RATES).map(
       ([segment, ratePerKm]) => {
-        const baseFare = effectiveKm * ratePerKm;
-        const totalFare = baseFare + driverAllowance;
+        let baseFare = 0;
+        let driverAllowance = 0;
+        let totalFare = 0;
+
+        if (days > 1) {
+          // Multi-day trip uses flat rate per day
+          const flatRate = FLAT_RATES[segment] || 3500;
+          totalFare = days * flatRate;
+          baseFare = totalFare;
+          driverAllowance = 0; // Included in flat rate
+        } else {
+          // Single-day trip
+          const effectiveKm = Math.max(totalKm, 250); // standard 250km min per day
+          baseFare = effectiveKm * ratePerKm;
+
+          if (totalKm > 300) {
+            driverAllowance = 500;
+          } else {
+            driverAllowance = 0; // "before 300 km its per km charge"
+          }
+
+          totalFare = baseFare + driverAllowance;
+        }
 
         return {
           segment: segment as VehicleSegment,
@@ -101,9 +125,9 @@ export const tripsService = {
 
     return {
       totalKm: Math.round(totalKm),
-      effectiveKm: Math.round(effectiveKm),
+      effectiveKm: Math.max(Math.round(totalKm), days * 250),
       days,
-      driverAllowancePerDay: 500,
+      driverAllowancePerDay: 500, // standard reference
       estimates,
     };
   },
@@ -163,18 +187,18 @@ export const tripsService = {
   getAvailableJobs: async (driverUserId: string) => {
     const driver = await prisma.driverProfile.findUnique({
       where: { userId: driverUserId },
-      include: { documents: true }, // Assuming KYC check uses Document model, or we can use kycStatus
     });
 
-    if (!driver || driver.kycStatus !== "VERIFIED") {
-      throw new Error("KYC verification required to view jobs.");
+    if (!driver) {
+      throw new Error("Driver profile not found");
     }
 
     const jobs = await prisma.trip.findMany({
       where: {
         status: TripStatus.CONFIRMED,
         driverId: null,
-        vehicleSegment: driver.segment || VehicleSegment.HATCHBACK,
+        // Optionally filter by segment, or if null show all. We can show all if driver has no segment yet.
+        ...(driver.segment ? { vehicleSegment: driver.segment } : {}),
         startDate: { gte: new Date() },
       },
       include: { waypoints: { orderBy: { orderIndex: "asc" } } },

@@ -7,7 +7,15 @@ import { Role } from "../../shared/types/enums";
 export async function kycRoutes(fastify: FastifyInstance) {
   const kycController = new KycController();
 
+  // POST /api/kyc/upload/:docType — main upload endpoint (returns presigned URL + creates DB record)
   fastify.post<{ Params: { docType: string } }>(
+    "/upload/:docType",
+    { preHandler: [authGuard, roleGuard(Role.DRIVER)] },
+    kycController.uploadDocument,
+  );
+
+  // GET /api/kyc/upload/:docType — alias for mobile clients that call via GET
+  fastify.get<{ Params: { docType: string } }>(
     "/upload/:docType",
     { preHandler: [authGuard, roleGuard(Role.DRIVER)] },
     kycController.uploadDocument,

@@ -42,12 +42,6 @@ type AuthStore = {
   ) => Promise<void>;
 };
 
-const routeByRole = (role: Role) => {
-  if (role === "CUSTOMER") router.replace("/(customer)/plan-trip");
-  if (role === "DRIVER") router.replace("/(driver)/home");
-  if (role === "ADMIN") router.replace("/(admin)/dashboard");
-};
-
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
   isLoading: true,
@@ -140,7 +134,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ user, isAuthenticated: true, isLoading: false });
       connectSocket().catch(console.error);
 
-      routeByRole(user.role);
       return true;
     } catch {
       await SecureStorage.clear();

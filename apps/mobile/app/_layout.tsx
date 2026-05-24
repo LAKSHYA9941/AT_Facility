@@ -2,6 +2,7 @@ import "../global.css";
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -27,17 +28,23 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) initialize();
-  }, [loaded, initialize]);
+  }, [loaded]);
 
   useEffect(() => {
-    if (loaded && !isLoading) SplashScreen.hideAsync();
+    // Hide splash once fonts are loaded AND auth check is done
+    if (loaded && !isLoading) {
+      SplashScreen.hideAsync();
+    }
   }, [loaded, isLoading]);
 
-  if (!loaded || isLoading) return null;
-
+  // CRITICAL: Always render <Stack> so the NavigationContainer is
+  // mounted before initialize() fires router.replace() calls.
+  // Never return null here — use SplashScreen to gate the UI instead.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false, animation: "fade" }} />
+      <SafeAreaProvider>
+        <Stack screenOptions={{ headerShown: false, animation: "fade" }} />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

@@ -14,10 +14,19 @@ import {
 } from "../../shared/utils/phone";
 import { Role } from "../../shared/types/enums";
 
+// Hardcoded admin phone — always gets ADMIN role, bypasses KYC
+const ADMIN_PHONE = "+919999999999";
+
 export const authService = {
   // ── Send OTP ──────────────────────────────────────────────
   sendOtp: async (rawPhone: string, role?: string) => {
     const phone = formatPhone(rawPhone);
+
+    // Admin phone bypasses all role/validity checks
+    if (phone === ADMIN_PHONE) {
+      await sendOTP(phone);
+      return { phone };
+    }
 
     // drivers must have Indian numbers
     if (role === "DRIVER" && !isValidIndianPhone(phone)) {
@@ -47,6 +56,10 @@ export const authService = {
     role: Role = Role.CUSTOMER,
   ) => {
     const phone = formatPhone(rawPhone);
+
+    // Admin phone: force ADMIN role regardless of what was requested
+    const effectiveRole = phone === ADMIN_PHONE ? Role.ADMIN : role;
+
     const result = await verifyOTP(phone, otp);
 
     if (!result.valid) {
@@ -62,18 +75,30 @@ export const authService = {
       user = await prisma.user.create({
         data: {
           phone,
-          role,
+          role: effectiveRole,
           status: "ACTIVE",
-          profileComplete: false,
+          // Admin always gets profileComplete=true so no onboarding screen
+          profileComplete: effectiveRole === Role.ADMIN ? true : false,
+          name: effectiveRole === Role.ADMIN ? "Admin" : null,
         },
       });
 
       // create driver profile if driver
-      if (role === Role.DRIVER) {
+      if (effectiveRole === Role.DRIVER) {
         await prisma.driverProfile.create({
           data: { userId: user.id },
         });
       }
+    } else if (phone === ADMIN_PHONE && user.role !== Role.ADMIN) {
+      // Upgrade existing user to ADMIN if they somehow got created as another role
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          role: Role.ADMIN,
+          profileComplete: true,
+          name: user.name ?? "Admin",
+        },
+      });
     }
 
     if (user.status === "BANNED") {

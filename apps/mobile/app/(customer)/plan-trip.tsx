@@ -1,32 +1,33 @@
+import DateTimePicker from "@react-native-community/datetimepicker";
+import axios from "axios";
+import { useRouter } from "expo-router";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
-import { useState, useRef, useEffect } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import {
+  Calendar,
   MapPin,
   Plus,
   Trash2,
-  Calendar,
   Users,
   Zap,
 } from "lucide-react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import TopBar from "../../components/layout/TopBar";
-import { api } from "../../utils/api";
-import axios from "axios";
+import { useEffect, useRef, useState } from "react";
 import {
-  useMockStore,
-  MOCK_WAYPOINTS,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import TopBar from "../../components/layout/TopBar";
+import {
   MOCK_FARE_ESTIMATES,
+  MOCK_WAYPOINTS,
+  useMockStore,
 } from "../../store/mock";
+import { api } from "../../utils/api";
 
 // Suggestions that are always shown when Mock Mode is active
 const MOCK_SUGGESTIONS = MOCK_WAYPOINTS.map((wp, i) => ({
@@ -39,6 +40,7 @@ const MOCK_SUGGESTIONS = MOCK_WAYPOINTS.map((wp, i) => ({
 type Waypoint = { address: string; lat: number; lng: number };
 
 export default function PlanTripScreen() {
+  const router = useRouter();
   const { isMockMode, toggleMockMode } = useMockStore();
 
   const [tripType, setTripType] = useState<"ONE_WAY" | "ROUND_TRIP">("ONE_WAY");
@@ -50,6 +52,7 @@ export default function PlanTripScreen() {
   const [endDate, setEndDate] = useState(new Date(Date.now() + 5 * 86400000)); // +5 days default
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [passengerCount, setPassengerCount] = useState(2);
   const [loading, setLoading] = useState(false);
   const [fetchingDetails, setFetchingDetails] = useState(false);
@@ -177,11 +180,6 @@ export default function PlanTripScreen() {
           lat: item.lat,
           lng: item.lng,
         };
-        if (tripType === "ROUND_TRIP" && editingIndex === 0) {
-          newWaypoints[newWaypoints.length - 1] = {
-            ...newWaypoints[editingIndex],
-          };
-        }
         setWaypoints(newWaypoints);
         setEditingIndex(null);
         setSearchQuery("");
@@ -210,11 +208,6 @@ export default function PlanTripScreen() {
             lat: latitude,
             lng: longitude,
           };
-          if (tripType === "ROUND_TRIP" && editingIndex === 0) {
-            newWaypoints[newWaypoints.length - 1] = {
-              ...newWaypoints[editingIndex],
-            };
-          }
           setWaypoints(newWaypoints);
         } else {
           Alert.alert(
@@ -242,7 +235,7 @@ export default function PlanTripScreen() {
       router.push({
         pathname: "/(customer)/fleet-selection",
         params: {
-          tripType: "ONE_WAY",
+          tripType, // preserve user's ONE_WAY / ROUND_TRIP selection
           waypoints: JSON.stringify(MOCK_WAYPOINTS),
           startDate: mockStart.toISOString(),
           endDate: mockEnd.toISOString(),
@@ -260,14 +253,34 @@ export default function PlanTripScreen() {
         "Please enter pickup and drop locations",
       );
     }
-    if (endDate < startDate) {
-      return Alert.alert("Invalid Dates", "End date must be after start date");
+    const startDay = new Date(
+      startDate.getFullYear(),
+      startDate.getMonth(),
+      startDate.getDate(),
+    );
+    const endDay = new Date(
+      endDate.getFullYear(),
+      endDate.getMonth(),
+      endDate.getDate(),
+    );
+    if (endDay < startDay) {
+      return Alert.alert(
+        "Invalid Dates",
+        "End date must be on or after start date",
+      );
     }
 
     try {
       setLoading(true);
+
+      // Silently append the return point if it is a round trip
+      const finalWaypoints = [...waypoints];
+      if (tripType === "ROUND_TRIP" && waypoints[0].address) {
+        finalWaypoints.push({ ...waypoints[0] });
+      }
+
       const res = await api.post("/api/trips/estimate", {
-        waypoints,
+        waypoints: finalWaypoints,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
         passengerCount,
@@ -277,7 +290,7 @@ export default function PlanTripScreen() {
         pathname: "/(customer)/fleet-selection",
         params: {
           tripType,
-          waypoints: JSON.stringify(waypoints),
+          waypoints: JSON.stringify(finalWaypoints),
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
           passengerCount: passengerCount.toString(),
@@ -295,7 +308,7 @@ export default function PlanTripScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+    <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <TopBar title="Plan Trip" />
 
       {/* ── Mock Mode Banner ── */}
@@ -363,30 +376,72 @@ export default function PlanTripScreen() {
         </View>
       </TouchableOpacity>
 
-      <ScrollView className="flex-1 px-5 pt-4">
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16 }}
+      >
         {/* Trip Type Toggle */}
-        <View className="flex-row bg-gray-100 rounded-xl p-1 mb-6">
+        <View
+          style={{
+            flexDirection: "row",
+            backgroundColor: "#F3F4F6",
+            borderRadius: 12,
+            padding: 4,
+            marginBottom: 24,
+          }}
+        >
           <TouchableOpacity
-            className={`flex-1 py-3 items-center rounded-lg ${tripType === "ONE_WAY" ? "bg-white shadow-sm" : ""}`}
-            onPress={() => setTripType("ONE_WAY")}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              alignItems: "center",
+              borderRadius: 8,
+              backgroundColor:
+                tripType === "ONE_WAY" ? "#FFFFFF" : "transparent",
+              shadowColor: tripType === "ONE_WAY" ? "#000" : undefined,
+              shadowOffset:
+                tripType === "ONE_WAY" ? { width: 0, height: 1 } : undefined,
+              shadowOpacity: tripType === "ONE_WAY" ? 0.05 : 0,
+              shadowRadius: tripType === "ONE_WAY" ? 2 : 0,
+              elevation: tripType === "ONE_WAY" ? 1 : 0,
+            }}
+            onPress={() => {
+              setTripType("ONE_WAY");
+            }}
           >
             <Text
-              className={`font-semibold ${tripType === "ONE_WAY" ? "text-brand-primary" : "text-gray-500"}`}
+              style={{
+                fontWeight: "600",
+                color: tripType === "ONE_WAY" ? "#1B4F8A" : "#6B7280",
+              }}
             >
               One-Way
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`flex-1 py-3 items-center rounded-lg ${tripType === "ROUND_TRIP" ? "bg-white shadow-sm" : ""}`}
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              alignItems: "center",
+              borderRadius: 8,
+              backgroundColor:
+                tripType === "ROUND_TRIP" ? "#FFFFFF" : "transparent",
+              shadowColor: tripType === "ROUND_TRIP" ? "#000" : undefined,
+              shadowOffset:
+                tripType === "ROUND_TRIP" ? { width: 0, height: 1 } : undefined,
+              shadowOpacity: tripType === "ROUND_TRIP" ? 0.05 : 0,
+              shadowRadius: tripType === "ROUND_TRIP" ? 2 : 0,
+              elevation: tripType === "ROUND_TRIP" ? 1 : 0,
+            }}
             onPress={() => {
               setTripType("ROUND_TRIP");
-              const newWp = [...waypoints];
-              newWp[newWp.length - 1] = { ...newWp[0] };
-              setWaypoints(newWp);
             }}
           >
             <Text
-              className={`font-semibold ${tripType === "ROUND_TRIP" ? "text-brand-primary" : "text-gray-500"}`}
+              style={{
+                fontWeight: "600",
+                color: tripType === "ROUND_TRIP" ? "#1B4F8A" : "#6B7280",
+              }}
             >
               Round-Trip
             </Text>
@@ -394,25 +449,46 @@ export default function PlanTripScreen() {
         </View>
 
         {/* Waypoints */}
-        <View className="mb-6 border border-gray-200 rounded-2xl p-4">
+        <View
+          style={{
+            marginBottom: 24,
+            borderWidth: 1,
+            borderColor: "#E5E7EB",
+            borderRadius: 16,
+            padding: 16,
+          }}
+        >
           {waypoints.map((wp, index) => {
             const isPickup = index === 0;
             const isDrop = index === waypoints.length - 1;
-            const isRoundTripDrop = tripType === "ROUND_TRIP" && isDrop;
-
             return (
-              <View key={index} className="flex-row items-center mb-4">
+              <View
+                key={index}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 16,
+                }}
+              >
                 <MapPin
                   size={20}
                   color={isPickup ? "#22c55e" : isDrop ? "#ef4444" : "#f59e0b"}
                 />
                 <TouchableOpacity
-                  className={`flex-1 ml-3 border-b border-gray-200 pb-2 ${isRoundTripDrop ? "opacity-50" : ""}`}
-                  onPress={() => !isRoundTripDrop && setEditingIndex(index)}
-                  disabled={isRoundTripDrop}
+                  style={{
+                    flex: 1,
+                    marginLeft: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#E5E7EB",
+                    paddingBottom: 8,
+                  }}
+                  onPress={() => setEditingIndex(index)}
                 >
                   <Text
-                    className={wp.address ? "text-gray-900" : "text-gray-400"}
+                    style={{
+                      color: wp.address ? "#111827" : "#9CA3AF",
+                      fontSize: 14,
+                    }}
                   >
                     {wp.address ||
                       (isPickup
@@ -425,7 +501,7 @@ export default function PlanTripScreen() {
                 {!isPickup && !isDrop && (
                   <TouchableOpacity
                     onPress={() => handleRemoveStop(index)}
-                    className="ml-2"
+                    style={{ marginLeft: 8 }}
                   >
                     <Trash2 size={20} color="#ef4444" />
                   </TouchableOpacity>
@@ -433,13 +509,43 @@ export default function PlanTripScreen() {
               </View>
             );
           })}
+
+          {/* Round-trip info banner */}
+          {tripType === "ROUND_TRIP" && (
+            <View
+              style={{
+                backgroundColor: "#EFF6FF",
+                borderRadius: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                marginTop: 4,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <Text style={{ fontSize: 14 }}>🔄</Text>
+              <Text
+                style={{ fontSize: 12, color: "#1D4ED8", fontWeight: "600" }}
+              >
+                Round-trip: driver returns you to the same pickup point
+              </Text>
+            </View>
+          )}
+
           {waypoints.length < 5 && (
             <TouchableOpacity
               onPress={handleAddStop}
-              className="flex-row items-center mt-2"
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginTop: 12,
+              }}
             >
               <Plus size={20} color="#1B4F8A" />
-              <Text className="text-brand-primary font-semibold ml-2">
+              <Text
+                style={{ color: "#1B4F8A", fontWeight: "600", marginLeft: 8 }}
+              >
                 Add Stop
               </Text>
             </TouchableOpacity>
@@ -448,14 +554,38 @@ export default function PlanTripScreen() {
 
         {/* Inline Address Search Modal */}
         {editingIndex !== null && (
-          <View className="absolute top-0 left-0 right-0 bottom-0 bg-white z-50 p-5">
-            <View className="flex-row items-center mb-4">
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "#FFFFFF",
+              zIndex: 50,
+              padding: 20,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
               <TouchableOpacity onPress={() => setEditingIndex(null)}>
-                <Text className="text-brand-primary text-lg">Back</Text>
+                <Text style={{ color: "#1B4F8A", fontSize: 18 }}>Back</Text>
               </TouchableOpacity>
               <TextInput
                 autoFocus
-                className="flex-1 ml-4 bg-gray-100 p-3 rounded-xl"
+                style={{
+                  flex: 1,
+                  marginLeft: 16,
+                  backgroundColor: "#F3F4F6",
+                  padding: 12,
+                  borderRadius: 12,
+                  fontSize: 16,
+                }}
                 placeholder="Search location..."
                 value={searchQuery}
                 onChangeText={searchAddress}
@@ -487,7 +617,14 @@ export default function PlanTripScreen() {
                     </Text>
                   </View>
                 ) : (
-                  <Text className="text-xs text-gray-400 text-center mb-2">
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: "#9CA3AF",
+                      textAlign: "center",
+                      marginBottom: 8,
+                    }}
+                  >
                     {searchResults[0].place_id.toString().startsWith("osm-")
                       ? "Suggestions powered by OpenStreetMap"
                       : "Suggestions powered by Google Places"}
@@ -497,7 +634,7 @@ export default function PlanTripScreen() {
                 <ActivityIndicator
                   size="large"
                   color="#1B4F8A"
-                  className="mt-10"
+                  style={styles.loadingIndicator}
                 />
               ) : (
                 searchResults.map((item, i) => (
@@ -518,17 +655,18 @@ export default function PlanTripScreen() {
                         },
                     ]}
                   >
-                    <MapPin
-                      size={15}
-                      color={
-                        i === 0
-                          ? "#22c55e" // pickup green
-                          : i === searchResults.length - 1
-                            ? "#ef4444" // drop red
-                            : "#f59e0b" // stop amber
-                      }
-                      style={{ marginRight: 10 }}
-                    />
+                    <View style={{ marginRight: 10 }}>
+                      <MapPin
+                        size={15}
+                        color={
+                          i === 0
+                            ? "#22c55e" // pickup green
+                            : i === searchResults.length - 1
+                              ? "#ef4444" // drop red
+                              : "#f59e0b" // stop amber
+                        }
+                      />
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text
                         style={{
@@ -584,25 +722,133 @@ export default function PlanTripScreen() {
         )}
 
         {/* Dates */}
-        <View className="flex-row space-x-4 mb-6">
-          <TouchableOpacity
-            className="flex-1 border border-gray-200 rounded-xl p-4 flex-row items-center"
-            onPress={() => setShowStartPicker(true)}
-          >
-            <Calendar size={20} color="#6b7280" />
-            <Text className="ml-3 font-semibold text-gray-700">
-              {startDate.toLocaleDateString()}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="flex-1 border border-gray-200 rounded-xl p-4 flex-row items-center"
-            onPress={() => setShowEndPicker(true)}
-          >
-            <Calendar size={20} color="#6b7280" />
-            <Text className="ml-3 font-semibold text-gray-700">
-              {endDate.toLocaleDateString()}
-            </Text>
-          </TouchableOpacity>
+        <View style={{ marginBottom: 8 }}>
+          <View style={{ flexDirection: "row", marginBottom: 4, gap: 16 }}>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: "#9CA3AF",
+                  fontWeight: "600",
+                  marginBottom: 3,
+                }}
+              >
+                {tripType === "ROUND_TRIP" ? "DEPARTURE" : "START"}
+              </Text>
+            </View>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: "#9CA3AF",
+                  fontWeight: "600",
+                  marginBottom: 3,
+                }}
+              >
+                PICKUP TIME
+              </Text>
+            </View>
+            <View style={{ flex: 1, alignItems: "center" }}>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: "#9CA3AF",
+                  fontWeight: "600",
+                  marginBottom: 3,
+                }}
+              >
+                {tripType === "ROUND_TRIP" ? "RETURN" : "END"}
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: "row", marginBottom: 24, gap: 8 }}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                borderRadius: 12,
+                padding: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => setShowStartPicker(true)}
+            >
+              <Calendar size={16} color="#6b7280" />
+              <Text
+                style={{
+                  marginLeft: 6,
+                  fontWeight: "600",
+                  color: "#374151",
+                  fontSize: 12,
+                }}
+              >
+                {startDate.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                borderRadius: 12,
+                padding: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <Text style={{ fontSize: 14 }}>🕒</Text>
+              <Text
+                style={{
+                  marginLeft: 6,
+                  fontWeight: "600",
+                  color: "#374151",
+                  fontSize: 12,
+                }}
+              >
+                {startDate.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                borderRadius: 12,
+                padding: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => setShowEndPicker(true)}
+            >
+              <Calendar size={16} color="#6b7280" />
+              <Text
+                style={{
+                  marginLeft: 6,
+                  fontWeight: "600",
+                  color: "#374151",
+                  fontSize: 12,
+                }}
+              >
+                {endDate.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
         {showStartPicker && (
           <DateTimePicker
@@ -612,7 +858,26 @@ export default function PlanTripScreen() {
             minimumDate={new Date()}
             onChange={(e, d) => {
               setShowStartPicker(false);
-              if (d) setStartDate(d);
+              if (d) {
+                const newDate = new Date(d);
+                newDate.setHours(startDate.getHours(), startDate.getMinutes());
+                setStartDate(newDate);
+              }
+            }}
+          />
+        )}
+        {showTimePicker && (
+          <DateTimePicker
+            value={startDate}
+            mode="time"
+            display="default"
+            onChange={(e, d) => {
+              setShowTimePicker(false);
+              if (d) {
+                const newDate = new Date(startDate);
+                newDate.setHours(d.getHours(), d.getMinutes());
+                setStartDate(newDate);
+              }
             }}
           />
         )}
@@ -624,34 +889,82 @@ export default function PlanTripScreen() {
             minimumDate={startDate}
             onChange={(e, d) => {
               setShowEndPicker(false);
-              if (d) setEndDate(d);
+              if (d) {
+                const newDate = new Date(d);
+                newDate.setHours(endDate.getHours(), endDate.getMinutes());
+                setEndDate(newDate);
+              }
             }}
           />
         )}
 
         {/* Passengers */}
-        <View className="border border-gray-200 rounded-xl p-4 flex-row items-center justify-between mb-8">
-          <View className="flex-row items-center">
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: "#E5E7EB",
+            borderRadius: 12,
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 32,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Users size={20} color="#6b7280" />
-            <Text className="ml-3 font-semibold text-gray-700">Travellers</Text>
+            <Text
+              style={{ marginLeft: 12, fontWeight: "600", color: "#374151" }}
+            >
+              Travellers
+            </Text>
           </View>
-          <View className="flex-row items-center space-x-4">
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
             <TouchableOpacity
               onPress={() => setPassengerCount(Math.max(1, passengerCount - 1))}
-              className="bg-gray-100 w-8 h-8 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: "#F3F4F6",
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <Text className="text-lg font-bold text-gray-600">-</Text>
+              <Text
+                style={{ fontSize: 18, fontWeight: "bold", color: "#4B5563" }}
+              >
+                -
+              </Text>
             </TouchableOpacity>
-            <Text className="text-lg font-bold w-6 text-center">
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "bold",
+                width: 24,
+                textAlign: "center",
+              }}
+            >
               {passengerCount}
             </Text>
             <TouchableOpacity
               onPress={() =>
                 setPassengerCount(Math.min(12, passengerCount + 1))
               }
-              className="bg-gray-100 w-8 h-8 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: "#F3F4F6",
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <Text className="text-lg font-bold text-gray-600">+</Text>
+              <Text
+                style={{ fontSize: 18, fontWeight: "bold", color: "#4B5563" }}
+              >
+                +
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -665,20 +978,26 @@ export default function PlanTripScreen() {
                 !waypoints[waypoints.length - 1].address))
           }
           onPress={handleFindCabs}
-          className={`py-4 rounded-xl items-center mb-10 ${
-            loading
-              ? "bg-gray-300"
+          style={{
+            paddingVertical: 16,
+            borderRadius: 12,
+            alignItems: "center",
+            marginBottom: 40,
+            backgroundColor: loading
+              ? "#D1D5DB"
               : isMockMode
-                ? "bg-amber-500"
+                ? "#F59E0B"
                 : !waypoints[0].address
-                  ? "bg-gray-300"
-                  : "bg-brand-primary"
-          }`}
+                  ? "#D1D5DB"
+                  : "#1B4F8A",
+          }}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text className="text-white font-bold text-lg">
+            <Text
+              style={{ color: "#FFFFFF", fontWeight: "bold", fontSize: 18 }}
+            >
               {isMockMode ? "⚡ Find Cabs (Mock)" : "Find Cabs"}
             </Text>
           )}
@@ -687,3 +1006,13 @@ export default function PlanTripScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  loadingIndicator: {
+    marginTop: 40,
+  },
+});

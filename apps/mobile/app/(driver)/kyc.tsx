@@ -101,8 +101,8 @@ export default function KYCScreen() {
   const fetchKYCStatus = async () => {
     try {
       const res = await api.get("/api/kyc/status");
-      const { status, documents } = res.data.data;
-      setOverallStatus(status);
+      const { kycStatus, documents } = res.data.data;
+      setOverallStatus(kycStatus || "UNSUBMITTED");
 
       setDocs((prev) =>
         prev.map((doc) => {
@@ -144,9 +144,9 @@ export default function KYCScreen() {
         prev.map((d) => (d.id === id ? { ...d, uploading: true } : d)),
       );
 
-      // 1. Get presigned URL
-      const { data } = await api.get(`/api/kyc/presigned-url/${id}`);
-      const presignedUrl = data.data.uploadUrl;
+      // 1. Get presigned URL — backend route: POST /api/kyc/upload/:docType
+      const { data } = await api.get(`/api/kyc/upload/${id}`);
+      const presignedUrl = data.data.presignedUrl;
 
       // 2. Upload to S3
       const response = await fetch(asset.uri);

@@ -1,18 +1,20 @@
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle2 } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import TopBar from "../../components/layout/TopBar";
+// import { useMockStore } from "../../store/mock";
 import { api } from "../../utils/api";
-import { useMockStore } from "../../store/mock";
 
 type PaymentTier = 25 | 50 | 100;
 type PaymentTierKey = "pct25" | "pct50" | "pct100";
@@ -48,6 +50,7 @@ const SEGMENT_ORDER = [
   "MINI_SUV",
   "SUV",
   "TEMPO",
+  "URBANIA",
 ] as const;
 
 const getSegmentOrder = (segment: string) => {
@@ -70,7 +73,17 @@ const safeParse = <T,>(value: unknown): T | null => {
   }
 };
 
+const SEGMENT_IMAGES: Record<string, any> = {
+  HATCHBACK: require("../../assets/images/wagonR_icon.avif"),
+  SEDAN: require("../../assets/images/swift_dzire_icon.avif"),
+  MINI_SUV: require("../../assets/images/ertiga_icon.avif"),
+  SUV: require("../../assets/images/innova_crysta.avif"),
+  TEMPO: require("../../assets/images/tempo_traveller.avif"),
+  URBANIA: require("../../assets/images/urbania_icon.webp"),
+};
+
 export default function FleetSelectionScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams();
 
   const waypoints = useMemo<Waypoint[]>(() => {
@@ -101,8 +114,26 @@ export default function FleetSelectionScreen() {
       : NaN;
 
   const fleet = useMemo<FleetOption[]>(() => {
-    if (!fareData?.estimates?.length) return [];
-    return [...fareData.estimates].sort(
+    const defaultTiers: Record<PaymentTierKey, PaymentTierBreakdown> = {
+      pct25: { upfront: 0, balance: 0 },
+      pct50: { upfront: 0, balance: 0 },
+      pct100: { upfront: 0, balance: 0 },
+    };
+
+    const baseEstimates = fareData?.estimates ? [...fareData.estimates] : [];
+
+    const hasUrbania = baseEstimates.some((item) => item.segment === "URBANIA");
+    if (!hasUrbania) {
+      baseEstimates.push({
+        segment: "URBANIA",
+        baseFare: 0,
+        driverAllowance: 0,
+        totalFare: 0,
+        paymentTiers: defaultTiers,
+      });
+    }
+
+    return baseEstimates.sort(
       (a, b) => getSegmentOrder(a.segment) - getSegmentOrder(b.segment),
     );
   }, [fareData]);
@@ -112,7 +143,7 @@ export default function FleetSelectionScreen() {
   );
   const [paymentTier, setPaymentTier] = useState<PaymentTier>(25);
   const [loading, setLoading] = useState(false);
-  const { isMockMode } = useMockStore();
+  // const { isMockMode } = useMockStore();
 
   const isDataInvalid =
     !tripType ||
@@ -147,33 +178,44 @@ export default function FleetSelectionScreen() {
   const handleProceed = async () => {
     if (!selectedSegment || isDataInvalid) return;
 
-    // ── MOCK MODE: skip API, generate fake trip ID ──
-    if (isMockMode) {
-      setLoading(true);
-      const tierKey = tierToKey(paymentTier);
-      await new Promise((r) => setTimeout(r, 800)); // simulate DB lag
-      const mockTripId = `mock-trip-${Date.now()}`;
-      setLoading(false);
-      router.push({
-        pathname: "/(customer)/checkout",
-        params: {
-          tripId: mockTripId,
-          amountPaidUpfront:
-            selectedSegment.paymentTiers[tierKey].upfront.toString(),
-          totalFare: selectedSegment.totalFare.toString(),
-          balance: selectedSegment.paymentTiers[tierKey].balance.toString(),
-          vehicleSegment: selectedSegment.segment,
-          waypoints:
-            typeof waypoints === "string"
-              ? waypoints
-              : JSON.stringify(waypoints),
-          startDate: startDate ?? "",
-          endDate: endDate ?? "",
-          passengerCount: passengerCount.toString(),
-        },
-      });
+    if (
+      selectedSegment.segment === "TEMPO" ||
+      selectedSegment.segment === "URBANIA"
+    ) {
+      Alert.alert(
+        "Request Received",
+        "A trip specialist will reach out to confirm availability and pricing for this vehicle.",
+      );
       return;
     }
+
+    // // ── MOCK MODE: skip API, generate fake trip ID ──
+    // if (isMockMode) {
+    //   setLoading(true);
+    //   const tierKey = tierToKey(paymentTier);
+    //   await new Promise((r) => setTimeout(r, 800)); // simulate DB lag
+    //   const mockTripId = `mock-trip-${Date.now()}`;
+    //   setLoading(false);
+    //   router.push({
+    //     pathname: "/(customer)/checkout",
+    //     params: {
+    //       tripId: mockTripId,
+    //       amountPaidUpfront:
+    //         selectedSegment.paymentTiers[tierKey].upfront.toString(),
+    //       totalFare: selectedSegment.totalFare.toString(),
+    //       balance: selectedSegment.paymentTiers[tierKey].balance.toString(),
+    //       vehicleSegment: selectedSegment.segment,
+    //       waypoints:
+    //         typeof waypoints === "string"
+    //           ? waypoints
+    //           : JSON.stringify(waypoints),
+    //       startDate: startDate ?? "",
+    //       endDate: endDate ?? "",
+    //       passengerCount: passengerCount.toString(),
+    //     },
+    //   });
+    //   return;
+    // }
 
     // ── REAL MODE ──
     try {
@@ -230,15 +272,18 @@ export default function FleetSelectionScreen() {
     waypoints[waypoints.length - 1]?.address?.split(",")[0] ?? "Destination";
   const tierKey = tierToKey(paymentTier);
 
+  const routeDisplay =
+    tripType === "ROUND_TRIP"
+      ? `🔄 ${waypoints.map((w) => w.address?.split(",")[0]).join(" → ")}`
+      : `${pickupLabel} → ${dropLabel}`;
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <TopBar title="Select Vehicle" onBack={() => router.back()} showBack />
 
       <ScrollView className="flex-1 px-5 pt-4">
         <View className="bg-white p-4 rounded-2xl shadow-sm mb-6">
-          <Text className="font-semibold text-gray-800">
-            {pickupLabel} → {dropLabel}
-          </Text>
+          <Text className="font-semibold text-gray-800">{routeDisplay}</Text>
           <Text className="text-gray-500 text-sm mt-1">
             {new Date(startDate).toLocaleDateString()} -{" "}
             {new Date(endDate).toLocaleDateString()} • {passengerCount} Pax
@@ -252,6 +297,9 @@ export default function FleetSelectionScreen() {
         >
           {fleet.map((vehicle) => {
             const isSelected = selectedSegment?.segment === vehicle.segment;
+            const showOnRequest =
+              vehicle.segment === "TEMPO" || vehicle.segment === "URBANIA";
+
             return (
               <TouchableOpacity
                 key={vehicle.segment}
@@ -263,14 +311,24 @@ export default function FleetSelectionScreen() {
                     <CheckCircle2 size={20} color="#1B4F8A" />
                   </View>
                 )}
-                <View className="h-16 bg-gray-100 rounded-lg mb-3 items-center justify-center">
-                  <Text className="text-xs text-gray-400">Image</Text>
+                <View className="h-16 bg-gray-100 rounded-lg mb-3 items-center justify-center overflow-hidden">
+                  {SEGMENT_IMAGES[vehicle.segment] ? (
+                    <Image
+                      source={SEGMENT_IMAGES[vehicle.segment]}
+                      style={styles.cardImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text className="text-xs text-gray-400">Image</Text>
+                  )}
                 </View>
                 <Text className="font-bold text-gray-800">
                   {vehicle.segment}
                 </Text>
                 <Text className="text-xs text-gray-500 mt-1">
-                  ₹{vehicle.totalFare}
+                  {showOnRequest
+                    ? "Available on request"
+                    : `₹${vehicle.totalFare}`}
                 </Text>
               </TouchableOpacity>
             );
@@ -286,14 +344,22 @@ export default function FleetSelectionScreen() {
               <Text className="text-gray-600">
                 Base Fare ({fareData.effectiveKm} km min)
               </Text>
-              <Text className="font-semibold">₹{selectedSegment.baseFare}</Text>
+              <Text className="font-semibold">
+                {selectedSegment.segment === "TEMPO" ||
+                selectedSegment.segment === "URBANIA"
+                  ? "—"
+                  : `₹${selectedSegment.baseFare}`}
+              </Text>
             </View>
             <View className="flex-row justify-between mb-2">
               <Text className="text-gray-600">
                 Driver Allowance ({fareData.days} days)
               </Text>
               <Text className="font-semibold">
-                ₹{selectedSegment.driverAllowance}
+                {selectedSegment.segment === "TEMPO" ||
+                selectedSegment.segment === "URBANIA"
+                  ? "—"
+                  : `₹${selectedSegment.driverAllowance}`}
               </Text>
             </View>
             <View className="flex-row justify-between mt-3 pt-3 border-t border-gray-100">
@@ -301,7 +367,10 @@ export default function FleetSelectionScreen() {
                 Total Fare
               </Text>
               <Text className="font-bold text-lg text-brand-primary">
-                ₹{selectedSegment.totalFare}
+                {selectedSegment.segment === "TEMPO" ||
+                selectedSegment.segment === "URBANIA"
+                  ? "Available on request"
+                  : `₹${selectedSegment.totalFare}`}
               </Text>
             </View>
           </View>
@@ -315,11 +384,20 @@ export default function FleetSelectionScreen() {
             <View className="flex-row bg-gray-200 rounded-full p-1 mb-2">
               {[25, 50, 100].map((tier) => {
                 const tierKeyOption = tierToKey(tier as PaymentTier);
+                const disabledTier =
+                  selectedSegment.segment === "TEMPO" ||
+                  selectedSegment.segment === "URBANIA";
+                const upfront =
+                  selectedSegment.paymentTiers?.[tierKeyOption]?.upfront ?? 0;
+
                 return (
                   <TouchableOpacity
                     key={tier}
-                    onPress={() => setPaymentTier(tier as PaymentTier)}
-                    className={`flex-1 py-2 items-center rounded-full ${paymentTier === tier ? "bg-white shadow-sm" : ""}`}
+                    onPress={() =>
+                      !disabledTier && setPaymentTier(tier as PaymentTier)
+                    }
+                    disabled={disabledTier}
+                    className={`flex-1 py-2 items-center rounded-full ${paymentTier === tier ? "bg-white shadow-sm" : ""} ${disabledTier ? "opacity-60" : ""}`}
                   >
                     <Text
                       className={`text-xs font-bold ${paymentTier === tier ? "text-brand-primary" : "text-gray-600"}`}
@@ -329,15 +407,17 @@ export default function FleetSelectionScreen() {
                     <Text
                       className={`text-[10px] ${paymentTier === tier ? "text-brand-primary" : "text-gray-500"}`}
                     >
-                      ₹{selectedSegment.paymentTiers[tierKeyOption].upfront}
+                      {disabledTier ? "—" : `₹${upfront}`}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
             <Text className="text-xs text-gray-500 text-center">
-              Balance of ₹{selectedSegment.paymentTiers[tierKey].balance} paid
-              directly to driver during trip.
+              {selectedSegment.segment === "TEMPO" ||
+              selectedSegment.segment === "URBANIA"
+                ? "Our team will confirm availability and pricing manually."
+                : `Balance of ₹${selectedSegment.paymentTiers?.[tierKey]?.balance ?? 0} paid directly to driver during trip.`}
             </Text>
           </View>
         )}
@@ -347,11 +427,20 @@ export default function FleetSelectionScreen() {
           onPress={handleProceed}
           className={`py-4 rounded-xl items-center mb-10 ${!selectedSegment || loading ? "bg-gray-300" : "bg-brand-primary"}`}
         >
-          <Text className="text-white font-bold text-lg">
-            {loading ? "Processing..." : "Proceed to Pay"}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text className="text-white font-bold text-lg">Proceed to Pay</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  cardImage: {
+    width: "100%",
+    height: "100%",
+  },
+});

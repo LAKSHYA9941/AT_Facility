@@ -62,34 +62,10 @@ export default function CheckoutScreen() {
       return;
     }
 
-    // ── REAL MODE ──
+    // ── REAL MODE (Bypass Razorpay) ──
     try {
       setLoading(true);
-      const res = await api.post("/api/payments/create-order", { tripId });
-      const { razorpayOrderId, amount, key } = res.data.data;
-
-      const options = {
-        description: "Trip Advance Payment",
-        image: "https://i.imgur.com/3g7nmJC.png",
-        currency: "INR",
-        key: key,
-        amount: amount.toString(),
-        name: "At Facility",
-        order_id: razorpayOrderId,
-        prefill: {
-          email: user?.email || "",
-          contact: user?.phone || "",
-          name: user?.name || "",
-        },
-        theme: { color: "#1B4F8A" },
-      };
-
-      const paymentData = await RazorpayCheckout.open(options);
-
-      const verifyRes = await api.post("/api/payments/verify", {
-        razorpay_order_id: paymentData.razorpay_order_id,
-        razorpay_payment_id: paymentData.razorpay_payment_id,
-        razorpay_signature: paymentData.razorpay_signature,
+      const verifyRes = await api.post("/api/payments/bypass-verify", {
         tripId,
       });
 
@@ -101,12 +77,10 @@ export default function CheckoutScreen() {
         });
       }
     } catch (e: any) {
-      if (e.code !== "0") {
-        Alert.alert(
-          "Payment Failed",
-          e.description || e.message || "An error occurred",
-        );
-      }
+      Alert.alert(
+        "Payment Failed",
+        e.response?.data?.message || e.message || "An error occurred",
+      );
     } finally {
       setLoading(false);
     }

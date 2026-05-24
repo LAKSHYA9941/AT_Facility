@@ -19,7 +19,10 @@ export default function OTPScreen() {
   const inputs = useRef<TextInput[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { phone, isAdmin } = useLocalSearchParams<{
+    phone: string;
+    isAdmin?: string;
+  }>();
   const verifyOtp = useAuthStore((s) => s.verifyOtp);
 
   const handleChange = (val: string, idx: number) => {
@@ -37,6 +40,12 @@ export default function OTPScreen() {
       const result = await verifyOtp(phone, otp.join(""));
       const user = useAuthStore.getState().user;
 
+      // Admin role always goes straight to dashboard — no profile/verification checks
+      if (result.role === "ADMIN") {
+        router.replace("/(admin)/dashboard");
+        return;
+      }
+
       if (
         result.isNewUser ||
         !user?.profileComplete ||
@@ -48,7 +57,6 @@ export default function OTPScreen() {
       } else {
         if (result.role === "CUSTOMER") router.replace("/(customer)/plan-trip");
         if (result.role === "DRIVER") router.replace("/(driver)/home");
-        if (result.role === "ADMIN") router.replace("/(admin)/dashboard");
       }
     } catch (err: any) {
       alert(err.response?.data?.message || err.message || "Invalid OTP");

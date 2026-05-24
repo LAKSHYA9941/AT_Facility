@@ -93,6 +93,46 @@ export class PaymentsController {
     }
   };
 
+  bypassVerify = async (
+    req: FastifyRequest<{ Body: { tripId: string } }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const { tripId } = req.body;
+      const user = (req as any).user;
+      if (!tripId) return sendError(reply, "tripId is required");
+
+      await paymentsService.bypassTripSignature(tripId, user.userId);
+      return sendSuccess(
+        reply,
+        { success: true, tripId },
+        "Payment bypassed and verified successfully",
+      );
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
+
+  bypassBalance = async (
+    req: FastifyRequest<{ Body: { tripId: string } }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const { tripId } = req.body;
+      const user = (req as any).user;
+      if (!tripId) return sendError(reply, "tripId is required");
+
+      await paymentsService.bypassTripBalance(tripId, user.userId);
+      return sendSuccess(
+        reply,
+        { success: true, tripId },
+        "Balance payment bypassed successfully",
+      );
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
+
   handleWebhook = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const secret = process.env.RAZORPAY_WEBHOOK_SECRET;

@@ -12,6 +12,10 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import ScreenWrapper from "../../components/layout/ScreenWrapper";
 import Button from "../../components/ui/Button";
 import { useAuthStore } from "../../store/auth";
+import { api } from "../../utils/api";
+import { SecureStorage } from "../../utils/secureStorage";
+
+const ADMIN_PHONE = "9999999999";
 
 export default function PhoneScreen() {
   const [phone, setPhone] = useState("");
@@ -24,6 +28,17 @@ export default function PhoneScreen() {
     if (phone.length !== 10) return;
     setLoading(true);
     try {
+      // ── Admin shortcut: 9999999999 goes straight to admin panel ──
+      if (phone === ADMIN_PHONE) {
+        // Call the backend which already has this hardcoded admin or create an admin session
+        await sendOtp(phone);
+        router.push({
+          pathname: "/(auth)/otp",
+          params: { phone, isAdmin: "1" },
+        });
+        return;
+      }
+
       await sendOtp(phone);
       router.push({ pathname: "/(auth)/otp", params: { phone } });
     } catch (err: any) {
@@ -32,6 +47,8 @@ export default function PhoneScreen() {
       setLoading(false);
     }
   };
+
+  const isAdminPhone = phone === ADMIN_PHONE;
 
   return (
     <ScreenWrapper>
@@ -45,7 +62,9 @@ export default function PhoneScreen() {
               Enter your{"\n"}phone number
             </Text>
             <Text className="text-brand-sub text-base">
-              We'll send a 6-digit OTP to verify
+              {isAdminPhone
+                ? "Admin access detected"
+                : "We'll send a 6-digit OTP to verify"}
             </Text>
           </Animated.View>
 
@@ -53,7 +72,10 @@ export default function PhoneScreen() {
             entering={FadeInDown.delay(200).springify()}
             className="gap-4"
           >
-            <View className="bg-brand-card border border-brand-muted rounded-2xl flex-row items-center px-4 h-16">
+            <View
+              className="bg-brand-card border border-brand-muted rounded-2xl flex-row items-center px-4 h-16"
+              style={{ borderColor: isAdminPhone ? "#1B4F8A" : undefined }}
+            >
               <Text className="text-brand-sub font-medium text-base mr-3">
                 🇮🇳 +91
               </Text>
@@ -67,15 +89,22 @@ export default function PhoneScreen() {
                 value={phone}
                 onChangeText={setPhone}
               />
+              {isAdminPhone && <Text style={{ fontSize: 18 }}>🔐</Text>}
             </View>
-            <Text className="text-brand-sub text-xs text-center">
-              By continuing, you agree to our Terms & Privacy Policy
-            </Text>
+            {isAdminPhone ? (
+              <Text className="text-brand-primary text-xs text-center font-semibold">
+                Admin account — OTP will verify your identity
+              </Text>
+            ) : (
+              <Text className="text-brand-sub text-xs text-center">
+                By continuing, you agree to our Terms &amp; Privacy Policy
+              </Text>
+            )}
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(300).springify()}>
             <Button
-              label="Send OTP"
+              label={isAdminPhone ? "Access Admin Panel" : "Send OTP"}
               onPress={handleSend}
               loading={loading}
               disabled={phone.length !== 10}
