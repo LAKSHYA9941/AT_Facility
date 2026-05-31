@@ -6,14 +6,23 @@ import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
 import { errorHandler } from "./shared/middleware/error.handler";
 import { registerRoutes } from "./routes";
+import {
+  serializerCompiler,
+  validatorCompiler,
+  ZodTypeProvider,
+} from "fastify-type-provider-zod";
+import { logger } from "./shared/logger/logger";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 export const buildApp = async () => {
   const app = Fastify({
-    logger: process.env.NODE_ENV === "development",
-  });
+    loggerInstance: logger as any,
+  }).withTypeProvider<ZodTypeProvider>();
+
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
   // Plugins
   await app.register(cors, {
@@ -31,7 +40,7 @@ export const buildApp = async () => {
   });
 
   await app.register(jwt, {
-    secret: process.env.JWT_ACCESS_SECRET || "fallback_secret",
+    secret: process.env.JWT_ACCESS_SECRET!,
   });
 
   await app.register(multipart, {

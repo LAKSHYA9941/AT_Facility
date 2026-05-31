@@ -65,6 +65,11 @@ export const EVENTS = {
   DRIVER_ASSIGNED: "trip:driver_assigned",
   TRIP_JOB_TAKEN: "trip:job_taken",
 
+  // ── Admin Events ──────────────────────────────────────────
+  ADMIN_STATS_UPDATE: "admin:stats:update",
+  ADMIN_KYC_SUBMITTED: "admin:kyc:submitted",
+  ADMIN_DRIVER_LOCATION: "admin:driver:location",
+
   CONNECTED: "connected",
   ERROR: "error",
 } as const;

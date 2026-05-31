@@ -1,56 +1,38 @@
+import { z } from "zod/v4";
+
 export const sendOtpSchema = {
-  body: {
-    type: "object",
-    required: ["phone"],
-    properties: {
-      phone: { type: "string" },
-      role: { type: "string" },
-    },
-  },
+  body: z.object({
+    phone: z.string(),
+    role: z.string().optional(),
+  }),
 };
 
 export const verifyOtpSchema = {
-  body: {
-    type: "object",
-    required: ["phone", "otp", "deviceId"],
-    properties: {
-      phone: { type: "string" },
-      otp: { type: "string", minLength: 6, maxLength: 6 },
-      deviceId: { type: "string" },
-      deviceName: { type: "string" },
-      role: { type: "string" },
-    },
-  },
+  body: z.object({
+    phone: z.string(),
+    otp: z.string().min(6).max(6),
+    deviceId: z.string(),
+    deviceName: z.string().optional(),
+    role: z.string().optional(),
+  }),
 };
 
 export const refreshSchema = {
-  body: {
-    type: "object",
-    required: ["refreshToken", "deviceId"],
-    properties: {
-      refreshToken: { type: "string" },
-      deviceId: { type: "string" },
-    },
-  },
+  body: z.object({
+    refreshToken: z.string(),
+    deviceId: z.string(),
+  }),
 };
 
 export const completeProfileSchema = {
-  body: {
-    type: "object",
-    required: ["name"],
-    properties: {
-      name: { type: "string", minLength: 2 },
-      email: { type: "string" },
-    },
-  },
+  body: z.object({
+    name: z.string().min(2),
+    email: z.string().optional(),
+  }),
 };
 
 export const logoutSchema = {
-  body: {
-    type: "object",
-    required: ["refreshToken"],
-    properties: {
-      refreshToken: { type: "string" },
-    },
-  },
+  body: z.object({
+    refreshToken: z.string(),
+  }),
 };

@@ -9,9 +9,12 @@ import { Role } from "./shared/types/enums";
 import { JWTPayload } from "./shared/types";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
+import { logger } from "./shared/logger/logger";
+import { setupTripsGateway } from "./modules/trips/trips.gateway";
 
 dotenv.config();
 
+// Start server entry point
 const start = async () => {
   try {
     const requiredEnvVars = [
@@ -38,8 +41,8 @@ const start = async () => {
     const port = parseInt(process.env.PORT || "4000");
 
     await app.listen({ port, host: "0.0.0.0" });
-    console.log(`🚀 Server running on port ${port}`);
-    console.log(`📡 Health: http://localhost:${port}/health`);
+    logger.info(`🚀 Server running on port ${port}`);
+    logger.info(`📡 Health: http://localhost:${port}/health`);
 
     // Attach Socket.io AFTER Fastify is listening
     const io = new SocketServer(app.server, {
@@ -71,7 +74,7 @@ const start = async () => {
 
     io.on("connection", async (socket) => {
       const { userId, role } = socket.data;
-      console.log(`🔌 Connected: ${role} ${userId}`);
+      logger.info({ role, userId }, `🔌 Connected`);
 
       socket.join(`user:${userId}`);
       socket.join(`role:${role}`);
@@ -79,176 +82,13 @@ const start = async () => {
         message: "Connected to At Facility",
       });
 
-      // ── DRIVER ONLINE ──────────────────────────────────
-      socket.on(SOCKET_EVENTS.DRIVER_ONLINE, async () => {
-        if (role !== Role.DRIVER) return;
-        try {
-          const driver = await prisma.driverProfile.findUnique({
-            where: { userId },
-          });
-          if (!driver || driver.kycStatus !== "VERIFIED") {
-            socket.emit(SOCKET_EVENTS.ERROR, { message: "KYC not verified" });
-            return;
-          }
-          await prisma.driverProfile.update({
-            where: { userId },
-            data: { isOnline: true, isAvailable: true },
-          });
-          socket.join("drivers:online");
-          console.log(`✅ Driver online: ${userId}`);
-        } catch (err) {
-          console.error("Driver online error:", err);
-        }
-      });
-
-      // ── DRIVER OFFLINE ─────────────────────────────────
-      socket.on(SOCKET_EVENTS.DRIVER_OFFLINE, async () => {
-        if (role !== Role.DRIVER) return;
-        try {
-          await prisma.driverProfile.update({
-            where: { userId },
-            data: { isOnline: false, isAvailable: false },
-          });
-          await LocationRedis.delete(userId);
-          socket.leave("drivers:online");
-          console.log(`🔴 Driver offline: ${userId}`);
-        } catch (err) {
-          console.error("Driver offline error:", err);
-        }
-      });
-
-      // ── DRIVER LOCATION (every 4s) ──────────────────────
-      socket.on(
-        SOCKET_EVENTS.DRIVER_LOCATION,
-        async (data: { lat: number; lng: number; heading?: number }) => {
-          if (role !== Role.DRIVER) return;
-          try {
-            const driver = await prisma.driverProfile.findUnique({
-              where: { userId },
-            });
-            if (!driver) return;
-
-            await LocationRedis.set(driver.id, data.lat, data.lng);
-
-            const now = new Date();
-            const secondsSince = driver.lastLocationAt
-              ? (now.getTime() - driver.lastLocationAt.getTime()) / 1000
-              : 999;
-
-            if (secondsSince > 30) {
-              await prisma.driverProfile.update({
-                where: { id: driver.id },
-                data: {
-                  currentLat: data.lat,
-                  currentLng: data.lng,
-                  lastLocationAt: now,
-                },
-              });
-            }
-
-            const activeTrip = await prisma.trip.findFirst({
-              where: {
-                driverId: driver.id,
-                status: { in: ["DRIVER_ASSIGNED", "ACTIVE"] },
-              },
-            });
-            if (activeTrip) {
-              io.to(`user:${activeTrip.userId}`).emit("trip:driver_location", {
-                lat: data.lat,
-                lng: data.lng,
-                heading: data.heading,
-              });
-            }
-          } catch (err) {
-            console.error("Location error:", err);
-          }
-        },
-      );
-
-      // ── DRIVER ACCEPT JOB (Phase 5) ─────────────────────
-      socket.on(
-        SOCKET_EVENTS.DRIVER_ACCEPT_JOB,
-        async ({ tripId, driverId }) => {
-          if (role !== Role.DRIVER) return;
-          try {
-            // 1. Verify driver KYC status
-            const driver = await prisma.driverProfile.findUnique({
-              where: { id: driverId },
-              include: { user: true },
-            });
-            if (!driver || driver.kycStatus !== "VERIFIED") {
-              socket.emit(SOCKET_EVENTS.ERROR, {
-                message: "KYC not approved. You cannot accept jobs.",
-              });
-              return;
-            }
-
-            // 2. Atomic check-and-assign
-            const tripUpdateRes = await prisma.trip.updateMany({
-              where: { id: tripId, status: "CONFIRMED", driverId: null },
-              data: { driverId, status: "DRIVER_ASSIGNED" },
-            });
-
-            if (tripUpdateRes.count === 0) {
-              socket.emit(SOCKET_EVENTS.ERROR, {
-                message: "Job no longer available.",
-              });
-              return;
-            }
-
-            // 3. Fetch the updated trip with driver details for the customer
-            const updatedTrip = await prisma.trip.findUnique({
-              where: { id: tripId },
-              include: {
-                driver: { include: { user: true, vehicle: true } },
-                waypoints: true,
-              },
-            });
-
-            if (!updatedTrip) return;
-
-            // 4. Emit to the specific customer
-            io.to(`user:${updatedTrip.userId}`).emit(
-              SOCKET_EVENTS.DRIVER_ASSIGNED,
-              {
-                driverId: driver.id,
-                driverName: updatedTrip.driver?.user?.name,
-                driverPhoto: null, // Add photo logic if needed
-                vehiclePlate: updatedTrip.driver?.vehicle?.plateNumber,
-                phone: updatedTrip.driver?.user?.phone,
-              },
-            );
-            io.to(`user:${updatedTrip.userId}`).emit(
-              SOCKET_EVENTS.TRIP_STATUS_UPDATED,
-              { status: "DRIVER_ASSIGNED" },
-            );
-
-            // 5. Notify other drivers the job is gone
-            socket.broadcast.emit("trip:job_taken", { tripId }); // using broadcast or io.emit
-          } catch (err) {
-            console.error("Accept job error:", err);
-          }
-        },
-      );
-
-      // ── DISCONNECT ──────────────────────────────────────
-      socket.on("disconnect", async () => {
-        console.log(`🔌 Disconnected: ${role} ${userId}`);
-        if (role === Role.DRIVER) {
-          try {
-            await prisma.driverProfile.update({
-              where: { userId },
-              data: { isOnline: false, isAvailable: false },
-            });
-            await LocationRedis.delete(userId);
-          } catch {}
-        }
-      });
+      // Delegate all trip/driver logic to the gateway
+      setupTripsGateway(io, socket);
     });
 
-    console.log(`🔌 Socket.io ready`);
+    logger.info(`🔌 Socket.io ready`);
   } catch (err) {
-    console.error("❌ Server failed to start:", err);
+    logger.error({ err }, "❌ Server failed to start");
     await prisma.$disconnect();
     redis.disconnect();
     process.exit(1);

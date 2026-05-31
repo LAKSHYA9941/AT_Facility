@@ -3,13 +3,17 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { api } from "../../utils/api";
+import {
+  SkeletonStatCard,
+  SkeletonBarChart,
+  SkeletonCard,
+} from "../../components/SkeletonLoader";
 
 const WEEK = [
   { day: "Mon", rides: 142 },
@@ -22,67 +26,28 @@ const WEEK = [
 ];
 const MAX_RIDES = Math.max(...WEEK.map((w) => w.rides));
 
+type StatItem = {
+  val: string;
+  label: string;
+  emoji: string;
+  color: string;
+  text: string;
+};
+
 export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState([
-    {
-      val: "0",
-      label: "Total riders",
-      emoji: "🧳",
-      color: "#EEF2F7",
-      text: "#1B4F8A",
-    },
-    {
-      val: "0",
-      label: "Total drivers",
-      emoji: "🚗",
-      color: "#EEF2F7",
-      text: "#1B4F8A",
-    },
-    {
-      val: "0",
-      label: "Rides today",
-      emoji: "📍",
-      color: "#EAF3DE",
-      text: "#3B6D11",
-    },
-    {
-      val: "₹0",
-      label: "Revenue today",
-      emoji: "💰",
-      color: "#FAEEDA",
-      text: "#854F0B",
-    },
-    {
-      val: "0",
-      label: "KYC pending",
-      emoji: "📋",
-      color: "#FAEEDA",
-      text: "#854F0B",
-    },
-    {
-      val: "0",
-      label: "Flagged users",
-      emoji: "🚩",
-      color: "#FCEBEB",
-      text: "#A32D2D",
-    },
-  ]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState<StatItem[]>([]);
   const [activity, setActivity] = useState<any[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true);
-      const [statsRes, activityRes] = await Promise.all([
-        api.get("/api/admin/stats"),
-        api.get("/api/admin/activity"),
-      ]);
+      if (!isRefresh) setLoading(true);
 
+      const statsRes = await api.get("/api/admin/stats");
       const data = statsRes.data.data;
+
       setStats([
         {
           val: `${data.totalCustomers || 0}`,
@@ -99,7 +64,7 @@ export default function DashboardScreen() {
           text: "#1B4F8A",
         },
         {
-          val: `${data.ridesToday || 0}`,
+          val: `${data.tripsToday || 0}`,
           label: "Rides today",
           emoji: "📍",
           color: "#EAF3DE",
@@ -120,23 +85,43 @@ export default function DashboardScreen() {
           text: "#854F0B",
         },
         {
-          val: `0`,
-          label: "Flagged users",
-          emoji: "🚩",
+          val: `${data.pendingIdProofs || 0}`,
+          label: "ID proofs pending",
+          emoji: "🪪",
           color: "#FCEBEB",
           text: "#A32D2D",
         },
       ]);
-      setActivity(activityRes.data.data || []);
     } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.response?.data?.message || "Failed to fetch dashboard data",
-      );
+      console.error("Dashboard stats error:", error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const fetchActivity = useCallback(async () => {
+    try {
+      setActivityLoading(true);
+      const res = await api.get("/api/admin/activity?limit=15");
+      setActivity(res.data.data || []);
+    } catch {
+      // Activity endpoint might not exist yet — fail silently
+      setActivity([]);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchDashboardData(true), fetchActivity()]);
+    setRefreshing(false);
+  }, [fetchDashboardData, fetchActivity]);
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchActivity();
+  }, [fetchDashboardData, fetchActivity]);
 
   const now = new Date();
   const hour = now.getHours();
@@ -148,6 +133,13 @@ export default function DashboardScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1B4F8A"
+          />
+        }
       >
         {/* Header */}
         <Animated.View
@@ -169,7 +161,41 @@ export default function DashboardScreen() {
         </Animated.View>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#1B4F8A" className="mt-10" />
+          <>
+            {/* Skeleton stats grid */}
+            <View className="px-5 mt-3">
+              <View className="flex-row flex-wrap gap-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <SkeletonStatCard key={i} />
+                ))}
+              </View>
+            </View>
+
+            {/* Skeleton bar chart */}
+            <SkeletonBarChart />
+
+            {/* Skeleton quick actions */}
+            <View className="flex-row gap-3 mx-5 mt-4">
+              {[1, 2, 3].map((i) => (
+                <View
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: 80,
+                    borderRadius: 16,
+                    backgroundColor: "#EEF2F7",
+                  }}
+                />
+              ))}
+            </View>
+
+            {/* Skeleton activity feed */}
+            <View className="mt-5">
+              {[1, 2, 3, 4].map((i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </View>
+          </>
         ) : (
           <>
             {/* Stats grid */}
@@ -287,11 +313,13 @@ export default function DashboardScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.85}
-                className="flex-1 bg-red-50 border border-red-100 rounded-2xl py-4 items-center gap-1"
+                className="flex-1 bg-amber-50 border border-amber-100 rounded-2xl py-4 items-center gap-1"
               >
-                <Text style={{ fontSize: 20 }}>🚩</Text>
-                <Text className="text-red-600 font-bold text-xs text-center">
-                  Flagged{"\n"}Users (0)
+                <Text style={{ fontSize: 20 }}>🪪</Text>
+                <Text className="text-amber-700 font-bold text-xs text-center">
+                  ID Proofs{"\n"}Queue (
+                  {stats.find((s) => s.label === "ID proofs pending")?.val || 0}
+                  )
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -313,43 +341,50 @@ export default function DashboardScreen() {
               <Text className="text-brand-sub font-semibold text-xs px-5 pb-3 uppercase tracking-widest">
                 Recent activity
               </Text>
-              {activity.map((a, i) => (
-                <Animated.View
-                  key={a.id || i}
-                  entering={FadeInDown.delay(500 + i * 40).springify()}
-                  className="flex-row items-center gap-3 px-5 py-3 border-b border-brand-border"
-                >
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 12,
-                      backgroundColor: a.color || "#EEF2F7",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text style={{ fontSize: 16 }}>{a.icon || "🔔"}</Text>
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-brand-text font-bold text-sm">
-                      {a.event || "System Update"}
-                    </Text>
-                    <Text className="text-brand-sub text-xs mt-0.5">
-                      {a.sub || ""}
-                    </Text>
-                  </View>
-                  <Text className="text-brand-sub text-xs">
-                    {a.createdAt
-                      ? new Date(a.createdAt).toLocaleTimeString()
-                      : "Just now"}
-                  </Text>
-                </Animated.View>
-              ))}
-              {activity.length === 0 && (
+
+              {activityLoading ? (
+                [1, 2, 3].map((i) => <SkeletonCard key={i} />)
+              ) : activity.length === 0 ? (
                 <Text className="text-center text-gray-500 mt-5">
                   No recent activity.
                 </Text>
+              ) : (
+                activity.map((a, i) => (
+                  <Animated.View
+                    key={a.id || i}
+                    entering={FadeInDown.delay(500 + i * 40).springify()}
+                    className="flex-row items-center gap-3 px-5 py-3 border-b border-brand-border"
+                  >
+                    <View
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 12,
+                        backgroundColor: a.color || "#EEF2F7",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text style={{ fontSize: 16 }}>{a.icon || "🔔"}</Text>
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-brand-text font-bold text-sm">
+                        {a.event || "System Update"}
+                      </Text>
+                      <Text className="text-brand-sub text-xs mt-0.5">
+                        {a.sub || ""}
+                      </Text>
+                    </View>
+                    <Text className="text-brand-sub text-xs">
+                      {a.createdAt
+                        ? new Date(a.createdAt).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "Just now"}
+                    </Text>
+                  </Animated.View>
+                ))
               )}
             </Animated.View>
           </>

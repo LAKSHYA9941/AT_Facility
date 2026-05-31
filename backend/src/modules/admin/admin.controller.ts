@@ -10,6 +10,8 @@ import {
 const adminService = new AdminService();
 
 export class AdminController {
+  // ── Customer ID Proofs ──────────────────────────────────────
+
   getCustomerIdQueue = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = await adminService.getCustomerIdQueue();
@@ -53,6 +55,25 @@ export class AdminController {
       return sendError(reply, err.message);
     }
   };
+
+  getCustomerIdViewUrl = async (
+    req: FastifyRequest<{
+      Params: { userId: string };
+      Querystring: { side?: string };
+    }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const { userId } = req.params;
+      const side = (req.query.side as "front" | "back") || "front";
+      const data = await adminService.getCustomerIdViewUrl(userId, side);
+      return sendSuccess(reply, data, "View URL generated");
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
+
+  // ── Driver KYC ──────────────────────────────────────────────
 
   getKycQueue = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -143,6 +164,8 @@ export class AdminController {
     }
   };
 
+  // ── Packages ──────────────────────────────────────────────
+
   approvePackageBooking = async (
     req: FastifyRequest<{ Params: { bookingId: string } }>,
     reply: FastifyReply,
@@ -156,6 +179,8 @@ export class AdminController {
     }
   };
 
+  // ── Dashboard ──────────────────────────────────────────────
+
   getDashboardStats = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const data = await adminService.getDashboardStats();
@@ -164,6 +189,21 @@ export class AdminController {
       return sendError(reply, err.message);
     }
   };
+
+  getRecentActivity = async (
+    req: FastifyRequest<{ Querystring: { limit?: string } }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const limit = parseInt(req.query.limit || "20");
+      const data = await adminService.getRecentActivity(limit);
+      return sendSuccess(reply, data, "Activity feed retrieved");
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
+
+  // ── User Management ──────────────────────────────────────
 
   getCustomers = async (
     req: FastifyRequest<{
@@ -207,6 +247,35 @@ export class AdminController {
       const { userId } = req.params;
       const data = await adminService.toggleUserBan(userId);
       return sendSuccess(reply, data, `User status updated to ${data.status}`);
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
+
+  // ── Map — Active Driver Locations ──────────────────────────
+
+  getActiveDriverLocations = async (
+    req: FastifyRequest,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const data = await adminService.getActiveDriverLocations();
+      return sendSuccess(reply, data, "Active driver locations retrieved");
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
+
+  // ── Document View URLs ──────────────────────────────────────
+
+  getDocumentViewUrl = async (
+    req: FastifyRequest<{ Params: { docId: string } }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const { docId } = req.params;
+      const data = await adminService.getDocumentViewUrl(docId);
+      return sendSuccess(reply, data, "Document view URL generated");
     } catch (err: any) {
       return sendError(reply, err.message);
     }

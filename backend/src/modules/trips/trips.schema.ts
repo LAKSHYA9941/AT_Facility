@@ -1,68 +1,44 @@
+import { z } from "zod/v4";
+
 export const estimateTripSchema = {
-  body: {
-    type: "object",
-    required: ["waypoints", "passengerCount", "startDate", "endDate"],
-    properties: {
-      waypoints: {
-        type: "array",
-        items: {
-          type: "object",
-          required: ["lat", "lng"],
-          properties: {
-            lat: { type: "number" },
-            lng: { type: "number" },
-          },
-        },
-      },
-      passengerCount: { type: "number", minimum: 1, maximum: 50 },
-      startDate: { type: "string", format: "date-time" },
-      endDate: { type: "string", format: "date-time" },
-    },
-  },
+  body: z.object({
+    waypoints: z
+      .array(
+        z.object({
+          lat: z.number(),
+          lng: z.number(),
+        }),
+      )
+      .min(2),
+    passengerCount: z.number().min(1).max(50),
+    startDate: z.string().datetime().optional(), // Or you can keep it as string if datetime is not strictly ISO
+    endDate: z.string().datetime().optional(),
+  }),
 };
 
 export const createTripSchema = {
-  body: {
-    type: "object",
-    required: [
-      "tripType",
-      "waypoints",
-      "startDate",
-      "endDate",
-      "passengerCount",
-      "vehicleSegment",
-      "totalFare",
-      "selectedPercentage",
-    ],
-    properties: {
-      tripType: { type: "string" },
-      waypoints: {
-        type: "array",
-        items: {
-          type: "object",
-          required: ["address", "lat", "lng"],
-          properties: {
-            address: { type: "string" },
-            lat: { type: "number" },
-            lng: { type: "number" },
-          },
-        },
-      },
-      startDate: { type: "string", format: "date-time" },
-      endDate: { type: "string", format: "date-time" },
-      passengerCount: { type: "number", minimum: 1 },
-      vehicleSegment: { type: "string" },
-      totalFare: { type: "number" },
-      selectedPercentage: { type: "number", enum: [25, 50, 100] },
-    },
-  },
+  body: z.object({
+    tripType: z.string(),
+    waypoints: z
+      .array(
+        z.object({
+          address: z.string(),
+          lat: z.number(),
+          lng: z.number(),
+        }),
+      )
+      .min(2),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+    passengerCount: z.number().min(1),
+    vehicleSegment: z.string(),
+    totalFare: z.number(),
+    selectedPercentage: z.number().refine((val) => [25, 50, 100].includes(val)),
+  }),
 };
 
 export const cancelTripSchema = {
-  body: {
-    type: "object",
-    properties: {
-      reason: { type: "string" },
-    },
-  },
+  body: z.object({
+    reason: z.string().optional(),
+  }),
 };

@@ -8,7 +8,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   const adminController = new AdminController();
   const preHandler = [authGuard, roleGuard(Role.ADMIN)];
 
-  // Customer ID Proofs Endpoints
+  // ── Customer ID Proofs ──────────────────────────────────────
   fastify.get(
     "/id-proofs/queue",
     { preHandler },
@@ -27,7 +27,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
     adminController.rejectCustomerId,
   );
 
-  // KYC Endpoints
+  fastify.get<{ Params: { userId: string }; Querystring: { side?: string } }>(
+    "/id-proofs/:userId/view-url",
+    { preHandler },
+    adminController.getCustomerIdViewUrl,
+  );
+
+  // ── KYC Endpoints ──────────────────────────────────────────
   fastify.get("/kyc/queue", { preHandler }, adminController.getKycQueue);
 
   fastify.get<{ Params: { driverId: string } }>(
@@ -63,17 +69,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
     adminController.rejectDriverKyc,
   );
 
-  // Packages
+  // ── Packages ──────────────────────────────────────────────
   fastify.put<{ Params: { bookingId: string } }>(
     "/packages/bookings/:bookingId/approve",
     { preHandler },
     adminController.approvePackageBooking,
   );
 
-  // Dashboard Stats
+  // ── Dashboard ──────────────────────────────────────────────
   fastify.get("/stats", { preHandler }, adminController.getDashboardStats);
+  fastify.get<{ Querystring: { limit?: string } }>(
+    "/activity",
+    { preHandler },
+    adminController.getRecentActivity,
+  );
 
-  // User Management
+  // ── User Management ──────────────────────────────────────
   fastify.get<{
     Querystring: { page?: string; limit?: string; search?: string };
   }>("/users/customers", { preHandler }, adminController.getCustomers);
@@ -86,5 +97,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
     "/users/:userId/ban",
     { preHandler },
     adminController.toggleUserBan,
+  );
+
+  // ── Map — Active Drivers ──────────────────────────────────
+  fastify.get(
+    "/drivers/active-locations",
+    { preHandler },
+    adminController.getActiveDriverLocations,
+  );
+
+  // ── Document View URLs ──────────────────────────────────────
+  fastify.get<{ Params: { docId: string } }>(
+    "/documents/:docId/view-url",
+    { preHandler },
+    adminController.getDocumentViewUrl,
   );
 }

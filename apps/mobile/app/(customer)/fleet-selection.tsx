@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import TopBar from "../../components/layout/TopBar";
-// import { useMockStore } from "../../store/mock";
 import { api } from "../../utils/api";
 
 type PaymentTier = 25 | 50 | 100;
@@ -188,34 +187,6 @@ export default function FleetSelectionScreen() {
       );
       return;
     }
-
-    // // ── MOCK MODE: skip API, generate fake trip ID ──
-    // if (isMockMode) {
-    //   setLoading(true);
-    //   const tierKey = tierToKey(paymentTier);
-    //   await new Promise((r) => setTimeout(r, 800)); // simulate DB lag
-    //   const mockTripId = `mock-trip-${Date.now()}`;
-    //   setLoading(false);
-    //   router.push({
-    //     pathname: "/(customer)/checkout",
-    //     params: {
-    //       tripId: mockTripId,
-    //       amountPaidUpfront:
-    //         selectedSegment.paymentTiers[tierKey].upfront.toString(),
-    //       totalFare: selectedSegment.totalFare.toString(),
-    //       balance: selectedSegment.paymentTiers[tierKey].balance.toString(),
-    //       vehicleSegment: selectedSegment.segment,
-    //       waypoints:
-    //         typeof waypoints === "string"
-    //           ? waypoints
-    //           : JSON.stringify(waypoints),
-    //       startDate: startDate ?? "",
-    //       endDate: endDate ?? "",
-    //       passengerCount: passengerCount.toString(),
-    //     },
-    //   });
-    //   return;
-    // }
 
     // ── REAL MODE ──
     try {

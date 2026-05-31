@@ -1,22 +1,16 @@
+import { z } from "zod/v4";
+
 export const uploadIdProofSchema = {
-  body: {
-    type: "object",
-    required: ["idProofType", "side"],
-    properties: {
-      idProofType: { type: "string" },
-      side: { type: "string", enum: ["front", "back", "single"] },
-    },
-  },
+  body: z.object({
+    idProofType: z.string(),
+    side: z.enum(["front", "back", "single"]),
+  }),
 };
 
 export const confirmIdProofSchema = {
-  body: {
-    type: "object",
-    required: ["idProofType", "frontKey"],
-    properties: {
-      idProofType: { type: "string" },
-      frontKey: { type: "string" },
-      backKey: { type: "string" },
-    },
-  },
+  body: z.object({
+    idProofType: z.string(),
+    frontKey: z.string(),
+    backKey: z.string().optional(),
+  }),
 };

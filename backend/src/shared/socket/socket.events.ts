@@ -23,6 +23,7 @@ export const SOCKET_EVENTS = {
   // Server → Admin
   ADMIN_STATS: "admin:stats:update",
   ADMIN_KYC: "admin:kyc:submitted",
+  ADMIN_DRIVER_LOCATION: "admin:driver:location",
 
   // General
   ERROR: "error",

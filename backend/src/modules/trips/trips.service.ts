@@ -4,13 +4,8 @@ import { VehicleSegment, TripStatus, TripType } from "../../shared/types/enums";
 import { io } from "../../shared/socket/socket";
 import { SOCKET_EVENTS } from "../../shared/socket/socket.events";
 
-const SEGMENT_RATES = {
-  [VehicleSegment.HATCHBACK]: 11,
-  [VehicleSegment.SEDAN]: 13,
-  [VehicleSegment.MINI_SUV]: 15,
-  [VehicleSegment.SUV]: 18,
-  [VehicleSegment.TEMPO]: 22,
-};
+import { FLAT_RATES, SEGMENT_RATES } from "../../config/pricing";
+import { logger } from "../../shared/logger/logger";
 
 export const tripsService = {
   estimate: async (params: {
@@ -46,7 +41,7 @@ export const tripsService = {
             totalKm += distanceText / 1000;
           }
         } catch (e) {
-          console.error("Google Maps API error", e);
+          logger.error({ error: e }, "Google Maps API error");
         }
       }
     }
@@ -66,13 +61,7 @@ export const tripsService = {
       waypoints[0].lat === waypoints[waypoints.length - 1].lat &&
       waypoints[0].lng === waypoints[waypoints.length - 1].lng;
 
-    const FLAT_RATES: Record<string, number> = {
-      [VehicleSegment.HATCHBACK]: 3500,
-      [VehicleSegment.SEDAN]: 3500,
-      [VehicleSegment.MINI_SUV]: 4000,
-      [VehicleSegment.SUV]: 5000,
-      [VehicleSegment.TEMPO]: 6000,
-    };
+    // Pricing rules imported from config
 
     const estimates = Object.entries(SEGMENT_RATES).map(
       ([segment, ratePerKm]) => {
@@ -199,7 +188,7 @@ export const tripsService = {
         driverId: null,
         // Optionally filter by segment, or if null show all. We can show all if driver has no segment yet.
         ...(driver.segment ? { vehicleSegment: driver.segment } : {}),
-        startDate: { gte: new Date() },
+        startDate: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // Allow trips from the past 24 hours
       },
       include: { waypoints: { orderBy: { orderIndex: "asc" } } },
       orderBy: { createdAt: "desc" },

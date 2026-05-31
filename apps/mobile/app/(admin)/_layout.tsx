@@ -1,5 +1,10 @@
 import { Tabs } from "expo-router";
-import { LayoutDashboard, Users, ShieldCheck } from "lucide-react-native";
+import {
+  LayoutDashboard,
+  Users,
+  ShieldCheck,
+  MapPin,
+} from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AdminLayout() {
@@ -44,6 +49,13 @@ export default function AdminLayout() {
           tabBarIcon: ({ color, size }) => (
             <ShieldCheck size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: "Map",
+          tabBarIcon: ({ color, size }) => <MapPin size={size} color={color} />,
         }}
       />
     </Tabs>
