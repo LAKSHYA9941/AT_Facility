@@ -79,6 +79,21 @@ export default function LoginScreen() {
                   disabled={phone.length !== 10}
                 />
               </Animated.View>
+
+              <Animated.View
+                entering={FadeInDown.delay(320).springify()}
+                className="flex-row justify-center mt-2"
+              >
+                <Text className="text-[#9CA3AF] font-medium text-sm">
+                  Don't have an account?{" "}
+                </Text>
+                <Text
+                  className="text-[#1B4F8A] font-bold text-sm"
+                  onPress={() => router.push("/(onboarding)/welcome")}
+                >
+                  Sign up
+                </Text>
+              </Animated.View>
             </View>
 
             {/* Footer */}

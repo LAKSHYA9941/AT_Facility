@@ -16,7 +16,7 @@ export class AdminService {
   // ── Customer ID Proof Queue ──────────────────────────────────
 
   async getCustomerIdQueue() {
-    return prisma.user.findMany({
+    const users = await prisma.user.findMany({
       where: {
         idSubmittedAt: { not: null },
         idVerified: false,
@@ -33,6 +33,18 @@ export class AdminService {
       },
       orderBy: { idSubmittedAt: "desc" },
     });
+
+    return Promise.all(
+      users.map(async (u) => ({
+        ...u,
+        idProofFront: u.idProofFront
+          ? await getPresignedViewUrl(u.idProofFront, 3600)
+          : null,
+        idProofBack: u.idProofBack
+          ? await getPresignedViewUrl(u.idProofBack, 3600)
+          : null,
+      })),
+    );
   }
 
   async approveCustomerId(userId: string, adminUserId: string) {
@@ -79,7 +91,7 @@ export class AdminService {
   // ── Driver KYC ──────────────────────────────────────────────
 
   async getKycQueue() {
-    return prisma.driverProfile.findMany({
+    const profiles = await prisma.driverProfile.findMany({
       where: { kycStatus: KYCStatus.PENDING },
       include: {
         user: { select: { name: true, phone: true, email: true } },
@@ -87,16 +99,44 @@ export class AdminService {
       },
       orderBy: { updatedAt: "desc" },
     });
+
+    return Promise.all(
+      profiles.map(async (p) => ({
+        ...p,
+        documents: await Promise.all(
+          p.documents.map(async (d) => ({
+            ...d,
+            fileUrl: d.fileUrl
+              ? await getPresignedViewUrl(d.fileUrl, 3600)
+              : null,
+          })),
+        ),
+      })),
+    );
   }
 
   async getKycDetails(driverId: string) {
-    return prisma.driverProfile.findUnique({
+    const profile = await prisma.driverProfile.findUnique({
       where: { id: driverId },
       include: {
         user: { select: { name: true, phone: true, email: true } },
         documents: true,
       },
     });
+
+    if (!profile) return null;
+
+    return {
+      ...profile,
+      documents: await Promise.all(
+        profile.documents.map(async (d) => ({
+          ...d,
+          fileUrl: d.fileUrl
+            ? await getPresignedViewUrl(d.fileUrl, 3600)
+            : null,
+        })),
+      ),
+    };
   }
 
   async approveDocument(driverId: string, docId: string, adminUserId: string) {

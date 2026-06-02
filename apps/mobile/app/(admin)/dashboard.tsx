@@ -15,6 +15,9 @@ import {
   SkeletonCard,
 } from "../../components/SkeletonLoader";
 
+import { LogOut } from "lucide-react-native";
+import { useAuthStore } from "../../store/auth";
+
 const WEEK = [
   { day: "Mon", rides: 142 },
   { day: "Tue", rides: 198 },
@@ -35,6 +38,7 @@ type StatItem = {
 };
 
 export default function DashboardScreen() {
+  const logout = useAuthStore((s) => s.logout);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<StatItem[]>([]);
@@ -144,20 +148,29 @@ export default function DashboardScreen() {
         {/* Header */}
         <Animated.View
           entering={FadeInDown.delay(60).springify()}
-          className="px-5 pt-4 pb-2"
+          className="px-5 pt-4 pb-2 flex-row justify-between items-center"
         >
-          <Text className="text-brand-sub text-sm">{greeting} 👋</Text>
-          <Text className="text-brand-text font-bold text-2xl">
-            Admin Panel
-          </Text>
-          <Text className="text-brand-sub text-xs mt-1">
-            {now.toLocaleDateString("en-IN", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </Text>
+          <View>
+            <Text className="text-brand-sub text-sm">{greeting} 👋</Text>
+            <Text className="text-brand-text font-bold text-2xl">
+              Admin Panel
+            </Text>
+            <Text className="text-brand-sub text-xs mt-1">
+              {now.toLocaleDateString("en-IN", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={logout}
+            activeOpacity={0.8}
+            className="w-10 h-10 rounded-full bg-red-50 items-center justify-center border border-red-100"
+          >
+            <LogOut size={18} color="#A32D2D" />
+          </TouchableOpacity>
         </Animated.View>
 
         {loading ? (

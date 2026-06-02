@@ -77,7 +77,7 @@ export class KycService {
       DocumentType.DRIVING_LICENSE,
       DocumentType.VEHICLE_RC,
       DocumentType.PAN,
-      DocumentType.BANK_DETAILS,
+      // DocumentType.BANK_DETAILS,
       DocumentType.SELFIE,
     ];
 
