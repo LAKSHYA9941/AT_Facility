@@ -340,7 +340,15 @@ export default function ActiveTripScreen() {
           <View className="flex-row justify-between mt-2 pt-2 border-t border-gray-100">
             <Text className="font-bold text-gray-800">Balance to Driver</Text>
             <Text className="font-bold text-orange-500">
-              ₹{trip.balanceRemaining}
+              ₹{trip.totalFare - trip.amountPaidUpfront}
+            </Text>
+          </View>
+          <View className="flex-row justify-between mt-2">
+            <Text className="text-gray-600">Payment Method</Text>
+            <Text className="font-bold text-gray-800">
+              {trip.totalFare - trip.amountPaidUpfront > 0
+                ? "Cash (to Driver)"
+                : "Online"}
             </Text>
           </View>
         </View>

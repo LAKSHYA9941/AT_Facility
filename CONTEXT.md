@@ -197,6 +197,7 @@ Payment:  id, tripId?|packageId?|rentalId? (polymorphic), razorpayOrderId, statu
 Package:  id, title, subtitle, description, category, price, durationDays, maxPeople, inclusions[], exclusions[], itinerary (JSON), imageUrls[]
 PackageBooking: id, userId, packageId, travelDate, numPeople, pricing, status, payment
 Rental:   id, userId, vehicleId, dates, pricing, withDriver, prepaidAmount, extraCharges[], status
+CustomPlan: id, submittedBy, submittedByRole, pickupLocation, destinations[], numberOfTravellers, budgetMin, budgetMax, carType, hotelRequired, additionalNotes, status, quotedAmount, assignedDriverId, platformCommission, driverEarning
 Notification: id, userId, title, body, data (JSON), read
 ```
 
@@ -250,6 +251,16 @@ All routes prefixed with `/api/admin/`, protected by `[authGuard, roleGuard(ADMI
 | ------ | --------------------------------------- | ------------------------------------------------------------------ |
 | GET    | `/stats`                                | totalCustomers, totalDrivers, tripsToday, revenueToday, pendingKyc |
 | PUT    | `/packages/bookings/:bookingId/approve` | Confirm a package booking                                          |
+
+### Custom Plans
+
+| Method | Endpoint                          | Description                                                      |
+| ------ | --------------------------------- | ---------------------------------------------------------------- |
+| GET    | `/custom-plans`                   | Paginated list of all custom plans                               |
+| GET    | `/custom-plans/:id`               | Single custom plan details                                       |
+| PUT    | `/custom-plans/:id`               | Update custom plan status, notes, quote                          |
+| POST   | `/custom-plans/:id/assign-driver` | Assign a driver to an accepted custom plan with commission setup |
+| GET    | `/available-drivers`              | Get all verified drivers for assignment                          |
 
 ---
 

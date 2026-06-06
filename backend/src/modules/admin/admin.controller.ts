@@ -98,46 +98,6 @@ export class AdminController {
     }
   };
 
-  approveDocument = async (
-    req: FastifyRequest<{ Params: { driverId: string; docId: string } }>,
-    reply: FastifyReply,
-  ) => {
-    try {
-      const user = req.user as JWTPayload;
-      const { driverId, docId } = req.params;
-      const data = await adminService.approveDocument(
-        driverId,
-        docId,
-        user.userId,
-      );
-      return sendSuccess(reply, data, "Document approved");
-    } catch (err: any) {
-      return sendError(reply, err.message);
-    }
-  };
-
-  rejectDocument = async (
-    req: FastifyRequest<{
-      Params: { driverId: string; docId: string };
-      Body: { rejectReason: string };
-    }>,
-    reply: FastifyReply,
-  ) => {
-    try {
-      const { driverId, docId } = req.params;
-      const { rejectReason } = req.body;
-      if (!rejectReason) return sendError(reply, "Reject reason is required");
-      const data = await adminService.rejectDocument(
-        driverId,
-        docId,
-        rejectReason,
-      );
-      return sendSuccess(reply, data, "Document rejected");
-    } catch (err: any) {
-      return sendError(reply, err.message);
-    }
-  };
-
   approveDriverKyc = async (
     req: FastifyRequest<{ Params: { driverId: string } }>,
     reply: FastifyReply,
@@ -180,6 +140,15 @@ export class AdminController {
   };
 
   // ── Dashboard ──────────────────────────────────────────────
+
+  getAvailableDrivers = async (req: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const data = await adminService.getAvailableDrivers();
+      return sendSuccess(reply, data, "Available drivers retrieved");
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
 
   getDashboardStats = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -267,17 +236,4 @@ export class AdminController {
   };
 
   // ── Document View URLs ──────────────────────────────────────
-
-  getDocumentViewUrl = async (
-    req: FastifyRequest<{ Params: { docId: string } }>,
-    reply: FastifyReply,
-  ) => {
-    try {
-      const { docId } = req.params;
-      const data = await adminService.getDocumentViewUrl(docId);
-      return sendSuccess(reply, data, "Document view URL generated");
-    } catch (err: any) {
-      return sendError(reply, err.message);
-    }
-  };
 }

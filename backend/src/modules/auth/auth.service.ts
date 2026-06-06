@@ -14,8 +14,14 @@ import {
 } from "../../shared/utils/phone";
 import { Role } from "../../shared/types/enums";
 
-// Hardcoded admin phone — always gets ADMIN role, bypasses KYC
-const ADMIN_PHONE = "+919999999999";
+// Read admin phone once at startup from env (set via GCP Secret Manager)
+const ADMIN_PHONE = process.env.ADMIN_PHONE;
+if (!ADMIN_PHONE) {
+  // Graceful fallback for local dev if not set, but enforces it in prod.
+  console.warn("ADMIN_PHONE env var is missing. Hardcoding for dev only.");
+}
+
+const EFFECTIVE_ADMIN_PHONE = ADMIN_PHONE || "+919999999999";
 
 export const authService = {
   // ── Send OTP ──────────────────────────────────────────────
@@ -23,7 +29,7 @@ export const authService = {
     const phone = formatPhone(rawPhone);
 
     // Admin phone bypasses all role/validity checks
-    if (phone === ADMIN_PHONE) {
+    if (phone === EFFECTIVE_ADMIN_PHONE) {
       await sendOTP(phone);
       return { phone };
     }
@@ -58,7 +64,7 @@ export const authService = {
     const phone = formatPhone(rawPhone);
 
     // Admin phone: force ADMIN role regardless of what was requested
-    const effectiveRole = phone === ADMIN_PHONE ? Role.ADMIN : role;
+    const effectiveRole = phone === EFFECTIVE_ADMIN_PHONE ? Role.ADMIN : role;
 
     const result = await verifyOTP(phone, otp);
 
@@ -89,7 +95,7 @@ export const authService = {
           data: { userId: user.id },
         });
       }
-    } else if (phone === ADMIN_PHONE && user.role !== Role.ADMIN) {
+    } else if (phone === EFFECTIVE_ADMIN_PHONE && user.role !== Role.ADMIN) {
       // Upgrade existing user to ADMIN if they somehow got created as another role
       user = await prisma.user.update({
         where: { id: user.id },

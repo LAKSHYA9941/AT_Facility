@@ -159,4 +159,84 @@ export class PaymentsController {
       return sendError(reply, err.message);
     }
   };
+
+  // ── Custom Plan payments ──────────────────────────────────────────────────
+
+  createCustomPlanOrder = async (
+    req: FastifyRequest<{ Body: { planId: string } }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const { planId } = req.body;
+      const user = (req as any).user;
+      if (!planId) return sendError(reply, "planId is required");
+
+      const data = await paymentsService.createCustomPlanOrder(
+        planId,
+        user.userId,
+      );
+      return sendCreated(reply, data, "Custom plan order created");
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
+
+  verifyCustomPlanPayment = async (
+    req: FastifyRequest<{
+      Body: {
+        planId: string;
+        razorpayOrderId: string;
+        razorpayPaymentId: string;
+        razorpaySignature: string;
+      };
+    }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const { planId, razorpayOrderId, razorpayPaymentId, razorpaySignature } =
+        req.body;
+      if (
+        !planId ||
+        !razorpayOrderId ||
+        !razorpayPaymentId ||
+        !razorpaySignature
+      ) {
+        return sendError(reply, "Missing required fields");
+      }
+
+      await paymentsService.verifyCustomPlanPayment(
+        planId,
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+      );
+      return sendSuccess(
+        reply,
+        { success: true, planId },
+        "Custom plan payment verified",
+      );
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
+
+  bypassCustomPlanPayment = async (
+    req: FastifyRequest<{ Body: { planId: string } }>,
+    reply: FastifyReply,
+  ) => {
+    try {
+      const { planId } = req.body;
+      const user = (req as any).user;
+      if (!planId) return sendError(reply, "planId is required");
+
+      await paymentsService.bypassCustomPlanPayment(planId, user.userId);
+      return sendSuccess(
+        reply,
+        { success: true, planId },
+        "Custom plan payment bypassed",
+      );
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  };
 }

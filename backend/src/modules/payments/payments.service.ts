@@ -58,7 +58,7 @@ export class PaymentsService {
       throw new Error("Invalid payment signature");
     }
 
-    await this.markOrderAsPaid(orderId);
+    await this.markOrderAsPaid(orderId, paymentId);
     return true;
   }
 
@@ -222,15 +222,34 @@ export class PaymentsService {
   }
 
   async handleWebhook(event: string, payload: any) {
+    const paymentId = payload?.payment?.entity?.id;
+    if (!paymentId) return;
+
+    // Idempotency check
+    const existing = await prisma.payment.findFirst({
+      where: { razorpayPaymentId: paymentId },
+    });
+    if (existing) {
+      console.log(
+        `Duplicate webhook received for payment ${paymentId} — skipping`,
+      );
+      return;
+    }
+
     if (event === "payment.captured") {
       const orderId = payload?.payment?.entity?.order_id;
       if (orderId) {
-        await this.markOrderAsPaid(orderId);
+        await this.markOrderAsPaid(orderId, paymentId);
+      }
+    } else if (event === "payment.failed") {
+      const orderId = payload?.payment?.entity?.order_id;
+      if (orderId) {
+        await this.markOrderAsFailed(orderId, paymentId);
       }
     }
   }
 
-  private async markOrderAsPaid(orderId: string) {
+  private async markOrderAsPaid(orderId: string, paymentId: string) {
     const pkg = await prisma.packageBooking.findFirst({
       where: { razorpayOrderId: orderId },
     });
@@ -238,6 +257,10 @@ export class PaymentsService {
       await prisma.packageBooking.update({
         where: { id: pkg.id },
         data: { paymentStatus: PaymentStatus.PAID },
+      });
+      await prisma.payment.updateMany({
+        where: { packageId: pkg.id },
+        data: { status: "PAID", razorpayPaymentId: paymentId },
       });
       return;
     }
@@ -250,11 +273,171 @@ export class PaymentsService {
         where: { id: rental.id },
         data: { paymentStatus: PaymentStatus.PAID },
       });
+      await prisma.payment.updateMany({
+        where: { rentalId: rental.id },
+        data: { status: "PAID", razorpayPaymentId: paymentId },
+      });
+      return;
+    }
+
+    // Try finding payment directly by orderId
+    const payment = await prisma.payment.findFirst({
+      where: { razorpayOrderId: orderId },
+    });
+    if (payment) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "PAID", razorpayPaymentId: paymentId },
+      });
       return;
     }
 
     console.warn(
       `Webhook received for order ${orderId} but no DB record found.`,
     );
+  }
+
+  private async markOrderAsFailed(orderId: string, paymentId: string) {
+    const pkg = await prisma.packageBooking.findFirst({
+      where: { razorpayOrderId: orderId },
+    });
+    if (pkg) {
+      await prisma.packageBooking.update({
+        where: { id: pkg.id },
+        data: { paymentStatus: PaymentStatus.FAILED },
+      });
+      await prisma.payment.updateMany({
+        where: { packageId: pkg.id },
+        data: { status: "FAILED", razorpayPaymentId: paymentId },
+      });
+      return;
+    }
+
+    const rental = await prisma.rental.findFirst({
+      where: { razorpayOrderId: orderId },
+    });
+    if (rental) {
+      await prisma.rental.update({
+        where: { id: rental.id },
+        data: { paymentStatus: PaymentStatus.FAILED },
+      });
+      await prisma.payment.updateMany({
+        where: { rentalId: rental.id },
+        data: { status: "FAILED", razorpayPaymentId: paymentId },
+      });
+      return;
+    }
+
+    // Try finding payment directly by orderId
+    const payment = await prisma.payment.findFirst({
+      where: { razorpayOrderId: orderId },
+    });
+    if (payment) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "FAILED", razorpayPaymentId: paymentId },
+      });
+      return;
+    }
+  }
+
+  // ── Custom Plan payments ──────────────────────────────────────────────────
+
+  async createCustomPlanOrder(planId: string, userId: string) {
+    const plan = await prisma.customPlan.findUnique({ where: { id: planId } });
+    if (!plan) throw new Error("Custom plan not found");
+    if (plan.status !== "QUOTED")
+      throw new Error("Plan is not in QUOTED status");
+    if (plan.submittedBy !== userId) throw new Error("Unauthorized");
+    if (!plan.quotedAmount || plan.quotedAmount <= 0)
+      throw new Error("No valid quoted amount");
+
+    const amountPaise = Math.round(plan.quotedAmount * 100);
+    const options = {
+      amount: amountPaise,
+      currency: "INR",
+      receipt: `custom_plan_${plan.id}`,
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    await prisma.payment.create({
+      data: {
+        customPlanId: planId,
+        razorpayOrderId: order.id,
+        amount: plan.quotedAmount,
+        status: "INITIATED",
+      },
+    });
+
+    return {
+      orderId: order.id,
+      amount: amountPaise,
+      currency: "INR",
+      key: process.env.RAZORPAY_KEY_ID,
+    };
+  }
+
+  async verifyCustomPlanPayment(
+    planId: string,
+    orderId: string,
+    paymentId: string,
+    signature: string,
+  ) {
+    const generatedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+      .update(orderId + "|" + paymentId)
+      .digest("hex");
+
+    if (generatedSignature !== signature) {
+      throw new Error("Invalid payment signature");
+    }
+
+    // Update payment record
+    await prisma.payment.updateMany({
+      where: { customPlanId: planId, razorpayOrderId: orderId },
+      data: { status: "CAPTURED", razorpayPaymentId: paymentId },
+    });
+
+    // Update custom plan status to ACCEPTED
+    await prisma.customPlan.update({
+      where: { id: planId },
+      data: { status: "ACCEPTED" },
+    });
+
+    // Notify admin
+    if (io) {
+      io.to("admin:room").emit("admin:custom_plan:paid", { planId });
+    }
+
+    return true;
+  }
+
+  async bypassCustomPlanPayment(planId: string, userId: string) {
+    const plan = await prisma.customPlan.findUnique({ where: { id: planId } });
+    if (!plan) throw new Error("Custom plan not found");
+    if (plan.status !== "QUOTED")
+      throw new Error("Plan is not in QUOTED status");
+    if (plan.submittedBy !== userId) throw new Error("Unauthorized");
+
+    await prisma.payment.create({
+      data: {
+        customPlanId: planId,
+        razorpayOrderId: `bypass_cp_${Date.now()}`,
+        amount: plan.quotedAmount ?? 0,
+        status: "CAPTURED",
+      },
+    });
+
+    await prisma.customPlan.update({
+      where: { id: planId },
+      data: { status: "ACCEPTED" },
+    });
+
+    if (io) {
+      io.to("admin:room").emit("admin:custom_plan:paid", { planId });
+    }
+
+    return true;
   }
 }

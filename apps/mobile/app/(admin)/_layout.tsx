@@ -4,6 +4,7 @@ import {
   Users,
   ShieldCheck,
   MapPin,
+  ClipboardList,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -56,6 +57,15 @@ export default function AdminLayout() {
         options={{
           title: "Map",
           tabBarIcon: ({ color, size }) => <MapPin size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="custom-plans"
+        options={{
+          title: "Plans",
+          tabBarIcon: ({ color, size }) => (
+            <ClipboardList size={size} color={color} />
+          ),
         }}
       />
     </Tabs>

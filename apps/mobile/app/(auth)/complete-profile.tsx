@@ -48,6 +48,11 @@ export default function CompleteProfileScreen() {
   const [backImage, setBackImage] = useState<string | null>(null);
 
   useEffect(() => {
+    // Drivers don't need ID verification at signup (they do it in Documents section)
+    if (user?.role === "DRIVER" && user?.profileComplete) {
+      router.replace("/(driver)/home");
+      return;
+    }
     // If name is already set and profile is complete, jump to step 2 automatically if ID is not verified
     if (user?.profileComplete && !user?.idVerified && !user?.idSubmittedAt) {
       setStep(2);
@@ -59,7 +64,11 @@ export default function CompleteProfileScreen() {
     setLoading(true);
     try {
       await completeProfile(name.trim(), email.trim() || undefined);
-      setStep(2);
+      if (user?.role === "DRIVER") {
+        router.replace("/(driver)/home");
+      } else {
+        setStep(2);
+      }
     } catch (err: any) {
       Alert.alert("Error", err.response?.data?.message || err.message);
     } finally {

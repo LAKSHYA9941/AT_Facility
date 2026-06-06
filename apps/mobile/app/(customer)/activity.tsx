@@ -7,8 +7,9 @@ import {
   Alert,
 } from "react-native";
 import { useState, useEffect } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { router } from "expo-router";
 import { api } from "../../utils/api";
 
 const TABS = ["Rides", "Packages", "Rentals"];
@@ -44,7 +45,7 @@ function TripRow({
   onPayBalance,
 }: {
   item: any;
-  onPayBalance: (id: string) => void;
+  onPayBalance: (item: any) => void;
 }) {
   const s = STATUS_STYLE[item.status] ?? {
     bg: "bg-gray-50",
@@ -114,13 +115,37 @@ function TripRow({
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => onPayBalance(item.id)}
+              onPress={() => onPayBalance(item)}
               className="bg-orange-500 px-4 py-2 rounded-lg"
             >
               <Text className="text-white font-bold text-xs">Pay Now</Text>
             </TouchableOpacity>
           </View>
         )}
+
+      {item.driver && (
+        <View className="mt-4 bg-blue-50 p-3 rounded-xl border border-blue-100">
+          <Text className="text-blue-800 text-xs font-semibold mb-1">
+            Accepted By:
+          </Text>
+          <Text className="text-blue-900 font-bold text-sm">
+            {item.driver.user?.name} • {item.driver.user?.phone}
+          </Text>
+          {item.driver.vehicle && (
+            <Text className="text-blue-700 text-xs mt-0.5">
+              {item.driver.vehicle.make} {item.driver.vehicle.model} • Plate:{" "}
+              {item.driver.vehicle.plateNumber}
+            </Text>
+          )}
+        </View>
+      )}
+
+      <TouchableOpacity
+        onPress={() => router.push(`/(customer)/active-trip?tripId=${item.id}`)}
+        className="mt-4 bg-gray-100 p-3 rounded-xl items-center border border-gray-200"
+      >
+        <Text className="text-gray-800 font-bold text-xs">Full Details</Text>
+      </TouchableOpacity>
     </Animated.View>
   );
 }
@@ -166,6 +191,7 @@ function PackageRow({ item, type }: { item: any; type: "PACKAGE" | "RENTAL" }) {
 }
 
 export default function ActivityScreen() {
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState<any[]>([]);
@@ -206,20 +232,22 @@ export default function ActivityScreen() {
     }
   };
 
-  const handlePayBalance = async (tripId: string) => {
-    try {
-      setLoading(true);
-      await api.post("/api/payments/bypass-balance", { tripId });
-      Alert.alert("Success", "Balance paid successfully!");
-      fetchData();
-    } catch (e: any) {
-      Alert.alert("Error", e.response?.data?.message || "Payment failed");
-      setLoading(false);
-    }
+  const handlePayBalance = (item: any) => {
+    // Navigate to checkout with balance-as-upfront so user goes through the proper payment flow
+    router.push({
+      pathname: "/(customer)/checkout",
+      params: {
+        tripId: item.id,
+        totalFare: String(item.totalFare ?? 0),
+        amountPaidUpfront: String(item.balanceRemaining ?? 0),
+        balance: "0",
+        vehicleSegment: item.vehicleSegment ?? "SEDAN",
+      },
+    });
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+    <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 py-4 border-b border-brand-border">
         <Text className="text-brand-text font-bold text-xl">Activity</Text>
@@ -302,6 +330,6 @@ export default function ActivityScreen() {
         )}
         <View className="h-6" />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

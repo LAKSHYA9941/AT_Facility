@@ -49,7 +49,7 @@ export default function DriverJobsScreen() {
   const fetchJobsAndStatus = async () => {
     try {
       const kycRes = await api.get("/api/kyc/status");
-      setKycStatus(kycRes.data.data.status);
+      setKycStatus(kycRes.data.data?.kycStatus || "UNSUBMITTED");
 
       const jobsRes = await api.get("/api/trips/available-jobs");
       setJobs(jobsRes.data.data);
@@ -88,20 +88,29 @@ export default function DriverJobsScreen() {
       return (
         <View className="bg-red-100 p-3 rounded-lg mb-4 items-center">
           <Text className="text-red-800 font-bold mb-1">
-            Your KYC was rejected.
+            Your Documents were rejected.
           </Text>
           <Text className="text-red-600 text-xs">Contact support.</Text>
+        </View>
+      );
+    }
+    if (kycStatus === "PENDING") {
+      return (
+        <View className="bg-blue-100 p-3 rounded-lg mb-4 flex-row items-center justify-between">
+          <Text className="text-blue-800 font-semibold text-xs flex-1">
+            Verification Pending. Please wait.
+          </Text>
         </View>
       );
     }
     return (
       <View className="bg-amber-100 p-3 rounded-lg mb-4 flex-row items-center justify-between">
         <Text className="text-amber-800 font-semibold text-xs flex-1">
-          Complete KYC to accept jobs.
+          Upload Documents to accept jobs.
         </Text>
         <TouchableOpacity onPress={() => router.push("/(driver)/kyc")}>
           <Text className="text-brand-primary font-bold text-xs">
-            Go to KYC →
+            Go to Documents →
           </Text>
         </TouchableOpacity>
       </View>
@@ -201,10 +210,10 @@ export default function DriverJobsScreen() {
                   </View>
                   <View className="items-end">
                     <Text className="text-[10px] text-green-600 font-bold">
-                      Your Earning (cash)
+                      Cash to Collect
                     </Text>
                     <Text className="font-bold text-green-600 text-lg">
-                      ₹{item.driverEarning || item.balanceRemaining}
+                      ₹{item.balanceRemaining ?? 0}
                     </Text>
                   </View>
                 </View>
@@ -216,7 +225,7 @@ export default function DriverJobsScreen() {
                 >
                   <Text className="text-white font-bold">
                     {kycStatus !== "VERIFIED"
-                      ? "Verify KYC to Accept"
+                      ? "Verify Docs to Accept"
                       : "Accept Job"}
                   </Text>
                 </TouchableOpacity>

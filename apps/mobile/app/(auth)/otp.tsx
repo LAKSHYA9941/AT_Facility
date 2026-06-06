@@ -70,19 +70,19 @@ export default function OTPScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
       >
-        <View className="flex-1 px-6 pt-16 pb-10 justify-between">
+        <View className="flex-1 px-6 pt-16 pb-10">
           <Animated.View entering={FadeInDown.delay(100).springify()}>
             <Text className="text-brand-text font-bold text-3xl mb-2">
               Verify OTP
             </Text>
-            <Text className="text-brand-sub text-base">
+            <Text className="text-brand-sub text-base mb-10">
               Sent to your registered number
             </Text>
           </Animated.View>
 
           <Animated.View
             entering={FadeInDown.delay(200).springify()}
-            className="flex-row justify-between gap-2"
+            className="flex-row justify-between gap-2 mb-10"
           >
             {otp.map((digit, i) => (
               <TextInput

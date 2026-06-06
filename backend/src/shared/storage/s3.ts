@@ -1,3 +1,7 @@
+// backend/src/shared/storage/s3.ts
+// Complete replacement for the currently empty s3.ts file.
+// Both KYC and customer document services should import getPresignedGetUrl from here.
+
 import {
   S3Client,
   GetObjectCommand,
@@ -5,71 +9,59 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-export const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "ap-south-1",
+const s3 = new S3Client({
+  region: process.env.AWS_REGION ?? "ap-south-1",
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 });
 
-const BUCKET = () => {
-  const bucket = process.env.AWS_BUCKET_NAME;
-  if (!bucket) throw new Error("AWS_BUCKET_NAME is not configured");
-  return bucket;
-};
+const BUCKET = process.env.AWS_S3_BUCKET ?? "atfacility-docs";
 
-/**
- * Extract the S3 key from a full S3 URL.
- * e.g. "https://atfacility-docs.s3.amazonaws.com/kyc/abc/AADHAAR-123.jpg"
- *    → "kyc/abc/AADHAAR-123.jpg"
- */
-export function extractS3Key(fileUrl: string): string {
-  try {
-    const url = new URL(fileUrl);
-    // Remove leading slash
-    return url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
-  } catch {
-    // If not a valid URL, assume it's already a key
-    return fileUrl;
-  }
-}
+// ── Generate presigned PUT URL (for upload) ──────────────────────────────────
+// Used by kyc.service.ts and customer.service.ts when client wants to upload a file.
 
-/**
- * Generate a presigned GET URL for viewing a file in S3.
- * @param fileUrl - The full S3 URL or key
- * @param expiresIn - TTL in seconds (default 5 minutes)
- */
-export async function getPresignedViewUrl(
-  fileUrl: string,
-  expiresIn = 300,
-): Promise<string> {
-  const key = extractS3Key(fileUrl);
-  const command = new GetObjectCommand({
-    Bucket: BUCKET(),
-    Key: key,
-  });
-  return getSignedUrl(s3Client, command, { expiresIn });
-}
-
-/**
- * Generate a presigned PUT URL for uploading a file to S3.
- * @param key - The S3 key (path)
- * @param contentType - MIME type
- * @param expiresIn - TTL in seconds (default 1 hour)
- */
-export async function getPresignedUploadUrl(
+export async function getPresignedPutUrl(
   key: string,
-  contentType = "image/jpeg",
-  expiresIn = 3600,
-): Promise<{ uploadUrl: string; fileUrl: string }> {
-  const bucket = BUCKET();
+  contentType: string = "image/jpeg",
+): Promise<string> {
   const command = new PutObjectCommand({
-    Bucket: bucket,
+    Bucket: BUCKET,
     Key: key,
     ContentType: contentType,
   });
-  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn });
-  const fileUrl = `https://${bucket}.s3.amazonaws.com/${key}`;
-  return { uploadUrl, fileUrl };
+
+  // Upload URL valid for 10 minutes
+  return getSignedUrl(s3, command, { expiresIn: 600 });
+}
+
+// ── Generate presigned GET URL (for viewing) ─────────────────────────────────
+// Used by admin document review endpoints. Never expose public S3 URLs.
+
+export async function getPresignedGetUrl(
+  key: string,
+  expiresInSeconds: number = 600, // 10 minutes — long enough for admin to view
+): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+  });
+
+  return getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
+}
+
+// ── Extract S3 key from a stored URL ────────────────────────────────────────
+// e.g. "https://atfacility-docs.s3.ap-south-1.amazonaws.com/kyc/abc/AADHAAR-123.jpg"
+// → "kyc/abc/AADHAAR-123.jpg"
+
+export function extractS3Key(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Remove leading slash
+    return parsed.pathname.replace(/^\//, "");
+  } catch {
+    // If it's already a key (no http), return as-is
+    return url;
+  }
 }

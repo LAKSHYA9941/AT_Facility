@@ -1,5 +1,5 @@
 import { Tabs, useRouter } from "expo-router";
-import { Compass, Activity, User, Map } from "lucide-react-native";
+import { Compass, Activity, User, Map, FileText } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useEffect, useState } from "react";
@@ -81,6 +81,15 @@ export default function CustomerLayout() {
           }}
         />
         <Tabs.Screen
+          name="custom-plan"
+          options={{
+            title: "Custom Plan",
+            tabBarIcon: ({ color, size }) => (
+              <FileText size={size} color={color} />
+            ),
+          }}
+        />
+        {/* <Tabs.Screen
           name="travel"
           options={{
             title: "Travel",
@@ -88,7 +97,7 @@ export default function CustomerLayout() {
               <Compass size={size} color={color} />
             ),
           }}
-        />
+        /> */}
         <Tabs.Screen
           name="activity"
           options={{

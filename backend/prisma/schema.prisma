@@ -34,21 +34,6 @@ enum KYCStatus {
   REJECTED
 }
 
-enum DocumentType {
-  AADHAAR
-  DRIVING_LICENSE
-  VEHICLE_RC
-  PAN
-  BANK_DETAILS
-  SELFIE
-}
-
-enum DocumentStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 enum VehicleSegment {
   HATCHBACK
   SEDAN
@@ -104,6 +89,14 @@ enum ExtraChargeType {
   OTHER
 }
 
+enum CustomPlanStatus {
+  NEW
+  REVIEWED
+  QUOTED
+  ACCEPTED
+  REJECTED
+}
+
 // ==================== CORE USER ====================
 
 model User {
@@ -124,6 +117,7 @@ model User {
   packageBookings PackageBooking[]
   rentals         Rental[]
   notifications   Notification[]
+  customPlans     CustomPlan[]     @relation("CustomPlans")
 
   // Trip relations
   tripsAsCustomer Trip[] @relation("CustomerTrips")
@@ -137,8 +131,9 @@ model User {
   idVerifiedBy  String? // admin userId
   idSubmittedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 }
 
 // ==================== AUTH ====================
@@ -176,9 +171,10 @@ model OTP {
 // ==================== DRIVER ====================
 
 model DriverProfile {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String  @id @default(cuid())
+  userId String  @unique
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String?
 
   rating        Float   @default(0)
   totalTrips    Int     @default(0)
@@ -200,14 +196,26 @@ model DriverProfile {
   bankAccountName   String?
   bankVerified      Boolean @default(false)
 
-  vehicle   Vehicle?
-  documents Document[]
+  // Flat KYC Documents
+  aadhaarNumber  String?
+  aadhaarUrl     String?
+  dlNumber       String?
+  dlUrl          String?
+  rcNumber       String?
+  rcUrl          String?
+  panNumber      String?
+  panUrl         String?
+  bankDetailsUrl String?
+  selfieUrl      String?
+
+  vehicle Vehicle?
 
   // Trip relations
   tripsAsDriver Trip[] @relation("DriverTrips")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([isOnline, isAvailable, kycStatus])
 }
@@ -243,26 +251,6 @@ model Vehicle {
   updatedAt DateTime @updatedAt
 }
 
-model Document {
-  id       String        @id @default(cuid())
-  driverId String
-  driver   DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
-
-  type         DocumentType
-  fileUrl      String
-  status       DocumentStatus @default(PENDING)
-  rejectReason String?
-  verifiedAt   DateTime?
-  verifiedBy   String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([driverId, type])
-  @@index([driverId])
-  @@index([status])
-}
-
 // ==================== TRIPS ====================
 
 model Trip {
@@ -293,8 +281,12 @@ model Trip {
   user      User           @relation("CustomerTrips", fields: [userId], references: [id])
   driver    DriverProfile? @relation("DriverTrips", fields: [driverId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([userId, status])
+  @@index([driverId, status])
 }
 
 model Waypoint {
@@ -315,13 +307,16 @@ model Payment {
   package   PackageBooking? @relation(fields: [packageId], references: [id])
   rentalId  String?         @unique
   rental    Rental?         @relation(fields: [rentalId], references: [id])
+  customPlanId String?      @unique
+  customPlan   CustomPlan?  @relation(fields: [customPlanId], references: [id])
 
   razorpayOrderId String?
   status          String  @default("INITIATED")
   amount          Float?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  razorpayPaymentId String?  @unique
 }
 
 // ==================== PACKAGES ====================
@@ -447,12 +442,51 @@ model Notification {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title String
-  body  String
-  data  Json? // { rideId, screen } for deep linking
-  read  Boolean @default(false)
-
+  title     String
+  body      String
+  data      Json? // { rideId, screen } for deep linking
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+model CustomPlan {
+  id              String @id @default(uuid())
+  submittedBy     String
+  user            User   @relation("CustomPlans", fields: [submittedBy], references: [id])
+  submittedByRole Role // CUSTOMER or DRIVER — set server-side from JWT
+
+  // Plan details
+  pickupLocation     String
+  pickupLat          Float?
+  pickupLng          Float?
+  destinations       String[] // e.g. ["Manali", "Kasol", "Kufri"]
+  numberOfTravellers Int
+  budgetMin          Int // INR
+  budgetMax          Int // INR
+  carType            VehicleSegment?
+  hotelRequired      Boolean         @default(false)
+  additionalNotes    String?
+
+  // Admin workflow
+  status       CustomPlanStatus @default(NEW)
+  adminNotes   String?
+  reviewedBy   String? // admin userId
+  reviewedAt   DateTime?
+  quotedAmount Int? // INR — filled by admin
+
+  // Payment relation
+  payment Payment?
+
+  // Driver assignment (admin sets after payment)
+  assignedDriverId   String? // driverProfile.id
+  driverEarning      Int?    // INR — what the driver gets
+  platformCommission Int?    // INR — what AT Facility keeps
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([submittedBy])
 }

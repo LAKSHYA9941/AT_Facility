@@ -1,9 +1,19 @@
-import { View, Text, TouchableOpacity } from "react-native";
-import { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Alert,
+  Linking,
+  Modal,
+  TextInput,
+} from "react-native";
+import { useState, useCallback, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import { useDriverStore } from "../../store/driver";
+import { useFocusEffect } from "expo-router";
+import { api } from "../../utils/api";
 
 const TODAY_STATS = [
   { val: "6", label: "Trips" },
@@ -36,8 +46,6 @@ const MAP_STYLE = [
 ];
 
 export default function DriverHome() {
-  const [online, setOnline] = useState(false);
-
   const goOnline = useDriverStore((s) => s.goOnline);
   const goOffline = useDriverStore((s) => s.goOffline);
   const isOnline = useDriverStore((s) => s.isOnline);
@@ -45,12 +53,136 @@ export default function DriverHome() {
   const acceptRide = useDriverStore((s) => s.acceptRide);
   const declineRide = useDriverStore((s) => s.declineRide);
 
+  const [activeTrip, setActiveTrip] = useState<any>(null);
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+
   const toggleOnline = async () => {
-    if (isOnline) {
-      await goOffline();
-    } else {
-      await goOnline();
+    try {
+      if (isOnline) {
+        await goOffline();
+      } else {
+        await goOnline();
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to update online status");
     }
+  };
+
+  const fetchActiveTrip = async () => {
+    try {
+      const res = await api.get("/api/trips/driver/my");
+      // Find a trip with status DRIVER_ASSIGNED or ACTIVE
+      const active = res.data?.data?.find(
+        (t: any) => t.status === "DRIVER_ASSIGNED" || t.status === "ACTIVE",
+      );
+      setActiveTrip(active || null);
+    } catch (err) {
+      console.log("Failed to fetch active trip", err);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isOnline) {
+        fetchActiveTrip();
+      } else {
+        setActiveTrip(null);
+      }
+    }, [isOnline]),
+  );
+
+  useEffect(() => {
+    if (isOnline) {
+      fetchActiveTrip();
+    } else {
+      setActiveTrip(null);
+    }
+  }, [isOnline]);
+
+  const handleAcceptRide = async (rideId: string) => {
+    try {
+      await acceptRide(rideId);
+      setTimeout(() => {
+        fetchActiveTrip();
+      }, 800);
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to accept ride");
+    }
+  };
+
+  const handleStartTrip = () => {
+    setOtpInput("");
+    setOtpModalVisible(true);
+  };
+
+  const submitStartTrip = async () => {
+    if (!activeTrip) return;
+    if (!otpInput || otpInput.trim().length < 4) {
+      Alert.alert("Error", "Please enter a valid 4-digit OTP");
+      return;
+    }
+    try {
+      await api.post(`/api/trips/${activeTrip.id}/start`, {
+        otp: otpInput.trim(),
+      });
+      Alert.alert("Success", "Trip started successfully!");
+      setOtpModalVisible(false);
+      fetchActiveTrip();
+    } catch (err: any) {
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || err.message || "Failed to start trip",
+      );
+    }
+  };
+
+  const handleCompleteTrip = async () => {
+    if (!activeTrip) return;
+    try {
+      await api.post(`/api/trips/${activeTrip.id}/complete`);
+      Alert.alert("Success", "Trip completed successfully! Drive safe.");
+      setActiveTrip(null);
+    } catch (err: any) {
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || err.message || "Failed to complete trip",
+      );
+    }
+  };
+
+  const handleCancelTrip = () => {
+    if (!activeTrip) return;
+    Alert.alert(
+      "Cancel Trip",
+      "Are you sure you want to cancel this job? This will return it to the available board.",
+      [
+        { text: "No, Keep Job", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.post(`/api/trips/${activeTrip.id}/driver-cancel`, {
+                reason: "Driver cancelled via mobile",
+              });
+              Alert.alert(
+                "Cancelled",
+                "Trip cancelled and returned to the board.",
+              );
+              setActiveTrip(null);
+            } catch (err: any) {
+              Alert.alert(
+                "Error",
+                err.response?.data?.message ||
+                  err.message ||
+                  "Failed to cancel trip",
+              );
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -74,7 +206,35 @@ export default function DriverHome() {
         rotateEnabled
         zoomTapEnabled
         moveOnMarkerPress={false}
-      />
+      >
+        {activeTrip &&
+          activeTrip.waypoints &&
+          activeTrip.waypoints.length > 0 && (
+            <>
+              <Marker
+                coordinate={{
+                  latitude: activeTrip.waypoints[0].lat,
+                  longitude: activeTrip.waypoints[0].lng,
+                }}
+                title="Pickup Point"
+                description={activeTrip.waypoints[0].address}
+              />
+              <Marker
+                coordinate={{
+                  latitude:
+                    activeTrip.waypoints[activeTrip.waypoints.length - 1].lat,
+                  longitude:
+                    activeTrip.waypoints[activeTrip.waypoints.length - 1].lng,
+                }}
+                title="Destination Point"
+                description={
+                  activeTrip.waypoints[activeTrip.waypoints.length - 1].address
+                }
+                pinColor="green"
+              />
+            </>
+          )}
+      </MapView>
 
       {/* Overlay — box-none so map gets gestures */}
       <View
@@ -138,104 +298,379 @@ export default function DriverHome() {
                 borderRadius: 16,
                 paddingVertical: 16,
                 alignItems: "center",
-                backgroundColor: online ? "#16a34a" : "#1B4F8A",
+                backgroundColor: isOnline ? "#16a34a" : "#1B4F8A",
               }}
             >
               <Text style={{ color: "white", fontWeight: "700", fontSize: 14 }}>
-                {online
+                {isOnline
                   ? "🟢  You're Online — Tap to go Offline"
                   : "⚫  You're Offline — Tap to go Online"}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Stats card */}
-          <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
-            <View
+          {activeTrip ? (
+            /* Active Job Panel */
+            <Animated.View
+              entering={FadeInUp.springify()}
               style={{
-                backgroundColor: "rgba(255,255,255,0.95)",
-                borderRadius: 16,
+                marginHorizontal: 20,
+                marginTop: 12,
+                backgroundColor: "white",
+                borderRadius: 20,
                 padding: 16,
+                shadowColor: "#1B4F8A",
+                shadowOpacity: 0.15,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: 5,
+                borderWidth: 1,
+                borderColor: "#DDE3ED",
               }}
             >
-              <Text
+              <View
                 style={{
-                  color: "#9CA3AF",
-                  fontSize: 10,
-                  fontWeight: "600",
-                  letterSpacing: 1,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#EEF2F7",
+                  paddingBottom: 10,
                   marginBottom: 10,
-                  textTransform: "uppercase",
                 }}
               >
-                Today
-              </Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {TODAY_STATS.map((s) => (
+                <View>
+                  <Text
+                    style={{
+                      color: "#9CA3AF",
+                      fontSize: 10,
+                      fontWeight: "600",
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {activeTrip.status === "DRIVER_ASSIGNED"
+                      ? "🎯 Job Accepted — Heading to Pickup"
+                      : "🚕 Trip in Progress"}
+                  </Text>
+                  <Text
+                    style={{
+                      color: "#111827",
+                      fontWeight: "700",
+                      fontSize: 15,
+                      marginTop: 2,
+                    }}
+                  >
+                    {activeTrip.user?.name || "Passenger"}
+                  </Text>
+                </View>
+                {activeTrip.user?.phone && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      Linking.openURL(`tel:${activeTrip.user.phone}`)
+                    }
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: "#eff6ff",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 16 }}>📞</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Address Details */}
+              <View style={{ gap: 6, marginBottom: 12 }}>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
                   <View
-                    key={s.label}
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      borderWidth: 1.5,
+                      borderColor: "#1B4F8A",
+                    }}
+                  />
+                  <Text
+                    style={{ color: "#374151", fontSize: 12, flex: 1 }}
+                    numberOfLines={1}
+                  >
+                    Pickup:{" "}
+                    {activeTrip.waypoints?.[0]?.address || "Pickup address"}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    width: 1,
+                    height: 10,
+                    backgroundColor: "#DDE3ED",
+                    marginLeft: 3,
+                  }}
+                />
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <View
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: 1.5,
+                      backgroundColor: "#1B4F8A",
+                    }}
+                  />
+                  <Text
+                    style={{ color: "#374151", fontSize: 12, flex: 1 }}
+                    numberOfLines={1}
+                  >
+                    Drop:{" "}
+                    {activeTrip.waypoints?.[activeTrip.waypoints.length - 1]
+                      ?.address || "Drop address"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Price & Cash info */}
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+                <View
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#EEF2F7",
+                    borderRadius: 12,
+                    padding: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#9CA3AF",
+                      fontSize: 9,
+                      fontWeight: "600",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Total Fare
+                  </Text>
+                  <Text
+                    style={{
+                      color: "#1B4F8A",
+                      fontWeight: "700",
+                      fontSize: 14,
+                      marginTop: 1,
+                    }}
+                  >
+                    ₹{activeTrip.totalFare}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#f0fdf4",
+                    borderRadius: 12,
+                    padding: 10,
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "#dcfce7",
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#15803d",
+                      fontSize: 9,
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Collect Cash
+                  </Text>
+                  <Text
+                    style={{
+                      color: "#166534",
+                      fontWeight: "800",
+                      fontSize: 16,
+                      marginTop: 1,
+                    }}
+                  >
+                    ₹{activeTrip.balanceRemaining ?? 0}
+                  </Text>
+                </View>
+              </View>
+
+              {/* OTP Input Trigger is handled via Start Trip button */}
+
+              {/* Buttons */}
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                {activeTrip.status === "DRIVER_ASSIGNED" ? (
+                  <>
+                    <TouchableOpacity
+                      onPress={handleCancelTrip}
+                      style={{
+                        flex: 1,
+                        borderWidth: 1.5,
+                        borderColor: "#ef4444",
+                        borderRadius: 12,
+                        paddingVertical: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#ef4444",
+                          fontWeight: "700",
+                          fontSize: 13,
+                        }}
+                      >
+                        Cancel Job
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleStartTrip}
+                      style={{
+                        flex: 2,
+                        backgroundColor: "#1B4F8A",
+                        borderRadius: 12,
+                        paddingVertical: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "white",
+                          fontWeight: "700",
+                          fontSize: 13,
+                        }}
+                      >
+                        Start Trip
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    onPress={handleCompleteTrip}
                     style={{
                       flex: 1,
-                      backgroundColor: "#EEF2F7",
+                      backgroundColor: "#16a34a",
                       borderRadius: 12,
-                      paddingVertical: 10,
+                      paddingVertical: 14,
                       alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     <Text
                       style={{
-                        color: "#1B4F8A",
-                        fontWeight: "700",
-                        fontSize: 13,
+                        color: "white",
+                        fontWeight: "800",
+                        fontSize: 14,
                       }}
                     >
-                      {s.val}
+                      Complete Trip & Collect Cash
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Animated.View>
+          ) : (
+            <>
+              {/* Stats card */}
+              <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
+                <View
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.95)",
+                    borderRadius: 16,
+                    padding: 16,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#9CA3AF",
+                      fontSize: 10,
+                      fontWeight: "600",
+                      letterSpacing: 1,
+                      marginBottom: 10,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Today
+                  </Text>
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    {TODAY_STATS.map((s) => (
+                      <View
+                        key={s.label}
+                        style={{
+                          flex: 1,
+                          backgroundColor: "#EEF2F7",
+                          borderRadius: 12,
+                          paddingVertical: 10,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "#1B4F8A",
+                            fontWeight: "700",
+                            fontSize: 13,
+                          }}
+                        >
+                          {s.val}
+                        </Text>
+                        <Text
+                          style={{
+                            color: "#9CA3AF",
+                            fontSize: 10,
+                            marginTop: 2,
+                          }}
+                        >
+                          {s.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              {/* Offline prompt */}
+              {!isOnline && (
+                <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
+                  <View
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.95)",
+                      borderRadius: 16,
+                      padding: 20,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text style={{ fontSize: 36, marginBottom: 8 }}>🚗</Text>
+                    <Text
+                      style={{
+                        color: "#111827",
+                        fontWeight: "700",
+                        fontSize: 15,
+                        textAlign: "center",
+                      }}
+                    >
+                      Go online to start earning
                     </Text>
                     <Text
-                      style={{ color: "#9CA3AF", fontSize: 10, marginTop: 2 }}
+                      style={{
+                        color: "#9CA3AF",
+                        fontSize: 12,
+                        textAlign: "center",
+                        marginTop: 4,
+                      }}
                     >
-                      {s.label}
+                      Tap the button above when you're ready
                     </Text>
                   </View>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          {/* Offline prompt */}
-          {!online && (
-            <View style={{ paddingHorizontal: 20, marginTop: 12 }}>
-              <View
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.95)",
-                  borderRadius: 16,
-                  padding: 20,
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ fontSize: 36, marginBottom: 8 }}>🚗</Text>
-                <Text
-                  style={{
-                    color: "#111827",
-                    fontWeight: "700",
-                    fontSize: 15,
-                    textAlign: "center",
-                  }}
-                >
-                  Go online to start earning
-                </Text>
-                <Text
-                  style={{
-                    color: "#9CA3AF",
-                    fontSize: 12,
-                    textAlign: "center",
-                    marginTop: 4,
-                  }}
-                >
-                  Tap the button above when you're ready
-                </Text>
-              </View>
-            </View>
+                </View>
+              )}
+            </>
           )}
 
           {/* Spacer */}
@@ -452,7 +887,7 @@ export default function DriverHome() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => acceptRide(rideRequest.rideId)}
+                  onPress={() => handleAcceptRide(rideRequest.rideId)}
                   activeOpacity={0.8}
                   style={{
                     flex: 1,
@@ -473,6 +908,106 @@ export default function DriverHome() {
           )}
         </SafeAreaView>
       </View>
+
+      {/* OTP Modal */}
+      <Modal visible={otpModalVisible} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 20,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                color: "#111827",
+                marginBottom: 8,
+              }}
+            >
+              Enter Start OTP
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#6B7280",
+                textAlign: "center",
+                marginBottom: 20,
+              }}
+            >
+              Ask the passenger for the 4-digit OTP to start the trip safely.
+            </Text>
+            <TextInput
+              style={{
+                width: "100%",
+                backgroundColor: "#F3F4F6",
+                borderRadius: 12,
+                padding: 16,
+                fontSize: 24,
+                fontWeight: "700",
+                letterSpacing: 8,
+                textAlign: "center",
+                color: "#1B4F8A",
+                marginBottom: 20,
+              }}
+              placeholder="0000"
+              keyboardType="number-pad"
+              maxLength={4}
+              value={otpInput}
+              onChangeText={setOtpInput}
+              autoFocus
+            />
+            <View style={{ flexDirection: "row", gap: 12, width: "100%" }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: "#DDE3ED",
+                  alignItems: "center",
+                }}
+                onPress={() => setOtpModalVisible(false)}
+              >
+                <Text
+                  style={{ color: "#4B5563", fontWeight: "600", fontSize: 15 }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 12,
+                  backgroundColor: "#1B4F8A",
+                  alignItems: "center",
+                }}
+                onPress={submitStartTrip}
+              >
+                <Text
+                  style={{ color: "white", fontWeight: "700", fontSize: 15 }}
+                >
+                  Start Trip
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -149,8 +149,11 @@ export const tripsController = {
     try {
       const user = req.user as JWTPayload;
       const { id } = req.params as { id: string };
+      const { otp } = req.body as { otp: string };
 
-      const trip = await tripsService.start(id, user.userId);
+      if (!otp) return sendError(reply, "OTP is required");
+
+      const trip = await tripsService.start(id, user.userId, otp);
       return sendSuccess(reply, trip, "Trip started");
     } catch (err: any) {
       return sendError(reply, err.message);

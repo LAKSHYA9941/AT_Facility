@@ -42,21 +42,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
     adminController.getKycDetails,
   );
 
-  fastify.put<{ Params: { driverId: string; docId: string } }>(
-    "/kyc/:driverId/docs/:docId/approve",
-    { preHandler },
-    adminController.approveDocument,
-  );
-
-  fastify.put<{
-    Params: { driverId: string; docId: string };
-    Body: { rejectReason: string };
-  }>(
-    "/kyc/:driverId/docs/:docId/reject",
-    { preHandler },
-    adminController.rejectDocument,
-  );
-
   fastify.put<{ Params: { driverId: string } }>(
     "/kyc/:driverId/approve",
     { preHandler },
@@ -77,6 +62,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
   );
 
   // ── Dashboard ──────────────────────────────────────────────
+  fastify.get(
+    "/available-drivers",
+    { preHandler },
+    adminController.getAvailableDrivers,
+  );
   fastify.get("/stats", { preHandler }, adminController.getDashboardStats);
   fastify.get<{ Querystring: { limit?: string } }>(
     "/activity",
@@ -107,9 +97,4 @@ export async function adminRoutes(fastify: FastifyInstance) {
   );
 
   // ── Document View URLs ──────────────────────────────────────
-  fastify.get<{ Params: { docId: string } }>(
-    "/documents/:docId/view-url",
-    { preHandler },
-    adminController.getDocumentViewUrl,
-  );
 }

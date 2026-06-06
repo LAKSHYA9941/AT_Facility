@@ -244,7 +244,17 @@ export const tripsService = {
     });
   },
 
-  start: async (tripId: string, driverUserId: string) => {
+  start: async (tripId: string, driverUserId: string, otp: string) => {
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { driver: true },
+    });
+
+    if (!trip) throw new Error("Trip not found");
+    if (trip.driver?.userId !== driverUserId)
+      throw new Error("Unauthorized driver");
+    if (trip.startOtp !== otp) throw new Error("Invalid OTP");
+
     return await prisma.trip.update({
       where: { id: tripId },
       data: { status: TripStatus.ACTIVE },
@@ -288,7 +298,7 @@ export const tripsService = {
       take: limit,
       include: {
         waypoints: { orderBy: { orderIndex: "asc" } },
-        driver: { include: { user: true } },
+        driver: { include: { user: true, vehicle: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -317,7 +327,7 @@ export const tripsService = {
       include: {
         waypoints: { orderBy: { orderIndex: "asc" } },
         user: true,
-        driver: { include: { user: true } },
+        driver: { include: { user: true, vehicle: true } },
       },
     });
     if (!trip) throw new Error("Trip not found");

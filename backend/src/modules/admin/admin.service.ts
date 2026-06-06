@@ -10,7 +10,7 @@ import {
   TripStatus,
 } from "../../shared/types/enums";
 import { LocationRedis } from "../../shared/redis/redis";
-import { getPresignedViewUrl } from "../../shared/storage/s3";
+import { getPresignedGetUrl } from "../../shared/storage/s3";
 
 export class AdminService {
   // ── Customer ID Proof Queue ──────────────────────────────────
@@ -38,10 +38,10 @@ export class AdminService {
       users.map(async (u) => ({
         ...u,
         idProofFront: u.idProofFront
-          ? await getPresignedViewUrl(u.idProofFront, 3600)
+          ? await getPresignedGetUrl(u.idProofFront, 3600)
           : null,
         idProofBack: u.idProofBack
-          ? await getPresignedViewUrl(u.idProofBack, 3600)
+          ? await getPresignedGetUrl(u.idProofBack, 3600)
           : null,
       })),
     );
@@ -95,24 +95,11 @@ export class AdminService {
       where: { kycStatus: KYCStatus.PENDING },
       include: {
         user: { select: { name: true, phone: true, email: true } },
-        documents: true,
       },
       orderBy: { updatedAt: "desc" },
     });
 
-    return Promise.all(
-      profiles.map(async (p) => ({
-        ...p,
-        documents: await Promise.all(
-          p.documents.map(async (d) => ({
-            ...d,
-            fileUrl: d.fileUrl
-              ? await getPresignedViewUrl(d.fileUrl, 3600)
-              : null,
-          })),
-        ),
-      })),
-    );
+    return profiles;
   }
 
   async getKycDetails(driverId: string) {
@@ -120,67 +107,43 @@ export class AdminService {
       where: { id: driverId },
       include: {
         user: { select: { name: true, phone: true, email: true } },
-        documents: true,
       },
     });
 
     if (!profile) return null;
 
+    // Helper to generate presigned URLs if they exist
+    const signUrl = async (url: string | null) => {
+      return url ? await getPresignedGetUrl(url, 3600) : null;
+    };
+
     return {
       ...profile,
-      documents: await Promise.all(
-        profile.documents.map(async (d) => ({
-          ...d,
-          fileUrl: d.fileUrl
-            ? await getPresignedViewUrl(d.fileUrl, 3600)
-            : null,
-        })),
-      ),
+      aadhaarUrl: await signUrl(profile.aadhaarUrl),
+      dlUrl: await signUrl(profile.dlUrl),
+      rcUrl: await signUrl(profile.rcUrl),
+      panUrl: await signUrl(profile.panUrl),
+      bankDetailsUrl: await signUrl(profile.bankDetailsUrl),
+      selfieUrl: await signUrl(profile.selfieUrl),
     };
   }
 
-  async approveDocument(driverId: string, docId: string, adminUserId: string) {
-    const doc = await prisma.document.findUnique({ where: { id: docId } });
-    if (!doc || doc.driverId !== driverId) {
-      throw new Error("Document not found for this driver");
-    }
-
-    return prisma.document.update({
-      where: { id: docId },
-      data: {
-        status: DocumentStatus.APPROVED,
-        verifiedAt: new Date(),
-        verifiedBy: adminUserId,
-        rejectReason: null,
-      },
-    });
-  }
-
-  async rejectDocument(driverId: string, docId: string, rejectReason: string) {
-    const doc = await prisma.document.findUnique({ where: { id: docId } });
-    if (!doc || doc.driverId !== driverId) {
-      throw new Error("Document not found for this driver");
-    }
-
-    return prisma.document.update({
-      where: { id: docId },
-      data: {
-        status: DocumentStatus.REJECTED,
-        rejectReason,
-      },
-    });
-  }
-
   async approveDriverKyc(driverId: string) {
-    const docs = await prisma.document.findMany({ where: { driverId } });
+    const profile = await prisma.driverProfile.findUnique({
+      where: { id: driverId },
+    });
 
-    const allApproved = docs.every(
-      (doc) => doc.status === DocumentStatus.APPROVED,
-    );
-    if (!allApproved || docs.length < 6) {
-      throw new Error(
-        "Cannot approve driver. Not all documents are approved or some are missing.",
-      );
+    if (!profile) throw new Error("Profile not found");
+
+    if (
+      !profile.aadhaarUrl ||
+      !profile.dlUrl ||
+      !profile.rcUrl ||
+      !profile.panUrl ||
+      !profile.bankDetailsUrl ||
+      !profile.selfieUrl
+    ) {
+      throw new Error("Cannot approve driver. Some documents are missing.");
     }
 
     const updated = await prisma.driverProfile.update({
@@ -233,6 +196,37 @@ export class AdminService {
   }
 
   // ── Dashboard Stats ──────────────────────────────────────
+
+  async getAvailableDrivers() {
+    return prisma.driverProfile.findMany({
+      where: {
+        kycStatus: KYCStatus.VERIFIED,
+      },
+      select: {
+        id: true,
+        isOnline: true,
+        isAvailable: true,
+        rating: true,
+        totalTrips: true,
+        segment: true,
+        user: { select: { name: true, phone: true } },
+        vehicle: {
+          select: {
+            make: true,
+            model: true,
+            color: true,
+            plateNumber: true,
+            segment: true,
+          },
+        },
+      },
+      orderBy: [
+        { isOnline: "desc" },
+        { isAvailable: "desc" },
+        { rating: "desc" },
+      ],
+    });
+  }
 
   async getDashboardStats() {
     const today = new Date();
@@ -547,20 +541,6 @@ export class AdminService {
     return activities.slice(0, limit);
   }
 
-  // ── Document View URL ──────────────────────────────────────
-
-  async getDocumentViewUrl(docId: string) {
-    const doc = await prisma.document.findUnique({
-      where: { id: docId },
-      select: { fileUrl: true, type: true },
-    });
-
-    if (!doc) throw new Error("Document not found");
-
-    const viewUrl = await getPresignedViewUrl(doc.fileUrl);
-    return { viewUrl, type: doc.type };
-  }
-
   async getCustomerIdViewUrl(userId: string, side: "front" | "back") {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -572,7 +552,7 @@ export class AdminService {
     const fileUrl = side === "front" ? user.idProofFront : user.idProofBack;
     if (!fileUrl) throw new Error(`No ${side} image found`);
 
-    const viewUrl = await getPresignedViewUrl(fileUrl);
+    const viewUrl = await getPresignedGetUrl(fileUrl);
     return { viewUrl, side };
   }
 }

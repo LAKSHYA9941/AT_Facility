@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../../utils/api";
@@ -38,6 +38,7 @@ type StatItem = {
 };
 
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const logout = useAuthStore((s) => s.logout);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -133,7 +134,7 @@ export default function DashboardScreen() {
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+    <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -403,6 +404,6 @@ export default function DashboardScreen() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

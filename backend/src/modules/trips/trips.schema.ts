@@ -33,7 +33,9 @@ export const createTripSchema = {
     passengerCount: z.number().min(1),
     vehicleSegment: z.string(),
     totalFare: z.number(),
-    selectedPercentage: z.number().refine((val) => [25, 50, 100].includes(val)),
+    selectedPercentage: z.coerce
+      .number()
+      .refine((val) => [25, 50, 100].includes(val)),
   }),
 };
 

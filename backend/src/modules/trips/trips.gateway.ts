@@ -125,7 +125,7 @@ export const setupTripsGateway = (io: Server, socket: Socket) => {
 
         // 1. Verify driver KYC status
         const driver = await prisma.driverProfile.findUnique({
-          where: { id: driverId },
+          where: { userId: driverId },
           include: { user: true },
         });
         if (!driver || driver.kycStatus !== "VERIFIED") {
@@ -135,7 +135,7 @@ export const setupTripsGateway = (io: Server, socket: Socket) => {
         // 2. Atomic check-and-assign
         const tripUpdateRes = await prisma.trip.updateMany({
           where: { id: tripId, status: "CONFIRMED", driverId: null },
-          data: { driverId, status: "DRIVER_ASSIGNED" },
+          data: { driverId: driver.id, status: "DRIVER_ASSIGNED" },
         });
 
         if (tripUpdateRes.count === 0) {

@@ -1,799 +1,390 @@
+// apps/mobile/app/(admin)/users.tsx
+// Full replacement — wires to real API with pagination + search + ban toggle
+
+import React, { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  Alert,
   FlatList,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
   RefreshControl,
+  Alert,
 } from "react-native";
-import { useState, useEffect, useCallback, useRef } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../utils/api";
-import { SkeletonCard } from "../../components/SkeletonLoader";
 
-// ── Types ──────────────────────────────────────────────
+// ── Types ───────────────────────────────────────────────────────────────────
 
-type Customer = {
+type UserItem = {
   id: string;
   name: string | null;
-  email: string | null;
   phone: string;
-  status: "ACTIVE" | "BANNED";
-  idProofType: string | null;
-  idVerified: boolean;
-  idSubmittedAt: string | null;
+  email: string | null;
+  status: "ACTIVE" | "BANNED" | "PENDING";
   profileComplete: boolean;
   createdAt: string;
-};
-
-type DriverProfile = {
-  id: string;
-  kycStatus: string;
-  isOnline: boolean;
-  isAvailable: boolean;
-  rating: number;
-  totalTrips: number;
-  totalEarnings: number;
-  segment: string | null;
-  strikes: number;
-  vehicle: {
-    make: string;
-    model: string;
-    plateNumber: string;
-    segment: string;
-    color: string;
+  // driver-only fields
+  driverProfile?: {
+    kycStatus: string;
+    isOnline: boolean;
+    rating: number;
+    totalTrips: number;
   } | null;
 };
 
-type Driver = {
-  id: string;
-  name: string | null;
-  email: string | null;
-  phone: string;
-  status: "ACTIVE" | "BANNED";
-  createdAt: string;
-  driverProfile: DriverProfile | null;
-};
+type Tab = "customers" | "drivers";
 
-// ── Badge styles ──────────────────────────────────────
+// ── Skeleton card ────────────────────────────────────────────────────────────
 
-const KYC_BADGE: Record<string, { bg: string; text: string; label: string }> = {
-  VERIFIED: { bg: "#EAF3DE", text: "#3B6D11", label: "Verified" },
-  PENDING: { bg: "#FAEEDA", text: "#854F0B", label: "Pending" },
-  REJECTED: { bg: "#FCEBEB", text: "#A32D2D", label: "Rejected" },
-  UNSUBMITTED: { bg: "#EEF2F7", text: "#9CA3AF", label: "Not Submitted" },
-};
-
-const STATUS_BADGE: Record<string, { bg: string; text: string }> = {
-  ACTIVE: { bg: "#EAF3DE", text: "#3B6D11" },
-  BANNED: { bg: "#FCEBEB", text: "#A32D2D" },
-};
-
-const ID_STATUS = (c: Customer) => {
-  if (c.idVerified)
-    return { bg: "#EAF3DE", text: "#3B6D11", label: "ID Verified" };
-  if (c.idSubmittedAt)
-    return { bg: "#FAEEDA", text: "#854F0B", label: "ID Pending" };
-  return { bg: "#EEF2F7", text: "#9CA3AF", label: "No ID" };
-};
-
-const PAGE_SIZE = 20;
-
-export default function UsersScreen() {
-  const [tab, setTab] = useState<"customers" | "drivers">("customers");
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Customer | Driver | null>(null);
-
-  // Customer state
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customersLoading, setCustomersLoading] = useState(true);
-  const [customersPage, setCustomersPage] = useState(1);
-  const [customersHasMore, setCustomersHasMore] = useState(true);
-  const [customersTotal, setCustomersTotal] = useState(0);
-
-  // Driver state
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [driversLoading, setDriversLoading] = useState(true);
-  const [driversPage, setDriversPage] = useState(1);
-  const [driversHasMore, setDriversHasMore] = useState(true);
-  const [driversTotal, setDriversTotal] = useState(0);
-
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [banLoading, setBanLoading] = useState<string | null>(null);
-
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ── Fetch customers ──────────────────────────────────
-
-  const fetchCustomers = useCallback(
-    async (page = 1, searchTerm = "", append = false) => {
-      try {
-        if (page === 1 && !append) setCustomersLoading(true);
-        if (append) setLoadingMore(true);
-
-        const res = await api.get("/api/admin/users/customers", {
-          params: { page, limit: PAGE_SIZE, search: searchTerm || undefined },
-        });
-
-        const data = res.data.data;
-        if (append) {
-          setCustomers((prev) => [...prev, ...data.items]);
-        } else {
-          setCustomers(data.items);
-        }
-        setCustomersTotal(data.total);
-        setCustomersHasMore(data.hasMore);
-        setCustomersPage(page);
-      } catch (err: any) {
-        console.error("Fetch customers error:", err.message);
-      } finally {
-        setCustomersLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [],
-  );
-
-  // ── Fetch drivers ──────────────────────────────────
-
-  const fetchDrivers = useCallback(
-    async (page = 1, searchTerm = "", append = false) => {
-      try {
-        if (page === 1 && !append) setDriversLoading(true);
-        if (append) setLoadingMore(true);
-
-        const res = await api.get("/api/admin/users/drivers", {
-          params: { page, limit: PAGE_SIZE, search: searchTerm || undefined },
-        });
-
-        const data = res.data.data;
-        if (append) {
-          setDrivers((prev) => [...prev, ...data.items]);
-        } else {
-          setDrivers(data.items);
-        }
-        setDriversTotal(data.total);
-        setDriversHasMore(data.hasMore);
-        setDriversPage(page);
-      } catch (err: any) {
-        console.error("Fetch drivers error:", err.message);
-      } finally {
-        setDriversLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [],
-  );
-
-  // ── Initial load ──────────────────────────────────
-
-  useEffect(() => {
-    fetchCustomers();
-    fetchDrivers();
-  }, [fetchCustomers, fetchDrivers]);
-
-  // ── Debounced search ──────────────────────────────
-
-  useEffect(() => {
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => {
-      if (tab === "customers") {
-        fetchCustomers(1, search);
-      } else {
-        fetchDrivers(1, search);
-      }
-    }, 300);
-
-    return () => {
-      if (searchTimer.current) clearTimeout(searchTimer.current);
-    };
-  }, [search, tab]);
-
-  // ── Load more ──────────────────────────────────
-
-  const handleLoadMore = useCallback(() => {
-    if (loadingMore) return;
-    if (tab === "customers" && customersHasMore) {
-      fetchCustomers(customersPage + 1, search, true);
-    } else if (tab === "drivers" && driversHasMore) {
-      fetchDrivers(driversPage + 1, search, true);
-    }
-  }, [
-    tab,
-    customersHasMore,
-    driversHasMore,
-    customersPage,
-    driversPage,
-    search,
-    loadingMore,
-    fetchCustomers,
-    fetchDrivers,
-  ]);
-
-  // ── Pull to refresh ──────────────────────────────
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    if (tab === "customers") {
-      await fetchCustomers(1, search);
-    } else {
-      await fetchDrivers(1, search);
-    }
-    setRefreshing(false);
-  }, [tab, search, fetchCustomers, fetchDrivers]);
-
-  // ── Toggle ban ──────────────────────────────────
-
-  const toggleBan = useCallback(async (userId: string) => {
-    try {
-      setBanLoading(userId);
-      const res = await api.put(`/api/admin/users/${userId}/ban`);
-      const updated = res.data.data;
-
-      // Update local state
-      setCustomers((prev) =>
-        prev.map((c) =>
-          c.id === userId ? { ...c, status: updated.status } : c,
-        ),
-      );
-      setDrivers((prev) =>
-        prev.map((d) =>
-          d.id === userId ? { ...d, status: updated.status } : d,
-        ),
-      );
-      setSelected(null);
-
-      Alert.alert(
-        "Success",
-        `User has been ${updated.status === "BANNED" ? "banned" : "unbanned"}.`,
-      );
-    } catch (err: any) {
-      Alert.alert(
-        "Error",
-        err.response?.data?.message || "Failed to update user status",
-      );
-    } finally {
-      setBanLoading(null);
-    }
-  }, []);
-
-  // ── Helpers ──────────────────────────────────
-
-  const isDriver = (u: Customer | Driver): u is Driver => "driverProfile" in u;
-
-  const getInitials = (name: string | null) =>
-    (name || "??")
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-
-  const isLoading = tab === "customers" ? customersLoading : driversLoading;
-  const currentData = tab === "customers" ? customers : drivers;
-  const totalCount = tab === "customers" ? customersTotal : driversTotal;
-
-  // ── Render ──────────────────────────────────
-
-  const renderCustomerItem = ({
-    item: c,
-    index: i,
-  }: {
-    item: Customer;
-    index: number;
-  }) => {
-    const idBadge = ID_STATUS(c);
-    return (
-      <Animated.View entering={FadeInDown.delay(i * 30).springify()}>
-        <TouchableOpacity
-          onPress={() => setSelected(c)}
-          activeOpacity={0.8}
-          className="flex-row items-center gap-3 px-5 py-4 border-b border-brand-border"
-        >
-          <View className="w-11 h-11 rounded-full bg-brand-primary items-center justify-center">
-            <Text className="text-white font-bold text-sm">
-              {getInitials(c.name)}
-            </Text>
-          </View>
-          <View className="flex-1">
-            <Text className="text-brand-text font-bold text-sm">
-              {c.name || "Unnamed"}
-            </Text>
-            <Text className="text-brand-sub text-xs mt-0.5">{c.phone}</Text>
-            <Text className="text-brand-sub text-xs">
-              Joined{" "}
-              {new Date(c.createdAt).toLocaleDateString("en-IN", {
-                month: "short",
-                year: "numeric",
-              })}
-            </Text>
-          </View>
-          <View className="items-end gap-1">
-            <View
-              style={{
-                backgroundColor: STATUS_BADGE[c.status]?.bg || "#EEF2F7",
-                borderRadius: 20,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-              }}
-            >
-              <Text
-                style={{
-                  color: STATUS_BADGE[c.status]?.text || "#9CA3AF",
-                  fontSize: 10,
-                  fontWeight: "700",
-                  textTransform: "capitalize",
-                }}
-              >
-                {c.status.toLowerCase()}
-              </Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: idBadge.bg,
-                borderRadius: 20,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-              }}
-            >
-              <Text
-                style={{ color: idBadge.text, fontSize: 9, fontWeight: "700" }}
-              >
-                {idBadge.label}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
-
-  const renderDriverItem = ({
-    item: d,
-    index: i,
-  }: {
-    item: Driver;
-    index: number;
-  }) => {
-    const dp = d.driverProfile;
-    const kycBadge = KYC_BADGE[dp?.kycStatus || "UNSUBMITTED"];
-    return (
-      <Animated.View entering={FadeInDown.delay(i * 30).springify()}>
-        <TouchableOpacity
-          onPress={() => setSelected(d)}
-          activeOpacity={0.8}
-          className="flex-row items-center gap-3 px-5 py-4 border-b border-brand-border"
-        >
-          <View className="relative">
-            <View className="w-11 h-11 rounded-full bg-brand-primary items-center justify-center">
-              <Text className="text-white font-bold text-sm">
-                {getInitials(d.name)}
-              </Text>
-            </View>
-            {dp?.isOnline && (
-              <View className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
-            )}
-          </View>
-          <View className="flex-1">
-            <Text className="text-brand-text font-bold text-sm">
-              {d.name || "Unnamed"}
-            </Text>
-            <Text className="text-brand-sub text-xs mt-0.5">
-              {dp?.vehicle
-                ? `${dp.vehicle.make} ${dp.vehicle.model} · ${dp.vehicle.plateNumber}`
-                : "No vehicle registered"}
-            </Text>
-            <Text className="text-brand-sub text-xs">
-              {dp && dp.totalTrips > 0
-                ? `★ ${dp.rating.toFixed(1)} · ${dp.totalTrips} trips`
-                : "No trips yet"}
-            </Text>
-          </View>
-          <View className="items-end gap-1">
-            <View
-              style={{
-                backgroundColor: kycBadge.bg,
-                borderRadius: 20,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-              }}
-            >
-              <Text
-                style={{
-                  color: kycBadge.text,
-                  fontSize: 10,
-                  fontWeight: "700",
-                }}
-              >
-                {kycBadge.label}
-              </Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: STATUS_BADGE[d.status]?.bg || "#EEF2F7",
-                borderRadius: 20,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-              }}
-            >
-              <Text
-                style={{
-                  color: STATUS_BADGE[d.status]?.text || "#9CA3AF",
-                  fontSize: 10,
-                  fontWeight: "700",
-                  textTransform: "capitalize",
-                }}
-              >
-                {d.status.toLowerCase()}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  };
-
-  const renderFooter = () => {
-    if (loadingMore) {
-      return (
-        <View style={{ paddingVertical: 16 }}>
-          <SkeletonCard />
-          <SkeletonCard />
-        </View>
-      );
-    }
-    return <View style={{ height: 24 }} />;
-  };
-
+function SkeletonCard() {
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
-      {/* Header */}
-      <View className="px-5 pt-4 pb-3 border-b border-brand-border">
-        <Text className="text-brand-text font-bold text-xl mb-3">Users</Text>
-
-        {/* Tab toggle */}
-        <View className="flex-row bg-brand-input rounded-2xl p-1 mb-3">
-          {(["customers", "drivers"] as const).map((t) => (
-            <TouchableOpacity
-              key={t}
-              onPress={() => {
-                setTab(t);
-                setSearch("");
-              }}
-              activeOpacity={0.8}
-              className="flex-1 py-2.5 rounded-xl items-center"
-              style={{ backgroundColor: tab === t ? "#1B4F8A" : "transparent" }}
-            >
-              <Text
-                style={{
-                  color: tab === t ? "#fff" : "#9CA3AF",
-                  fontWeight: "700",
-                  fontSize: 13,
-                  textTransform: "capitalize",
-                }}
-              >
-                {t} ({t === "customers" ? customersTotal : driversTotal})
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Search */}
-        <View className="flex-row items-center gap-2 bg-brand-input border border-brand-border rounded-2xl px-4 h-12">
-          <Text className="text-brand-sub">🔍</Text>
-          <TextInput
-            className="flex-1 text-brand-text text-sm"
-            placeholder={`Search ${tab}...`}
-            placeholderTextColor="#9CA3AF"
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch("")}>
-              <Text style={{ color: "#9CA3AF", fontSize: 16 }}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* List */}
-      {isLoading ? (
-        <ScrollView>
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </ScrollView>
-      ) : (
-        <FlatList
-          data={currentData as any[]}
-          renderItem={
-            tab === "customers"
-              ? (renderCustomerItem as any)
-              : (renderDriverItem as any)
-          }
-          keyExtractor={(item) => item.id}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.3}
-          ListFooterComponent={renderFooter}
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center py-24">
-              <Text style={{ fontSize: 40, marginBottom: 8 }}>🔍</Text>
-              <Text className="text-brand-text font-bold text-base">
-                No {tab} found
-              </Text>
-              <Text className="text-brand-sub text-sm mt-1">
-                {search ? "Try a different search term" : "No data available"}
-              </Text>
-            </View>
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#1B4F8A"
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-
-      {/* Detail modal */}
-      <Modal
-        visible={!!selected}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelected(null)}
-      >
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)" }}
-          activeOpacity={1}
-          onPress={() => setSelected(null)}
-        />
-        {selected && (
-          <View
-            style={{
-              backgroundColor: "white",
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              padding: 24,
-              paddingBottom: 40,
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                backgroundColor: "#DDE3ED",
-                borderRadius: 2,
-                alignSelf: "center",
-                marginBottom: 20,
-              }}
-            />
-
-            {/* Avatar + name */}
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 14,
-                marginBottom: 20,
-              }}
-            >
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: "#1B4F8A",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text
-                  style={{ color: "white", fontWeight: "700", fontSize: 18 }}
-                >
-                  {getInitials(selected.name)}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{ color: "#111827", fontWeight: "700", fontSize: 17 }}
-                >
-                  {selected.name || "Unnamed"}
-                </Text>
-                {(selected as any).email && (
-                  <Text
-                    style={{ color: "#9CA3AF", fontSize: 12, marginTop: 2 }}
-                  >
-                    {(selected as any).email}
-                  </Text>
-                )}
-                <Text style={{ color: "#9CA3AF", fontSize: 12 }}>
-                  {selected.phone}
-                </Text>
-              </View>
-            </View>
-
-            {/* Info rows */}
-            {isDriver(selected) ? (
-              <View
-                style={{
-                  backgroundColor: "#EEF2F7",
-                  borderRadius: 16,
-                  padding: 14,
-                  gap: 8,
-                  marginBottom: 16,
-                }}
-              >
-                <InfoRow
-                  label="Vehicle"
-                  value={
-                    selected.driverProfile?.vehicle
-                      ? `${selected.driverProfile.vehicle.make} ${selected.driverProfile.vehicle.model} · ${selected.driverProfile.vehicle.plateNumber}`
-                      : "Not registered"
-                  }
-                />
-                <InfoRow
-                  label="Rating"
-                  value={
-                    selected.driverProfile &&
-                    selected.driverProfile.totalTrips > 0
-                      ? `★ ${selected.driverProfile.rating.toFixed(1)} · ${selected.driverProfile.totalTrips} trips`
-                      : "No trips yet"
-                  }
-                />
-                <InfoRow
-                  label="KYC Status"
-                  value={
-                    KYC_BADGE[
-                      selected.driverProfile?.kycStatus || "UNSUBMITTED"
-                    ].label
-                  }
-                  valueColor={
-                    KYC_BADGE[
-                      selected.driverProfile?.kycStatus || "UNSUBMITTED"
-                    ].text
-                  }
-                />
-                <InfoRow
-                  label="Segment"
-                  value={
-                    selected.driverProfile?.vehicle?.segment ||
-                    selected.driverProfile?.segment ||
-                    "—"
-                  }
-                />
-                <InfoRow
-                  label="Online now"
-                  value={selected.driverProfile?.isOnline ? "Yes" : "No"}
-                  valueColor={
-                    selected.driverProfile?.isOnline ? "#16a34a" : "#9CA3AF"
-                  }
-                />
-                <InfoRow
-                  label="Earnings"
-                  value={`₹${selected.driverProfile?.totalEarnings?.toLocaleString() || 0}`}
-                />
-                <InfoRow
-                  label="Strikes"
-                  value={`${selected.driverProfile?.strikes || 0}/3`}
-                  valueColor={
-                    (selected.driverProfile?.strikes || 0) >= 2
-                      ? "#A32D2D"
-                      : "#111827"
-                  }
-                />
-              </View>
-            ) : (
-              <View
-                style={{
-                  backgroundColor: "#EEF2F7",
-                  borderRadius: 16,
-                  padding: 14,
-                  gap: 8,
-                  marginBottom: 16,
-                }}
-              >
-                <InfoRow
-                  label="ID Proof"
-                  value={
-                    (selected as Customer).idVerified
-                      ? `${(selected as Customer).idProofType || "ID"} ✓ Verified`
-                      : (selected as Customer).idSubmittedAt
-                        ? `${(selected as Customer).idProofType || "ID"} — Pending`
-                        : "Not submitted"
-                  }
-                  valueColor={
-                    (selected as Customer).idVerified
-                      ? "#3B6D11"
-                      : (selected as Customer).idSubmittedAt
-                        ? "#854F0B"
-                        : "#9CA3AF"
-                  }
-                />
-                <InfoRow
-                  label="Profile complete"
-                  value={(selected as Customer).profileComplete ? "Yes" : "No"}
-                />
-                <InfoRow
-                  label="Member since"
-                  value={new Date(selected.createdAt).toLocaleDateString(
-                    "en-IN",
-                    { month: "long", year: "numeric" },
-                  )}
-                />
-                <InfoRow
-                  label="Status"
-                  value={selected.status.toLowerCase()}
-                  valueColor={STATUS_BADGE[selected.status]?.text}
-                />
-              </View>
-            )}
-
-            {/* Ban / Unban */}
-            <TouchableOpacity
-              onPress={() => toggleBan(selected.id)}
-              disabled={banLoading === selected.id}
-              activeOpacity={0.9}
-              style={{
-                borderRadius: 16,
-                paddingVertical: 16,
-                alignItems: "center",
-                backgroundColor:
-                  selected.status === "ACTIVE" ? "#FCEBEB" : "#EAF3DE",
-                opacity: banLoading === selected.id ? 0.6 : 1,
-              }}
-            >
-              <Text
-                style={{
-                  fontWeight: "700",
-                  fontSize: 15,
-                  color: selected.status === "ACTIVE" ? "#A32D2D" : "#3B6D11",
-                }}
-              >
-                {banLoading === selected.id
-                  ? "Updating..."
-                  : selected.status === "ACTIVE"
-                    ? "🚫  Ban this user"
-                    : "✅  Unban this user"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Modal>
-    </SafeAreaView>
+    <View className="bg-white rounded-xl border-[0.5px] border-brand-border p-4 mb-2.5">
+      <View className="h-3.5 w-1/2 bg-brand-bg rounded-md mb-2" />
+      <View className="h-3 w-[35%] bg-brand-bg rounded-md" />
+    </View>
   );
 }
 
-// ── Helper component ──────────────────────────────────
+// ── Main component ───────────────────────────────────────────────────────────
 
-function InfoRow({
-  label,
-  value,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  valueColor?: string;
-}) {
-  return (
-    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-      <Text style={{ color: "#9CA3AF", fontSize: 12 }}>{label}</Text>
-      <Text
-        style={{
-          color: valueColor || "#111827",
-          fontWeight: "600",
-          fontSize: 12,
-          textTransform: "capitalize",
-        }}
+export default function AdminUsersScreen() {
+  const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<Tab>("customers");
+  const [search, setSearch] = useState("");
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
+  const [banLoading, setBanLoading] = useState(false);
+
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+
+  const fetchUsers = useCallback(
+    async (opts: { tab: Tab; q: string; pg: number; reset?: boolean }) => {
+      if (loading && !opts.reset) return;
+      setLoading(true);
+      try {
+        const endpoint =
+          opts.tab === "customers"
+            ? "/api/admin/users/customers"
+            : "/api/admin/users/drivers";
+
+        const { data } = await api.get(endpoint, {
+          params: { page: opts.pg, limit: 20, search: opts.q },
+        });
+
+        const incoming: UserItem[] = data.data?.items ?? [];
+        setUsers((prev) => (opts.reset ? incoming : [...prev, ...incoming]));
+        setHasMore(data.data?.hasMore ?? false);
+        setPage(opts.pg);
+      } catch (err) {
+        console.error("Failed to fetch users", err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [],
+  );
+
+  // Initial load + tab change
+  React.useEffect(() => {
+    fetchUsers({ tab: activeTab, q: search, pg: 1, reset: true });
+  }, [activeTab]);
+
+  // Debounced search
+  const handleSearch = (text: string) => {
+    setSearch(text);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      fetchUsers({ tab: activeTab, q: text, pg: 1, reset: true });
+    }, 300);
+  };
+
+  // Pull-to-refresh
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchUsers({ tab: activeTab, q: search, pg: 1, reset: true });
+  };
+
+  // Infinite scroll
+  const handleEndReached = () => {
+    if (!loading && hasMore) {
+      fetchUsers({ tab: activeTab, q: search, pg: page + 1 });
+    }
+  };
+
+  // ── Ban toggle ─────────────────────────────────────────────────────────────
+
+  const handleBanToggle = async (user: UserItem) => {
+    const action = user.status === "BANNED" ? "unban" : "ban";
+    Alert.alert(
+      `${action === "ban" ? "Ban" : "Unban"} user?`,
+      `Are you sure you want to ${action} ${user.name ?? user.phone}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          style: action === "ban" ? "destructive" : "default",
+          onPress: async () => {
+            setBanLoading(true);
+            try {
+              await api.put(`/api/admin/users/${user.id}/ban`);
+              // Optimistic update
+              setUsers((prev) =>
+                prev.map((u) =>
+                  u.id === user.id
+                    ? {
+                        ...u,
+                        status: u.status === "BANNED" ? "ACTIVE" : "BANNED",
+                      }
+                    : u,
+                ),
+              );
+              if (selectedUser?.id === user.id) {
+                setSelectedUser((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        status: prev.status === "BANNED" ? "ACTIVE" : "BANNED",
+                      }
+                    : null,
+                );
+              }
+            } catch (err) {
+              Alert.alert("Error", "Failed to update user status.");
+            } finally {
+              setBanLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // ── Render user card ───────────────────────────────────────────────────────
+
+  const renderItem = ({ item, index }: { item: UserItem; index: number }) => (
+    <Animated.View entering={FadeInDown.delay(index * 40).springify()}>
+      <TouchableOpacity
+        onPress={() => setSelectedUser(item)}
+        className="bg-white rounded-xl border-[0.5px] border-brand-border p-4 mb-2.5 flex-row items-center justify-between"
+        activeOpacity={0.7}
       >
-        {value}
-      </Text>
+        <View className="flex-1">
+          <Text className="text-[15px] font-semibold text-gray-900">
+            {item.name ?? "—"}
+          </Text>
+          <Text className="text-[13px] text-gray-400 mt-0.5">{item.phone}</Text>
+          {activeTab === "drivers" && item.driverProfile && (
+            <Text className="text-[12px] text-gray-400 mt-0.5">
+              KYC: {item.driverProfile.kycStatus} · Trips:{" "}
+              {item.driverProfile.totalTrips}
+            </Text>
+          )}
+        </View>
+
+        <View className="items-end gap-1">
+          <View
+            className={`px-2 py-1 rounded-full ${
+              item.status === "ACTIVE"
+                ? "bg-green-100"
+                : item.status === "BANNED"
+                  ? "bg-red-100"
+                  : "bg-yellow-100"
+            }`}
+          >
+            <Text
+              className={`text-[11px] font-semibold ${
+                item.status === "ACTIVE"
+                  ? "text-green-800"
+                  : item.status === "BANNED"
+                    ? "text-red-800"
+                    : "text-yellow-800"
+              }`}
+            >
+              {item.status}
+            </Text>
+          </View>
+          {activeTab === "drivers" && item.driverProfile?.isOnline && (
+            <View className="w-2 h-2 rounded-full bg-emerald-500" />
+          )}
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  // ── Detail modal ───────────────────────────────────────────────────────────
+
+  const renderModal = () => {
+    if (!selectedUser) return null;
+    const u = selectedUser;
+    return (
+      <Modal
+        visible
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedUser(null)}
+      >
+        <View className="flex-1 bg-gray-50">
+          <View className="flex-row items-center justify-between p-4 bg-white border-b-[0.5px] border-brand-border">
+            <Text className="text-[17px] font-bold text-gray-900">
+              User Detail
+            </Text>
+            <TouchableOpacity onPress={() => setSelectedUser(null)}>
+              <Text className="text-[15px] text-brand-primary">Close</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 16 }}>
+            {[
+              { label: "Name", value: u.name ?? "—" },
+              { label: "Phone", value: u.phone },
+              { label: "Email", value: u.email ?? "—" },
+              { label: "Status", value: u.status },
+              {
+                label: "Profile complete",
+                value: u.profileComplete ? "Yes" : "No",
+              },
+              {
+                label: "Joined",
+                value: new Date(u.createdAt).toLocaleDateString("en-IN"),
+              },
+              ...(u.driverProfile
+                ? [
+                    { label: "KYC", value: u.driverProfile.kycStatus },
+                    {
+                      label: "Rating",
+                      value: u.driverProfile.rating.toFixed(1),
+                    },
+                    {
+                      label: "Total trips",
+                      value: String(u.driverProfile.totalTrips),
+                    },
+                    {
+                      label: "Online now",
+                      value: u.driverProfile.isOnline ? "Yes" : "No",
+                    },
+                  ]
+                : []),
+            ].map(({ label, value }) => (
+              <View
+                key={label}
+                className="flex-row justify-between py-2.5 border-b-[0.5px] border-brand-border"
+              >
+                <Text className="text-gray-400 text-sm">{label}</Text>
+                <Text className="text-gray-900 text-sm font-medium">
+                  {value}
+                </Text>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              onPress={() => handleBanToggle(u)}
+              disabled={banLoading}
+              className={`mt-6 rounded-xl p-3.5 items-center ${
+                u.status === "BANNED" ? "bg-brand-primary" : "bg-red-100"
+              }`}
+            >
+              {banLoading ? (
+                <ActivityIndicator
+                  color={u.status === "BANNED" ? "#fff" : "#991B1B"}
+                />
+              ) : (
+                <Text
+                  className={`font-bold text-[15px] ${
+                    u.status === "BANNED" ? "text-white" : "text-red-800"
+                  }`}
+                >
+                  {u.status === "BANNED" ? "Unban User" : "Ban User"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
+  // ── Main render ────────────────────────────────────────────────────────────
+
+  return (
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      {/* Tab switcher */}
+      <View className="flex-row bg-brand-bg m-4 rounded-[10px] p-[3px]">
+        {(["customers", "drivers"] as Tab[]).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            className={`flex-1 py-2 rounded-lg items-center ${
+              activeTab === tab ? "bg-white" : "bg-transparent"
+            }`}
+          >
+            <Text
+              className={`text-sm capitalize ${
+                activeTab === tab
+                  ? "font-bold text-brand-primary"
+                  : "font-medium text-gray-400"
+              }`}
+            >
+              {tab}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Search */}
+      <View className="px-4 mb-3">
+        <TextInput
+          value={search}
+          onChangeText={handleSearch}
+          placeholder="Search by name or phone..."
+          placeholderTextColor="#9CA3AF"
+          className="bg-brand-bg rounded-[10px] p-3 text-sm text-gray-900 border-[0.5px] border-brand-border"
+        />
+      </View>
+
+      {/* List */}
+      <FlatList
+        data={users}
+        keyExtractor={(u) => u.id}
+        renderItem={renderItem}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.3}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+        ListEmptyComponent={
+          loading ? (
+            <>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </>
+          ) : (
+            <Text className="text-center text-gray-400 mt-10">
+              No {activeTab} found
+            </Text>
+          )
+        }
+        ListFooterComponent={
+          loading && users.length > 0 ? (
+            <ActivityIndicator className="my-4" color="#1B4F8A" />
+          ) : null
+        }
+      />
+
+      {renderModal()}
     </View>
   );
 }

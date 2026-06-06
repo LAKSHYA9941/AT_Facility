@@ -2,7 +2,10 @@ import "../global.css";
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  initialWindowMetrics,
+} from "react-native-safe-area-context";
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -42,7 +45,7 @@ export default function RootLayout() {
   // Never return null here — use SplashScreen to gate the UI instead.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <Stack screenOptions={{ headerShown: false, animation: "fade" }} />
       </SafeAreaProvider>
     </GestureHandlerRootView>

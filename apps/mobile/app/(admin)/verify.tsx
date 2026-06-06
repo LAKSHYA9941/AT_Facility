@@ -7,6 +7,7 @@ import {
   TextInput,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,25 +22,25 @@ import {
 
 // ── Types ──────────────────────────────────────────────
 
-type DocStatus = "PENDING" | "APPROVED" | "REJECTED";
-
-type Doc = {
-  id: string;
-  type: string;
-  label: string;
-  emoji: string;
-  status: DocStatus;
-  rejectReason?: string;
-  fileUrl?: string;
-};
-
 type KYCDriver = {
   id: string;
   name: string;
   phone: string;
   submitted: string;
-  docs: Doc[];
   overallStatus: string;
+  aadhaarUrl?: string;
+  aadhaarNumber?: string;
+  dlUrl?: string;
+  dlNumber?: string;
+  rcUrl?: string;
+  rcNumber?: string;
+  panUrl?: string;
+  panNumber?: string;
+  bankDetailsUrl?: string;
+  bankAccountNumber?: string;
+  bankIFSC?: string;
+  bankAccountName?: string;
+  selfieUrl?: string;
 };
 
 type CustomerIdProof = {
@@ -54,24 +55,6 @@ type CustomerIdProof = {
 };
 
 // ── Constants ──────────────────────────────────────────
-
-const DOC_STATUS_STYLE: Record<
-  string,
-  { bg: string; text: string; label: string }
-> = {
-  PENDING: { bg: "#EEF2F7", text: "#9CA3AF", label: "Pending" },
-  APPROVED: { bg: "#EAF3DE", text: "#3B6D11", label: "Approved ✓" },
-  REJECTED: { bg: "#FCEBEB", text: "#A32D2D", label: "Rejected" },
-};
-
-const DOC_META: Record<string, { label: string; emoji: string }> = {
-  AADHAAR: { label: "Aadhaar Card", emoji: "🪪" },
-  DRIVING_LICENSE: { label: "Driving License", emoji: "🚗" },
-  VEHICLE_RC: { label: "Vehicle RC", emoji: "📄" },
-  PAN: { label: "PAN Card", emoji: "💳" },
-  BANK_DETAILS: { label: "Bank Details", emoji: "🏦" },
-  SELFIE: { label: "Live Selfie", emoji: "🤳" },
-};
 
 const ID_TYPE_META: Record<string, { label: string; emoji: string }> = {
   AADHAAR: { label: "Aadhaar Card", emoji: "🪪" },
@@ -88,17 +71,17 @@ export default function VerifyScreen() {
   const [kycLoading, setKycLoading] = useState(true);
   const [kycQueue, setKycQueue] = useState<KYCDriver[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<KYCDriver | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [approvingKyc, setApprovingKyc] = useState(false);
 
   // Customer ID state
   const [idsLoading, setIdsLoading] = useState(true);
   const [idsQueue, setIdsQueue] = useState<CustomerIdProof[]>([]);
 
   // Modals
-  const [rejectModal, setRejectModal] = useState<{
-    driverId: string;
-    docId: string;
-  } | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [rejectModal, setRejectModal] = useState<string | null>(null);
+
   const [customerRejectModal, setCustomerRejectModal] = useState<string | null>(
     null,
   );
@@ -107,10 +90,9 @@ export default function VerifyScreen() {
   // Document viewer
   const [docViewer, setDocViewer] = useState<{
     visible: boolean;
-    docId?: string;
     userId?: string;
     side?: "front" | "back";
-    directUrl?: string;
+    directUrl?: string | null;
     label: string;
   }>({ visible: false, label: "" });
 
@@ -130,15 +112,6 @@ export default function VerifyScreen() {
         phone: d.user?.phone || "",
         submitted: new Date(d.createdAt).toLocaleDateString("en-IN"),
         overallStatus: d.kycStatus || "PENDING",
-        docs: (d.documents || []).map((doc: any) => ({
-          id: doc.id,
-          type: doc.type,
-          label: DOC_META[doc.type]?.label || doc.type,
-          emoji: DOC_META[doc.type]?.emoji || "📄",
-          status: doc.status || "PENDING",
-          rejectReason: doc.rejectReason,
-          fileUrl: doc.fileUrl,
-        })),
       }));
 
       setKycQueue(mapped);
@@ -182,57 +155,21 @@ export default function VerifyScreen() {
 
   // ── KYC Actions ──────────────────────────────────
 
-  const approveDoc = async (driverId: string, docId: string) => {
+  const loadDriverDetails = async (driver: KYCDriver) => {
     try {
-      await api.put(`/api/admin/kyc/${driverId}/docs/${docId}/approve`);
-      const update = (docs: Doc[]) =>
-        docs.map((doc) =>
-          doc.id === docId ? { ...doc, status: "APPROVED" as DocStatus } : doc,
-        );
-      setKycQueue((prev) =>
-        prev.map((d) =>
-          d.id === driverId ? { ...d, docs: update(d.docs) } : d,
-        ),
-      );
-      setSelectedDriver((prev) =>
-        prev?.id === driverId ? { ...prev, docs: update(prev.docs) } : prev,
-      );
+      setDetailsLoading(true);
+      const res = await api.get(`/api/admin/kyc/${driver.id}`);
+      setSelectedDriver({ ...driver, ...res.data.data });
     } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.response?.data?.message || "Failed to approve",
-      );
-    }
-  };
-
-  const rejectDoc = async (driverId: string, docId: string, reason: string) => {
-    try {
-      await api.put(`/api/admin/kyc/${driverId}/docs/${docId}/reject`, {
-        rejectReason: reason,
-      });
-      const update = (docs: Doc[]) =>
-        docs.map((doc) =>
-          doc.id === docId
-            ? { ...doc, status: "REJECTED" as DocStatus, rejectReason: reason }
-            : doc,
-        );
-      setKycQueue((prev) =>
-        prev.map((d) =>
-          d.id === driverId ? { ...d, docs: update(d.docs) } : d,
-        ),
-      );
-      setSelectedDriver((prev) =>
-        prev?.id === driverId ? { ...prev, docs: update(prev.docs) } : prev,
-      );
-      setRejectModal(null);
-      setRejectReason("");
-    } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.message || "Failed to reject");
+      Alert.alert("Error", "Failed to load driver details");
+    } finally {
+      setDetailsLoading(false);
     }
   };
 
   const approveDriver = async (driverId: string) => {
     try {
+      setApprovingKyc(true);
       await api.put(`/api/admin/kyc/${driverId}/approve`);
       setKycQueue((prev) => prev.filter((d) => d.id !== driverId));
       setSelectedDriver(null);
@@ -240,16 +177,22 @@ export default function VerifyScreen() {
     } catch (error: any) {
       Alert.alert(
         "Error",
-        error.response?.data?.message || "Failed to approve",
+        error.response?.data?.message || "Failed to approve driver",
       );
+    } finally {
+      setApprovingKyc(false);
     }
   };
 
-  const rejectDriver = async (driverId: string) => {
+  const rejectDriver = async (driverId: string, reason: string) => {
     try {
-      await api.put(`/api/admin/kyc/${driverId}/reject`);
+      await api.put(`/api/admin/kyc/${driverId}/reject`, {
+        rejectReason: reason,
+      });
       setKycQueue((prev) => prev.filter((d) => d.id !== driverId));
       setSelectedDriver(null);
+      setRejectModal(null);
+      setRejectReason("");
       Alert.alert("Driver Rejected", "Driver has been notified.");
     } catch (error: any) {
       Alert.alert("Error", error.response?.data?.message || "Failed to reject");
@@ -285,13 +228,100 @@ export default function VerifyScreen() {
 
   // ── Helpers ──────────────────────────────────
 
-  const allApproved = (driver: KYCDriver) =>
-    driver.docs.length > 0 && driver.docs.every((d) => d.status === "APPROVED");
-  const anyRejected = (driver: KYCDriver) =>
-    driver.docs.some((d) => d.status === "REJECTED");
-
   const currentQueue = tab === "kyc" ? kycQueue : idsQueue;
   const currentLoading = tab === "kyc" ? kycLoading : idsLoading;
+
+  const renderField = (
+    label: string,
+    emoji: string,
+    value: string | undefined,
+    url: string | undefined,
+  ) => {
+    if (!url && !value) return null;
+    return (
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: "#DDE3ED",
+          borderRadius: 16,
+          padding: 14,
+          marginBottom: 10,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              backgroundColor: "#EEF2F7",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ fontSize: 20 }}>{emoji}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                color: "#111827",
+                fontWeight: "700",
+                fontSize: 13,
+              }}
+            >
+              {label}
+            </Text>
+            {value && (
+              <Text style={{ color: "#4B5563", fontSize: 12, marginTop: 2 }}>
+                {value}
+              </Text>
+            )}
+            {url && (
+              <TouchableOpacity
+                onPress={() =>
+                  setDocViewer({
+                    visible: true,
+                    directUrl: url,
+                    label,
+                  })
+                }
+              >
+                <Text
+                  style={{
+                    color: "#1B4F8A",
+                    fontSize: 11,
+                    marginTop: 4,
+                    fontWeight: "600",
+                  }}
+                >
+                  View Document ↗
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+        {url && (
+          <View style={{ marginTop: 10, marginBottom: 4 }}>
+            <LazyImage
+              uri={url}
+              width={280}
+              height={120}
+              borderRadius={10}
+              containerStyle={{ width: "100%" }}
+              onPress={() =>
+                setDocViewer({
+                  visible: true,
+                  directUrl: url,
+                  label,
+                })
+              }
+              resizeMode="contain"
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -368,74 +398,47 @@ export default function VerifyScreen() {
 
           {/* ── KYC Tab ─────────────────────────────── */}
           {tab === "kyc" &&
-            kycQueue.map((driver, i) => {
-              const approvedCount = driver.docs.filter(
-                (d) => d.status === "APPROVED",
-              ).length;
-              const progress = driver.docs.length
-                ? approvedCount / driver.docs.length
-                : 0;
-
-              return (
-                <Animated.View
-                  key={driver.id}
-                  entering={FadeInDown.delay(i * 60).springify()}
-                  className="mx-5 mt-4 border border-brand-border rounded-2xl overflow-hidden"
-                >
-                  <View className="flex-row items-center gap-3 px-4 py-4 border-b border-brand-border">
-                    <View className="w-12 h-12 rounded-full bg-brand-primary items-center justify-center">
-                      <Text className="text-white font-bold text-base">
-                        {driver.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)}
-                      </Text>
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-brand-text font-bold text-base">
-                        {driver.name}
-                      </Text>
-                      <Text className="text-brand-sub text-xs mt-0.5">
-                        {driver.phone}
-                      </Text>
-                      <Text className="text-brand-sub text-xs">
-                        Submitted {driver.submitted}
-                      </Text>
-                    </View>
-                    <View className="items-end">
-                      <Text className="text-brand-primary font-bold text-sm">
-                        {approvedCount}/{driver.docs.length}
-                      </Text>
-                      <Text className="text-brand-sub text-xs">docs OK</Text>
-                    </View>
-                  </View>
-                  <View className="px-4 py-2 border-b border-brand-border">
-                    <View className="h-2 bg-brand-input rounded-full overflow-hidden">
-                      <View
-                        style={{
-                          height: "100%",
-                          width: `${progress * 100}%`,
-                          backgroundColor:
-                            progress === 1 ? "#16a34a" : "#1B4F8A",
-                          borderRadius: 999,
-                        }}
-                      />
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setSelectedDriver(driver)}
-                    activeOpacity={0.85}
-                    className="px-4 py-3.5 flex-row items-center justify-between"
-                  >
-                    <Text className="text-brand-primary font-bold text-sm">
-                      Review documents
+            kycQueue.map((driver, i) => (
+              <Animated.View
+                key={driver.id}
+                entering={FadeInDown.delay(i * 60).springify()}
+                className="mx-5 mt-4 border border-brand-border rounded-2xl overflow-hidden"
+              >
+                <View className="flex-row items-center gap-3 px-4 py-4 border-b border-brand-border">
+                  <View className="w-12 h-12 rounded-full bg-brand-primary items-center justify-center">
+                    <Text className="text-white font-bold text-base">
+                      {driver.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .slice(0, 2)}
                     </Text>
-                    <Text className="text-brand-primary text-base">›</Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              );
-            })}
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-brand-text font-bold text-base">
+                      {driver.name}
+                    </Text>
+                    <Text className="text-brand-sub text-xs mt-0.5">
+                      {driver.phone}
+                    </Text>
+                    <Text className="text-brand-sub text-xs">
+                      Submitted {driver.submitted}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => loadDriverDetails(driver)}
+                  disabled={detailsLoading}
+                  activeOpacity={0.85}
+                  className="px-4 py-3.5 flex-row items-center justify-between"
+                >
+                  <Text className="text-brand-primary font-bold text-sm">
+                    {detailsLoading ? "Loading..." : "Review documents"}
+                  </Text>
+                  <Text className="text-brand-primary text-base">›</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            ))}
 
           {/* ── Customer IDs Tab ─────────────────────── */}
           {tab === "ids" &&
@@ -450,7 +453,6 @@ export default function VerifyScreen() {
                   entering={FadeInDown.delay(i * 50).springify()}
                   className="mx-5 mt-4 border border-brand-border rounded-2xl overflow-hidden"
                 >
-                  {/* Header */}
                   <View className="flex-row items-center gap-3 px-4 py-4 border-b border-brand-border">
                     <View className="w-12 h-12 rounded-full bg-brand-primary items-center justify-center">
                       <Text className="text-white font-bold text-base">
@@ -474,9 +476,7 @@ export default function VerifyScreen() {
                     </View>
                   </View>
 
-                  {/* Document images */}
                   <View className="flex-row gap-3 px-4 py-3">
-                    {/* Front */}
                     <View style={{ flex: 1 }}>
                       <Text
                         style={{
@@ -489,7 +489,7 @@ export default function VerifyScreen() {
                         FRONT
                       </Text>
                       <LazyImage
-                        uri={customer.idProofFront}
+                        uri={customer.idProofFront || undefined}
                         width={150}
                         height={100}
                         borderRadius={12}
@@ -505,7 +505,6 @@ export default function VerifyScreen() {
                         }
                       />
                     </View>
-                    {/* Back (if exists) */}
                     {customer.idProofBack && (
                       <View style={{ flex: 1 }}>
                         <Text
@@ -519,7 +518,7 @@ export default function VerifyScreen() {
                           BACK
                         </Text>
                         <LazyImage
-                          uri={customer.idProofBack}
+                          uri={customer.idProofBack || undefined}
                           width={150}
                           height={100}
                           borderRadius={12}
@@ -538,7 +537,6 @@ export default function VerifyScreen() {
                     )}
                   </View>
 
-                  {/* Actions */}
                   <View className="flex-row gap-2 px-4 pb-4">
                     <TouchableOpacity
                       onPress={() => setCustomerRejectModal(customer.id)}
@@ -671,255 +669,93 @@ export default function VerifyScreen() {
               </View>
 
               {/* Docs */}
-              {selectedDriver.docs.map((doc) => {
-                const s =
-                  DOC_STATUS_STYLE[doc.status] || DOC_STATUS_STYLE.PENDING;
-                return (
-                  <View
-                    key={doc.id}
-                    style={{
-                      borderWidth: 1,
-                      borderColor:
-                        doc.status === "APPROVED"
-                          ? "#C0DD97"
-                          : doc.status === "REJECTED"
-                            ? "#F7C1C1"
-                            : "#DDE3ED",
-                      borderRadius: 16,
-                      padding: 14,
-                      marginBottom: 10,
-                    }}
-                  >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 10,
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 12,
-                          backgroundColor: "#EEF2F7",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Text style={{ fontSize: 20 }}>{doc.emoji}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            color: "#111827",
-                            fontWeight: "700",
-                            fontSize: 13,
-                          }}
-                        >
-                          {doc.label}
-                        </Text>
-                        {doc.rejectReason && (
-                          <Text
-                            style={{
-                              color: "#A32D2D",
-                              fontSize: 11,
-                              marginTop: 2,
-                            }}
-                          >
-                            Reason: {doc.rejectReason}
-                          </Text>
-                        )}
-                        {doc.fileUrl && (
-                          <TouchableOpacity
-                            onPress={() =>
-                              setDocViewer({
-                                visible: true,
-                                docId: doc.id,
-                                directUrl: doc.fileUrl,
-                                label: doc.label,
-                              })
-                            }
-                          >
-                            <Text
-                              style={{
-                                color: "#1B4F8A",
-                                fontSize: 11,
-                                marginTop: 2,
-                                fontWeight: "600",
-                              }}
-                            >
-                              View Document ↗
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                      <View
-                        style={{
-                          backgroundColor: s.bg,
-                          borderRadius: 20,
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: s.text,
-                            fontSize: 10,
-                            fontWeight: "700",
-                          }}
-                        >
-                          {s.label}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Document thumbnail */}
-                    {doc.fileUrl && doc.status === "PENDING" && (
-                      <View style={{ marginTop: 10, marginBottom: 4 }}>
-                        <LazyImage
-                          uri={doc.fileUrl}
-                          width={280}
-                          height={120}
-                          borderRadius={10}
-                          containerStyle={{ width: "100%" }}
-                          onPress={() =>
-                            setDocViewer({
-                              visible: true,
-                              docId: doc.id,
-                              directUrl: doc.fileUrl,
-                              label: doc.label,
-                            })
-                          }
-                          resizeMode="contain"
-                        />
-                      </View>
-                    )}
-
-                    {doc.status === "PENDING" && (
-                      <View
-                        style={{ flexDirection: "row", gap: 8, marginTop: 10 }}
-                      >
-                        <TouchableOpacity
-                          onPress={() =>
-                            setRejectModal({
-                              driverId: selectedDriver.id,
-                              docId: doc.id,
-                            })
-                          }
-                          activeOpacity={0.8}
-                          style={{
-                            flex: 1,
-                            backgroundColor: "#FCEBEB",
-                            borderRadius: 12,
-                            paddingVertical: 10,
-                            alignItems: "center",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: "#A32D2D",
-                              fontWeight: "700",
-                              fontSize: 13,
-                            }}
-                          >
-                            Reject
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => approveDoc(selectedDriver.id, doc.id)}
-                          activeOpacity={0.8}
-                          style={{
-                            flex: 1,
-                            backgroundColor: "#EAF3DE",
-                            borderRadius: 12,
-                            paddingVertical: 10,
-                            alignItems: "center",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: "#3B6D11",
-                              fontWeight: "700",
-                              fontSize: 13,
-                            }}
-                          >
-                            Approve
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
+              {renderField(
+                "Aadhaar Card",
+                "🪪",
+                selectedDriver.aadhaarNumber,
+                selectedDriver.aadhaarUrl,
+              )}
+              {renderField(
+                "Driving License",
+                "🚗",
+                selectedDriver.dlNumber,
+                selectedDriver.dlUrl,
+              )}
+              {renderField(
+                "Vehicle RC",
+                "📄",
+                selectedDriver.rcNumber,
+                selectedDriver.rcUrl,
+              )}
+              {renderField(
+                "PAN Card",
+                "💳",
+                selectedDriver.panNumber,
+                selectedDriver.panUrl,
+              )}
+              {renderField(
+                "Bank Details",
+                "🏦",
+                selectedDriver.bankDetailsUrl
+                  ? `A/C: ${selectedDriver.bankAccountNumber || "N/A"}\nName: ${selectedDriver.bankAccountName || "N/A"}\nIFSC: ${selectedDriver.bankIFSC || "N/A"}`
+                  : undefined,
+                selectedDriver.bankDetailsUrl,
+              )}
+              {renderField(
+                "Live Selfie",
+                "🤳",
+                undefined,
+                selectedDriver.selfieUrl,
+              )}
 
               {/* Final decision */}
               <View style={{ gap: 10, marginTop: 8 }}>
-                {allApproved(selectedDriver) && (
-                  <TouchableOpacity
-                    onPress={() => approveDriver(selectedDriver.id)}
-                    activeOpacity={0.9}
+                <TouchableOpacity
+                  onPress={() => approveDriver(selectedDriver.id)}
+                  disabled={approvingKyc}
+                  activeOpacity={0.9}
+                  style={{
+                    backgroundColor: approvingKyc ? "#9CA3AF" : "#1B4F8A",
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
+                  {approvingKyc ? <ActivityIndicator color="white" /> : null}
+                  <Text
                     style={{
-                      backgroundColor: "#1B4F8A",
-                      borderRadius: 16,
-                      paddingVertical: 16,
-                      alignItems: "center",
+                      color: "white",
+                      fontWeight: "700",
+                      fontSize: 15,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: "white",
-                        fontWeight: "700",
-                        fontSize: 15,
-                      }}
-                    >
-                      ✅ Approve Driver
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {anyRejected(selectedDriver) && (
-                  <TouchableOpacity
-                    onPress={() => rejectDriver(selectedDriver.id)}
-                    activeOpacity={0.9}
+                    {approvingKyc ? "Approving..." : "✅ Approve Driver"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setRejectModal(selectedDriver.id)}
+                  activeOpacity={0.9}
+                  style={{
+                    backgroundColor: "#FCEBEB",
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
                     style={{
-                      backgroundColor: "#FCEBEB",
-                      borderRadius: 16,
-                      paddingVertical: 16,
-                      alignItems: "center",
+                      color: "#A32D2D",
+                      fontWeight: "700",
+                      fontSize: 15,
                     }}
                   >
-                    <Text
-                      style={{
-                        color: "#A32D2D",
-                        fontWeight: "700",
-                        fontSize: 15,
-                      }}
-                    >
-                      🚫 Reject Driver
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                {!allApproved(selectedDriver) &&
-                  !anyRejected(selectedDriver) && (
-                    <View
-                      style={{
-                        backgroundColor: "#EEF2F7",
-                        borderRadius: 16,
-                        paddingVertical: 16,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: "#9CA3AF",
-                          fontWeight: "700",
-                          fontSize: 15,
-                        }}
-                      >
-                        Review all docs to decide
-                      </Text>
-                    </View>
-                  )}
+                    🚫 Reject Driver
+                  </Text>
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
@@ -952,7 +788,7 @@ export default function VerifyScreen() {
                 marginBottom: 4,
               }}
             >
-              Reject document
+              Reject KYC
             </Text>
             <Text style={{ color: "#9CA3AF", fontSize: 13, marginBottom: 16 }}>
               Give a reason so the driver knows what to fix
@@ -996,12 +832,7 @@ export default function VerifyScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() =>
-                  rejectModal &&
-                  rejectDoc(
-                    rejectModal.driverId,
-                    rejectModal.docId,
-                    rejectReason,
-                  )
+                  rejectModal && rejectDriver(rejectModal, rejectReason)
                 }
                 disabled={!rejectReason.trim()}
                 activeOpacity={0.9}
@@ -1130,7 +961,6 @@ export default function VerifyScreen() {
       <DocumentViewer
         visible={docViewer.visible}
         onClose={() => setDocViewer({ visible: false, label: "" })}
-        docId={docViewer.docId}
         docLabel={docViewer.label}
         directUrl={docViewer.directUrl}
         userId={docViewer.userId}

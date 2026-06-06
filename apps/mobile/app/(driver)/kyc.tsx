@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,6 +23,8 @@ type Doc = {
   status: DocStatus;
   rejectReason?: string;
   uploading?: boolean;
+  documentNumber?: string;
+  placeholder?: string;
 };
 
 const INITIAL_DOCS: Doc[] = [
@@ -31,6 +34,7 @@ const INITIAL_DOCS: Doc[] = [
     sub: "Front & back photo",
     emoji: "🪪",
     status: "empty",
+    placeholder: "Enter Adhaar number",
   },
   {
     id: "DRIVING_LICENSE",
@@ -38,6 +42,7 @@ const INITIAL_DOCS: Doc[] = [
     sub: "Valid DL — all vehicle classes",
     emoji: "🚗",
     status: "empty",
+    placeholder: "Enter Driving License number",
   },
   {
     id: "VEHICLE_RC",
@@ -45,6 +50,7 @@ const INITIAL_DOCS: Doc[] = [
     sub: "Registration certificate",
     emoji: "📄",
     status: "empty",
+    placeholder: "Enter Vehicle RC number",
   },
   {
     id: "PAN",
@@ -52,6 +58,7 @@ const INITIAL_DOCS: Doc[] = [
     sub: "For payment & tax purposes",
     emoji: "💳",
     status: "empty",
+    placeholder: "Enter PAN number",
   },
   {
     id: "SELFIE",
@@ -59,6 +66,15 @@ const INITIAL_DOCS: Doc[] = [
     sub: "Face must match Aadhaar photo",
     emoji: "🤳",
     status: "empty",
+    placeholder: "Take a selfie with your face clearly visible",
+  },
+  {
+    id: "BANK_DETAILS",
+    label: "Bank Passbook / Cancelled Cheque",
+    sub: "For receiving payments",
+    emoji: "🏦",
+    status: "empty",
+    placeholder: "Enter Account number",
   },
 ];
 
@@ -94,6 +110,11 @@ export default function KYCScreen() {
   const [overallStatus, setOverallStatus] = useState<string>("UNSUBMITTED");
   const [loading, setLoading] = useState(true);
 
+  // Additional flat fields
+  const [name, setName] = useState("");
+  const [bankIFSC, setBankIFSC] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+
   useEffect(() => {
     fetchKYCStatus();
   }, []);
@@ -101,17 +122,46 @@ export default function KYCScreen() {
   const fetchKYCStatus = async () => {
     try {
       const res = await api.get("/api/kyc/status");
-      const { kycStatus, documents } = res.data.data;
-      setOverallStatus(kycStatus || "UNSUBMITTED");
+      const profile = res.data.data;
+      setOverallStatus(profile.kycStatus || "UNSUBMITTED");
+
+      setName(profile.name || "");
+      setBankIFSC(profile.bankIFSC || "");
+      setBankAccountName(profile.bankAccountName || "");
 
       setDocs((prev) =>
         prev.map((doc) => {
-          const serverDoc = documents.find((d: any) => d.type === doc.id);
-          if (serverDoc) {
+          let isUploaded = false;
+          let docNumber = "";
+
+          if (doc.id === "AADHAAR" && profile.aadhaarUrl) {
+            isUploaded = true;
+            docNumber = profile.aadhaarNumber || "";
+          } else if (doc.id === "DRIVING_LICENSE" && profile.dlUrl) {
+            isUploaded = true;
+            docNumber = profile.dlNumber || "";
+          } else if (doc.id === "VEHICLE_RC" && profile.rcUrl) {
+            isUploaded = true;
+            docNumber = profile.rcNumber || "";
+          } else if (doc.id === "PAN" && profile.panUrl) {
+            isUploaded = true;
+            docNumber = profile.panNumber || "";
+          } else if (doc.id === "BANK_DETAILS" && profile.bankDetailsUrl) {
+            isUploaded = true;
+            docNumber = profile.bankAccountNumber || "";
+          } else if (doc.id === "SELFIE" && profile.selfieUrl) {
+            isUploaded = true;
+          }
+
+          if (isUploaded) {
             let s: DocStatus = "uploaded";
-            if (serverDoc.status === "APPROVED") s = "verified";
-            if (serverDoc.status === "REJECTED") s = "rejected";
-            return { ...doc, status: s, rejectReason: serverDoc.rejectReason };
+            if (profile.kycStatus === "VERIFIED") s = "verified";
+            if (profile.kycStatus === "REJECTED") s = "rejected";
+            return {
+              ...doc,
+              status: s,
+              documentNumber: docNumber,
+            };
           }
           return doc;
         }),
@@ -129,13 +179,42 @@ export default function KYCScreen() {
   const allUploaded = uploadedCount === docs.length;
   const progress = uploadedCount / docs.length;
 
-  const handleUpload = async (id: string) => {
+  const handleUpload = (id: string) => {
+    Alert.alert("Upload Document", "Choose an option", [
+      {
+        text: "Camera",
+        onPress: () => pickImage(id, true),
+      },
+      {
+        text: "Gallery",
+        onPress: () => pickImage(id, false),
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const pickImage = async (id: string, useCamera: boolean) => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const options: ImagePicker.ImagePickerOptions = {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        quality: 0.8,
-      });
+        quality: 0.5, // Compresses image to fasten up upload
+      };
+
+      let result;
+      if (useCamera) {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert(
+            "Permission required",
+            "Camera permission is required to take a photo.",
+          );
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync(options);
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync(options);
+      }
 
       if (result.canceled) return;
       const asset = result.assets[0];
@@ -145,7 +224,11 @@ export default function KYCScreen() {
       );
 
       // 1. Get presigned URL — backend route: POST /api/kyc/upload/:docType
-      const { data } = await api.get(`/api/kyc/upload/${id}`);
+      const currentDoc = docs.find((d) => d.id === id);
+      const queryParam = currentDoc?.documentNumber
+        ? `?documentNumber=${encodeURIComponent(currentDoc.documentNumber)}`
+        : "";
+      const { data } = await api.get(`/api/kyc/upload/${id}${queryParam}`);
       const presignedUrl = data.data.presignedUrl;
 
       // 2. Upload to S3
@@ -171,8 +254,30 @@ export default function KYCScreen() {
   };
 
   const handleSubmit = async () => {
+    if (!name.trim()) {
+      Alert.alert("Required", "Please enter your full name.");
+      return;
+    }
+    if (!bankIFSC.trim() || !bankAccountName.trim()) {
+      Alert.alert("Required", "Please complete all Bank Details fields.");
+      return;
+    }
+
     try {
-      await api.post("/api/kyc/submit");
+      await api.post("/api/kyc/submit", {
+        name: name.trim(),
+        bankIFSC: bankIFSC.trim(),
+        bankAccountName: bankAccountName.trim(),
+        aadhaarNumber:
+          docs.find((d) => d.id === "AADHAAR")?.documentNumber || undefined,
+        dlNumber:
+          docs.find((d) => d.id === "DRIVING_LICENSE")?.documentNumber ||
+          undefined,
+        rcNumber:
+          docs.find((d) => d.id === "VEHICLE_RC")?.documentNumber || undefined,
+        panNumber:
+          docs.find((d) => d.id === "PAN")?.documentNumber || undefined,
+      });
       Alert.alert(
         "Docs Submitted!",
         "Our team will verify your documents within 24–48 hours. You'll be notified once approved.",
@@ -234,17 +339,53 @@ export default function KYCScreen() {
               and verified
             </Text>
           )}
-          {allUploaded && overallStatus !== "APPROVED" && (
+          {allUploaded && overallStatus !== "VERIFIED" && (
             <Text className="text-green-600 font-semibold text-xs mt-2">
               ✓ All documents uploaded — tap Submit below
             </Text>
           )}
-          {overallStatus === "APPROVED" && (
+          {overallStatus === "VERIFIED" && (
             <Text className="text-green-600 font-semibold text-xs mt-2">
-              ✓ KYC Approved. You can now accept jobs.
+              ✓ Documents Verified. You can now accept jobs.
             </Text>
           )}
         </Animated.View>
+
+        {overallStatus !== "VERIFIED" && (
+          <Animated.View
+            entering={FadeInDown.delay(100).springify()}
+            className="mx-5 mb-4 p-4 border border-[#DDE3ED] rounded-2xl bg-gray-50"
+          >
+            <Text className="text-brand-text font-bold text-sm mb-3">
+              Basic Details
+            </Text>
+
+            <View className="gap-3">
+              <TextInput
+                className="bg-white border border-[#DDE3ED] rounded-xl px-4 py-3 text-sm"
+                placeholder="Full Name (as per ID)"
+                placeholderTextColor="#9CA3AF"
+                value={name}
+                onChangeText={setName}
+              />
+              <TextInput
+                className="bg-white border border-[#DDE3ED] rounded-xl px-4 py-3 text-sm"
+                placeholder="Bank Account Name"
+                placeholderTextColor="#9CA3AF"
+                value={bankAccountName}
+                onChangeText={setBankAccountName}
+              />
+              <TextInput
+                className="bg-white border border-[#DDE3ED] rounded-xl px-4 py-3 text-sm"
+                placeholder="Bank IFSC Code"
+                placeholderTextColor="#9CA3AF"
+                value={bankIFSC}
+                onChangeText={setBankIFSC}
+                autoCapitalize="characters"
+              />
+            </View>
+          </Animated.View>
+        )}
 
         {docs.map((doc, i) => {
           const cfg = STATUS_CONFIG[doc.status];
@@ -287,13 +428,50 @@ export default function KYCScreen() {
                     )}
                   </TouchableOpacity>
                 ) : (
-                  <View className={`rounded-xl px-3 py-2 ${cfg.bg}`}>
-                    <Text className={`font-bold text-xs ${cfg.text}`}>
-                      {cfg.label}
-                    </Text>
-                  </View>
+                  <TouchableOpacity
+                    onPress={() =>
+                      overallStatus !== "VERIFIED" && handleUpload(doc.id)
+                    }
+                    disabled={overallStatus === "VERIFIED" || doc.uploading}
+                    activeOpacity={overallStatus === "VERIFIED" ? 1 : 0.8}
+                    className={`rounded-xl px-3 py-2 ${overallStatus !== "VERIFIED" && doc.status === "uploaded" ? "bg-brand-primary" : cfg.bg}`}
+                  >
+                    {doc.uploading ? (
+                      <ActivityIndicator size="small" color="#FFF" />
+                    ) : (
+                      <Text
+                        className={`font-bold text-xs ${overallStatus !== "VERIFIED" && doc.status === "uploaded" ? "text-white" : cfg.text}`}
+                      >
+                        {overallStatus !== "VERIFIED" &&
+                        doc.status === "uploaded"
+                          ? "Re-upload"
+                          : cfg.label}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
                 )}
               </View>
+              {doc.status === "empty" ||
+              doc.status === "rejected" ||
+              (doc.status === "uploaded" && overallStatus !== "VERIFIED") ? (
+                doc.id !== "SELFIE" ? (
+                  <View className="mt-4 gap-3">
+                    <TextInput
+                      className="bg-white border border-[#DDE3ED] rounded-xl px-4 py-3 text-sm"
+                      placeholder={doc.placeholder || "Enter Document Number"}
+                      placeholderTextColor="#9CA3AF"
+                      value={doc.documentNumber || ""}
+                      onChangeText={(val) =>
+                        setDocs((prev) =>
+                          prev.map((d) =>
+                            d.id === doc.id ? { ...d, documentNumber: val } : d,
+                          ),
+                        )
+                      }
+                    />
+                  </View>
+                ) : null
+              ) : null}
             </Animated.View>
           );
         })}
@@ -306,7 +484,7 @@ export default function KYCScreen() {
             onPress={handleSubmit}
             disabled={
               !allUploaded ||
-              overallStatus === "APPROVED" ||
+              overallStatus === "VERIFIED" ||
               overallStatus === "PENDING"
             }
             activeOpacity={0.9}
@@ -314,7 +492,7 @@ export default function KYCScreen() {
             style={{
               backgroundColor:
                 allUploaded &&
-                overallStatus !== "APPROVED" &&
+                overallStatus !== "VERIFIED" &&
                 overallStatus !== "PENDING"
                   ? "#1B4F8A"
                   : "#DDE3ED",
@@ -325,7 +503,7 @@ export default function KYCScreen() {
               style={{
                 color:
                   allUploaded &&
-                  overallStatus !== "APPROVED" &&
+                  overallStatus !== "VERIFIED" &&
                   overallStatus !== "PENDING"
                     ? "#fff"
                     : "#9CA3AF",
@@ -333,7 +511,7 @@ export default function KYCScreen() {
             >
               {overallStatus === "PENDING"
                 ? "Verification Pending"
-                : overallStatus === "APPROVED"
+                : overallStatus === "VERIFIED"
                   ? "Verified"
                   : "Submit for Verification"}
             </Text>
@@ -341,6 +519,26 @@ export default function KYCScreen() {
           <Text className="text-brand-sub text-xs text-center mt-2">
             Verification usually takes 24–48 hours after submission
           </Text>
+        </Animated.View>
+
+        {/* Personal Info Section */}
+        <Animated.View
+          entering={FadeInDown.delay(100).springify()}
+          className="mx-5 mb-4"
+        >
+          <Text className="text-brand-text font-bold text-sm mb-2 ml-1">
+            Personal Info
+          </Text>
+          <TextInput
+            className="bg-white border border-[#DDE3ED] rounded-xl px-4 py-3 text-sm text-brand-text"
+            placeholder="Full Name (as per ID)"
+            placeholderTextColor="#9CA3AF"
+            value={name}
+            onChangeText={setName}
+            editable={
+              overallStatus !== "VERIFIED" && overallStatus !== "PENDING"
+            }
+          />
         </Animated.View>
       </ScrollView>
     </SafeAreaView>

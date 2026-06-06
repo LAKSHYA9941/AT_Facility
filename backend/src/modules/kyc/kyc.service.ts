@@ -26,7 +26,11 @@ export class KycService {
     return profile.id;
   }
 
-  async generateUploadUrl(userId: string, docType: DocumentType) {
+  async generateUploadUrl(
+    userId: string,
+    docType: DocumentType,
+    documentNumber?: string,
+  ) {
     const driverId = await this.getDriverProfileId(userId);
     const bucketName = process.env.AWS_BUCKET_NAME;
 
@@ -45,70 +49,100 @@ export class KycService {
     const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
     const fileUrl = `https://${bucketName}.s3.amazonaws.com/${fileKey}`;
 
-    const document = await prisma.document.upsert({
-      where: {
-        driverId_type: {
-          driverId,
-          type: docType,
-        },
-      },
-      update: {
-        fileUrl,
-        status: DocumentStatus.PENDING,
-        rejectReason: null,
-      },
-      create: {
-        driverId,
-        type: docType,
-        fileUrl,
-        status: DocumentStatus.PENDING,
-      },
+    const updateData: any = {};
+    if (docType === DocumentType.AADHAAR) {
+      updateData.aadhaarUrl = fileUrl;
+      if (documentNumber) updateData.aadhaarNumber = documentNumber;
+    } else if (docType === DocumentType.DRIVING_LICENSE) {
+      updateData.dlUrl = fileUrl;
+      if (documentNumber) updateData.dlNumber = documentNumber;
+    } else if (docType === DocumentType.VEHICLE_RC) {
+      updateData.rcUrl = fileUrl;
+      if (documentNumber) updateData.rcNumber = documentNumber;
+    } else if (docType === DocumentType.PAN) {
+      updateData.panUrl = fileUrl;
+      if (documentNumber) updateData.panNumber = documentNumber;
+    } else if (docType === DocumentType.BANK_DETAILS) {
+      updateData.bankDetailsUrl = fileUrl;
+      // We map documentNumber to bankAccountNumber if provided
+      if (documentNumber) updateData.bankAccountNumber = documentNumber;
+    } else if (docType === DocumentType.SELFIE) {
+      updateData.selfieUrl = fileUrl;
+    }
+
+    const profile = await prisma.driverProfile.update({
+      where: { id: driverId },
+      data: updateData,
     });
 
-    return { presignedUrl, document };
+    return { presignedUrl, fileUrl };
   }
 
-  async submitKyc(userId: string) {
+  async submitKyc(
+    userId: string,
+    data: {
+      name?: string;
+      bankIFSC?: string;
+      bankAccountName?: string;
+      aadhaarNumber?: string;
+      dlNumber?: string;
+      rcNumber?: string;
+      panNumber?: string;
+    },
+  ) {
     const driverId = await this.getDriverProfileId(userId);
-    const docs = await prisma.document.findMany({ where: { driverId } });
+    const profile = await prisma.driverProfile.findUnique({
+      where: { id: driverId },
+    });
 
-    const requiredDocs: DocumentType[] = [
-      DocumentType.AADHAAR,
-      DocumentType.DRIVING_LICENSE,
-      DocumentType.VEHICLE_RC,
-      DocumentType.PAN,
-      // DocumentType.BANK_DETAILS,
-      DocumentType.SELFIE,
-    ];
+    if (!profile) throw new Error("Profile not found");
 
-    const uploadedTypes = docs.map((d) => d.type);
-    const missingDocs = requiredDocs.filter(
-      (type) => !uploadedTypes.includes(type),
-    );
+    const missing = [];
+    if (!profile.aadhaarUrl) missing.push("AADHAAR");
+    if (!profile.dlUrl) missing.push("DRIVING_LICENSE");
+    if (!profile.rcUrl) missing.push("VEHICLE_RC");
+    if (!profile.panUrl) missing.push("PAN");
+    if (!profile.bankDetailsUrl) missing.push("BANK_DETAILS");
+    if (!profile.selfieUrl) missing.push("SELFIE");
 
-    if (missingDocs.length > 0) {
-      throw new Error(`Missing required documents: ${missingDocs.join(", ")}`);
+    if (missing.length > 0) {
+      throw new Error(`Missing required documents: ${missing.join(", ")}`);
     }
+
+    if (!data.name) throw new Error("Driver name is required");
+    if (!data.bankIFSC) throw new Error("Bank IFSC is required");
+    if (!data.bankAccountName) throw new Error("Bank account name is required");
+
+    // Update user name as well
+    await prisma.user.update({
+      where: { id: userId },
+      data: { name: data.name },
+    });
 
     return prisma.driverProfile.update({
       where: { userId },
-      data: { kycStatus: KYCStatus.PENDING },
+      data: {
+        name: data.name,
+        bankIFSC: data.bankIFSC,
+        bankAccountName: data.bankAccountName,
+        aadhaarNumber: data.aadhaarNumber,
+        dlNumber: data.dlNumber,
+        rcNumber: data.rcNumber,
+        panNumber: data.panNumber,
+        kycStatus: KYCStatus.PENDING,
+      },
     });
   }
 
   async getKycStatus(userId: string) {
     const driverProfile = await prisma.driverProfile.findUnique({
       where: { userId },
-      include: { documents: true },
     });
 
     if (!driverProfile) {
       throw new Error("Driver profile not found");
     }
 
-    return {
-      kycStatus: driverProfile.kycStatus,
-      documents: driverProfile.documents,
-    };
+    return driverProfile;
   }
 }
