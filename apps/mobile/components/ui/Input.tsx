@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInputProps,
 } from "react-native";
+import { Eye, EyeOff } from "lucide-react-native";
 
 type Props = TextInputProps & {
   label: string;
@@ -59,9 +60,11 @@ export default function Input({
             onPress={() => setHidden((p) => !p)}
             activeOpacity={0.7}
           >
-            <Text className="text-brand-sub text-lg">
-              {hidden ? "🙈" : "👁️"}
-            </Text>
+            {hidden ? (
+              <EyeOff size={20} color="#9CA3AF" />
+            ) : (
+              <Eye size={20} color="#9CA3AF" />
+            )}
           </TouchableOpacity>
         )}
       </View>

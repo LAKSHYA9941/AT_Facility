@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { router } from "expo-router";
 import { api } from "../../utils/api";
+import { Car, Compass, Key } from "lucide-react-native";
 
 const TABS = ["Rides", "Packages", "Rentals"];
 
@@ -69,7 +70,7 @@ function TripRow({
 
   const routeDisplay =
     item.tripType === "ROUND_TRIP"
-      ? `🔄 ${waypoints.map((w) => w.address.split(",")[0]).join(" → ")}`
+      ? `[Round Trip] ${waypoints.map((w) => w.address.split(",")[0]).join(" → ")}`
       : `${pickup} → ${drop}`;
 
   return (
@@ -79,7 +80,7 @@ function TripRow({
     >
       <View className="flex-row items-center gap-3">
         <View className="w-11 h-11 rounded-2xl bg-brand-input items-center justify-center">
-          <Text style={{ fontSize: 20 }}>🚗</Text>
+          <Car size={20} color="#1B4F8A" />
         </View>
         <View className="flex-1">
           <Text className="text-brand-text font-bold text-sm">
@@ -165,7 +166,7 @@ function PackageRow({ item, type }: { item: any; type: "PACKAGE" | "RENTAL" }) {
   const sub =
     type === "PACKAGE" ? `${item.numPeople} adults` : `${item.totalDays} days`;
   const price = type === "PACKAGE" ? item.totalPrice : item.baseTotalPrice;
-  const emoji = type === "PACKAGE" ? "🏝️" : "🔑";
+  const IconComponent = type === "PACKAGE" ? Compass : Key;
 
   return (
     <Animated.View
@@ -173,7 +174,7 @@ function PackageRow({ item, type }: { item: any; type: "PACKAGE" | "RENTAL" }) {
       className="flex-row items-center gap-3 px-5 py-4 border-b border-brand-border"
     >
       <View className="w-11 h-11 rounded-2xl bg-brand-input items-center justify-center">
-        <Text style={{ fontSize: 20 }}>{emoji}</Text>
+        <IconComponent size={20} color="#1B4F8A" />
       </View>
       <View className="flex-1">
         <Text className="text-brand-text font-bold text-sm">{title}</Text>
@@ -311,9 +312,13 @@ export default function ActivityScreen() {
               (tab === 1 && packages.length === 0) ||
               (tab === 2 && rentals.length === 0)) && (
               <View className="items-center mt-16 px-8">
-                <Text style={{ fontSize: 48 }}>
-                  {tab === 0 ? "🚗" : tab === 1 ? "🏝️" : "🔑"}
-                </Text>
+                {tab === 0 ? (
+                  <Car size={48} color="#9CA3AF" />
+                ) : tab === 1 ? (
+                  <Compass size={48} color="#9CA3AF" />
+                ) : (
+                  <Key size={48} color="#9CA3AF" />
+                )}
                 <Text className="text-brand-text font-bold text-base mt-3">
                   No history yet
                 </Text>

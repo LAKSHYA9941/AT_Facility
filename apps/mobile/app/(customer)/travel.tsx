@@ -13,10 +13,10 @@
 // import { api } from "../../utils/api";
 
 // const CATEGORIES = [
-//   { id: "tropical", category: "BEACH", icon: "🏝️", label: "Tropical" },
-//   { id: "mountains", category: "HILLS", icon: "⛰️", label: "Mountains" },
-//   { id: "city", category: "CITYBREAK", icon: "🏙️", label: "City Tours" },
-//   { id: "adventure", category: "WILD", icon: "🧗", label: "Adventure" },
+//   { id: "tropical", category: "BEACH", icon: "tropical", label: "Tropical" },
+//   { id: "mountains", category: "HILLS", icon: "mountains", label: "Mountains" },
+//   { id: "city", category: "CITYBREAK", icon: "city", label: "City Tours" },
+//   { id: "adventure", category: "WILD", icon: "adventure", label: "Adventure" },
 // ];
 
 // export default function TravelScreen() {

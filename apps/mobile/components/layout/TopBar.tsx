@@ -1,5 +1,6 @@
 import { Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ArrowLeft, Menu, Bell } from "lucide-react-native";
 
 type Props = {
   title: string;
@@ -22,7 +23,7 @@ export default function TopBar({
     if (showBack) {
       return (
         <TouchableOpacity onPress={onBack} activeOpacity={0.7}>
-          <Text className="text-2xl">←</Text>
+          <ArrowLeft size={24} color="#1B4F8A" />
         </TouchableOpacity>
       );
     }
@@ -30,7 +31,7 @@ export default function TopBar({
     if (onMenuPress) {
       return (
         <TouchableOpacity onPress={onMenuPress} activeOpacity={0.7}>
-          <Text className="text-2xl">☰</Text>
+          <Menu size={24} color="#1B4F8A" />
         </TouchableOpacity>
       );
     }
@@ -43,8 +44,8 @@ export default function TopBar({
       return (
         <TouchableOpacity onPress={onNotifPress} activeOpacity={0.7}>
           <View>
-            <Text className="text-2xl">🔔</Text>
-            <View className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-brand-primary rounded-full" />
+            <Bell size={24} color="#1B4F8A" />
+            <View className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-brand-primary rounded-full" />
           </View>
         </TouchableOpacity>
       );

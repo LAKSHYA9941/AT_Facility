@@ -20,15 +20,15 @@ export const connectSocket = async (): Promise<Socket> => {
   });
 
   socket.on("connect", () => {
-    console.log("🔌 Socket connected:", socket?.id);
+    console.log("[Socket] Connected:", socket?.id);
   });
 
   socket.on("disconnect", (reason) => {
-    console.log("🔌 Socket disconnected:", reason);
+    console.log("[Socket] Disconnected:", reason);
   });
 
   socket.on("connect_error", (err) => {
-    console.error("❌ Socket error:", err.message);
+    console.error("[Socket] Error:", err.message);
   });
 
   return socket;

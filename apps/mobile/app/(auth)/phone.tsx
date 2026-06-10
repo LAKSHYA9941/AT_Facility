@@ -14,6 +14,7 @@ import Button from "../../components/ui/Button";
 import { useAuthStore } from "../../store/auth";
 import { api } from "../../utils/api";
 import { SecureStorage } from "../../utils/secureStorage";
+import { Lock } from "lucide-react-native";
 
 const ADMIN_PHONE = "9999999999";
 
@@ -77,7 +78,7 @@ export default function PhoneScreen() {
               style={{ borderColor: isAdminPhone ? "#1B4F8A" : undefined }}
             >
               <Text className="text-brand-sub font-medium text-base mr-3">
-                🇮🇳 +91
+                IN +91
               </Text>
               <View className="w-px h-8 bg-brand-muted mr-3" />
               <TextInput
@@ -89,7 +90,7 @@ export default function PhoneScreen() {
                 value={phone}
                 onChangeText={setPhone}
               />
-              {isAdminPhone && <Text style={{ fontSize: 18 }}>🔐</Text>}
+              {isAdminPhone && <Lock size={18} color="#1B4F8A" />}
             </View>
             {isAdminPhone ? (
               <Text className="text-brand-primary text-xs text-center font-semibold">

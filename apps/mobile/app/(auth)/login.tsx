@@ -55,7 +55,9 @@ export default function LoginScreen() {
             <View className="gap-5">
               <Animated.View entering={FadeInDown.delay(160).springify()}>
                 <View className="flex-row items-center border border-[#DDE3ED] rounded-xl h-14 px-4 bg-white">
-                  <Text className="text-xl mr-2">🇮🇳</Text>
+                  <Text className="text-sm font-bold text-gray-500 mr-2">
+                    IN
+                  </Text>
                   <Text className="text-base font-medium text-[#111827] mr-2">
                     +91
                   </Text>

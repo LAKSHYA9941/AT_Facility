@@ -496,7 +496,7 @@ export class AdminService {
         id: `user-${user.id}`,
         event: `New ${user.role.toLowerCase()} signup`,
         sub: user.name || "Unnamed user",
-        icon: user.role === "DRIVER" ? "🚗" : "🧳",
+        icon: user.role === "DRIVER" ? "car" : "briefcase",
         color: "#EEF2F7",
         createdAt: user.createdAt,
       });
@@ -504,14 +504,14 @@ export class AdminService {
 
     for (const trip of recentTrips) {
       const statusMap: Record<string, { icon: string; color: string }> = {
-        PENDING_PAYMENT: { icon: "⏳", color: "#FAEEDA" },
-        CONFIRMED: { icon: "✅", color: "#EAF3DE" },
-        DRIVER_ASSIGNED: { icon: "🚗", color: "#EEF2F7" },
-        ACTIVE: { icon: "🛣️", color: "#EEF2F7" },
-        COMPLETED: { icon: "🏁", color: "#EAF3DE" },
-        CANCELLED: { icon: "❌", color: "#FCEBEB" },
+        PENDING_PAYMENT: { icon: "clock", color: "#FAEEDA" },
+        CONFIRMED: { icon: "check-circle", color: "#EAF3DE" },
+        DRIVER_ASSIGNED: { icon: "car", color: "#EEF2F7" },
+        ACTIVE: { icon: "map", color: "#EEF2F7" },
+        COMPLETED: { icon: "flag", color: "#EAF3DE" },
+        CANCELLED: { icon: "x-circle", color: "#FCEBEB" },
       };
-      const s = statusMap[trip.status] || { icon: "📍", color: "#EEF2F7" };
+      const s = statusMap[trip.status] || { icon: "map-pin", color: "#EEF2F7" };
       activities.push({
         id: `trip-${trip.id}`,
         event: `Trip ${trip.status.toLowerCase().replace("_", " ")}`,
@@ -530,7 +530,8 @@ export class AdminService {
             ? "KYC submitted for review"
             : "KYC verified",
         sub: kyc.user?.name || "Driver",
-        icon: kyc.kycStatus === KYCStatus.PENDING ? "📋" : "✅",
+        icon:
+          kyc.kycStatus === KYCStatus.PENDING ? "clipboard" : "check-circle",
         color: kyc.kycStatus === KYCStatus.PENDING ? "#FAEEDA" : "#EAF3DE",
         createdAt: kyc.updatedAt,
       });

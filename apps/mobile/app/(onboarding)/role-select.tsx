@@ -3,17 +3,18 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useAuthStore } from "../../store/auth";
+import { Briefcase, Car } from "lucide-react-native";
 
 const ROLES = [
   {
     id: "CUSTOMER" as const,
-    emoji: "🧳",
+    icon: Briefcase,
     title: "I'm a Rider",
     subtitle: "Book rides, packages & rentals",
   },
   {
     id: "DRIVER" as const,
-    emoji: "🚘",
+    icon: Car,
     title: "I'm a Driver",
     subtitle: "Earn by driving on At Facility",
   },
@@ -60,7 +61,7 @@ export default function RoleSelectScreen() {
                 }}
               >
                 <View className="w-16 h-16 rounded-2xl bg-brand-input items-center justify-center">
-                  <Text style={{ fontSize: 32 }}>{role.emoji}</Text>
+                  <role.icon size={28} color="#1B4F8A" />
                 </View>
                 <View className="flex-1">
                   <Text className="text-brand-text font-bold text-lg">

@@ -63,7 +63,7 @@ export default function TripConfirmedScreen() {
         });
 
         Alert.alert(
-          "Driver Assigned! 🚗",
+          "Driver Assigned",
           `${MOCK_DRIVER.name} will pick you up in your ${MOCK_DRIVER.vehicleModel}.\nPlate: ${MOCK_DRIVER.plateNumber}`,
           [
             {
@@ -90,7 +90,7 @@ export default function TripConfirmedScreen() {
       socket.on(EVENTS.TRIP_ACCEPTED, (data: any) => {
         if (data.tripId === tripId) {
           Alert.alert(
-            "Driver Assigned! 🚗",
+            "Driver Assigned",
             `${data.driver.name} will pick you up in your ${data.vehicle.model}.\nPlate: ${data.vehicle.plateNumber}`,
             [
               {
@@ -118,7 +118,7 @@ export default function TripConfirmedScreen() {
           <CheckCircle2 size={80} color="#22c55e" />
         </Animated.View>
         <Text className="text-[#111827] font-bold text-2xl mt-4">
-          Trip Booked! 🎉
+          Trip Booked!
         </Text>
       </View>
 

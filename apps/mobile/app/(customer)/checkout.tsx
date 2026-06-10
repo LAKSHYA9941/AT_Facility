@@ -503,7 +503,7 @@ export default function CheckoutScreen() {
             ) : (
               <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>
                 {isMock
-                  ? `⚡ Simulate Pay ₹${Number(amountPaidUpfront).toLocaleString("en-IN")}`
+                  ? `Simulate Pay ₹${Number(amountPaidUpfront).toLocaleString("en-IN")}`
                   : `Pay ₹${Number(amountPaidUpfront).toLocaleString("en-IN")} Now`}
               </Text>
             )}

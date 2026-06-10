@@ -54,14 +54,14 @@ async function main() {
   }
 
   if (!phone) {
-    console.error("❌ Error: Missing --phone argument.");
+    console.error("Error: Missing --phone argument.");
     printHelp();
     process.exit(1);
   }
 
   if (!roleInput || (roleInput !== "CUSTOMER" && roleInput !== "DRIVER")) {
     console.error(
-      "❌ Error: Missing or invalid --role argument. Must be CUSTOMER or DRIVER.",
+      "Error: Missing or invalid --role argument. Must be CUSTOMER or DRIVER.",
     );
     printHelp();
     process.exit(1);
@@ -88,7 +88,7 @@ async function main() {
 
   if (!user) {
     console.log(
-      `⚠️ User not found. Creating a new user record for ${cleanPhone}...`,
+      `User not found. Creating a new user record for ${cleanPhone}...`,
     );
     user = await prisma.user.create({
       data: {
@@ -114,13 +114,13 @@ async function main() {
       },
     });
 
-    console.log(`\n🎉 Success! Customer verified successfully.`);
+    console.log(`\nSuccess! Customer verified successfully.`);
     console.log(`-------------------------------------------`);
     console.log(`ID:        ${updatedUser.id}`);
     console.log(`Name:      ${updatedUser.name}`);
     console.log(`Phone:     ${updatedUser.phone}`);
     console.log(`Role:      ${updatedUser.role}`);
-    console.log(`Verified:  ${updatedUser.idVerified ? "YES ✓" : "NO"}`);
+    console.log(`Verified:  ${updatedUser.idVerified ? "YES" : "NO"}`);
     console.log(`Status:    ${updatedUser.status}`);
   } else if (roleInput === "DRIVER") {
     let segment: VehicleSegment = VehicleSegment.HATCHBACK;
@@ -129,11 +129,11 @@ async function main() {
         segment = segmentInput as VehicleSegment;
       } else {
         console.warn(
-          `⚠️ Warning: Invalid segment "${segmentInput}". Defaulting to HATCHBACK.`,
+          `Warning: Invalid segment "${segmentInput}". Defaulting to HATCHBACK.`,
         );
       }
     } else {
-      console.log("ℹ️ No segment provided. Defaulting to HATCHBACK.");
+      console.log("No segment provided. Defaulting to HATCHBACK.");
     }
 
     // Ensure User role is updated to DRIVER
@@ -163,9 +163,7 @@ async function main() {
       },
     });
 
-    console.log(
-      `\n🎉 Success! Driver verified & profile activated successfully.`,
-    );
+    console.log(`\nSuccess! Driver verified & profile activated successfully.`);
     console.log(
       `-------------------------------------------------------------`,
     );
@@ -173,7 +171,7 @@ async function main() {
     console.log(`Profile ID:  ${driverProfile.id}`);
     console.log(`Phone:       ${user.phone}`);
     console.log(`Role:        DRIVER`);
-    console.log(`KYC Status:  ${driverProfile.kycStatus} ✓`);
+    console.log(`KYC Status:  ${driverProfile.kycStatus}`);
     console.log(`Segment:     ${driverProfile.segment}`);
     console.log(`Status:      Online & Available`);
   }
@@ -181,7 +179,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error("❌ Execution error:", e);
+    console.error("Execution error:", e);
     process.exit(1);
   })
   .finally(async () => {

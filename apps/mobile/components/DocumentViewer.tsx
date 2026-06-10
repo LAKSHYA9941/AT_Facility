@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { api } from "../utils/api";
+import { X, AlertTriangle } from "lucide-react-native";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
@@ -110,7 +111,7 @@ export default function DocumentViewer({
             activeOpacity={0.8}
             style={styles.closeBtn}
           >
-            <Text style={styles.closeBtnText}>✕</Text>
+            <X size={18} color="#fff" />
           </TouchableOpacity>
         </Animated.View>
 
@@ -125,7 +126,11 @@ export default function DocumentViewer({
 
           {error && (
             <View style={styles.errorContainer}>
-              <Text style={{ fontSize: 48, marginBottom: 12 }}>⚠️</Text>
+              <AlertTriangle
+                size={48}
+                color="#f59e0b"
+                style={{ marginBottom: 12 }}
+              />
               <Text style={styles.errorText}>{error}</Text>
               <TouchableOpacity
                 onPress={fetchViewUrl}

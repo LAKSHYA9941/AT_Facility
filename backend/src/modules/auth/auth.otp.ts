@@ -13,7 +13,7 @@ export const sendOTP = async (phone: string): Promise<void> => {
 
   if (process.env.NODE_ENV === "development") {
     // in dev just log it — no SMS cost
-    console.log(`\n🔐 OTP for ${phone}: ${otp}\n`);
+    console.log(`\n[OTP] Code for ${phone}: ${otp}\n`);
     return;
   }
 

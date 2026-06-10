@@ -4,6 +4,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Button from "../../components/ui/Button";
 import { useAuthStore } from "../../store/auth";
+import { ShieldAlert } from "lucide-react-native";
 
 export default function PendingVerificationScreen() {
   const user = useAuthStore((s) => s.user);
@@ -26,7 +27,7 @@ export default function PendingVerificationScreen() {
           entering={FadeInDown.delay(100).springify()}
           className="items-center mb-8"
         >
-          <Text className="text-6xl mb-4">🛡️</Text>
+          <ShieldAlert size={64} color="#1B4F8A" style={{ marginBottom: 16 }} />
           <Text className="text-[#1B4F8A] font-bold text-3xl mb-2 text-center">
             Verification in progress
           </Text>

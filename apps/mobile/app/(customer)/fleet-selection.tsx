@@ -245,7 +245,7 @@ export default function FleetSelectionScreen() {
 
   const routeDisplay =
     tripType === "ROUND_TRIP"
-      ? `🔄 ${waypoints.map((w) => w.address?.split(",")[0]).join(" → ")}`
+      ? `[Round Trip] ${waypoints.map((w) => w.address?.split(",")[0]).join(" → ")}`
       : `${pickupLabel} → ${dropLabel}`;
 
   return (

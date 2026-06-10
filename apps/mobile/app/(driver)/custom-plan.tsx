@@ -18,6 +18,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { router } from "expo-router";
 import { api } from "../../utils/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Check, X } from "lucide-react-native";
 
 const CAR_TYPES = ["HATCHBACK", "SEDAN", "MINI_SUV", "SUV", "TEMPO"] as const;
 type CarType = (typeof CAR_TYPES)[number];
@@ -154,7 +155,7 @@ export default function CustomPlanScreen() {
       >
         <Animated.View entering={FadeInDown.springify()}>
           <View className="w-18 h-18 rounded-full bg-green-100 items-center justify-center self-center mb-5">
-            <Text className="text-4xl">✓</Text>
+            <Check size={36} color="#16a34a" />
           </View>
           <Text className="text-2xl font-bold text-gray-900 text-center mb-3">
             Plan submitted!
@@ -248,7 +249,7 @@ export default function CustomPlanScreen() {
                   <Text className="text-white text-[13px] font-semibold">
                     {dest}
                   </Text>
-                  <Text className="text-blue-300 text-xs">✕</Text>
+                  <X size={10} color="#93C5FD" />
                 </TouchableOpacity>
               ))}
             </View>
@@ -370,7 +371,7 @@ export default function CustomPlanScreen() {
                   <Text
                     className={`text-[15px] font-bold ${form.hotelRequired === val ? "text-white" : "text-gray-700"}`}
                   >
-                    {val ? "🏨 Yes" : "🚗 No"}
+                    {val ? "Yes" : "No"}
                   </Text>
                 </TouchableOpacity>
               ))}

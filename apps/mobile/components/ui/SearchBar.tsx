@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity } from "react-native";
+import { Search } from "lucide-react-native";
 
 type Props = {
   placeholder?: string;
@@ -21,7 +22,7 @@ export default function SearchBar({
         elevation: 2,
       }}
     >
-      <Text className="text-brand-sub text-base">🔍</Text>
+      <Search size={18} color="#9CA3AF" />
       <Text className="text-brand-sub font-medium text-sm flex-1">
         {placeholder}
       </Text>

@@ -20,6 +20,7 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Button from "../../components/ui/Button";
 import { useAuthStore } from "../../store/auth";
+import { X, Camera } from "lucide-react-native";
 
 const ID_TYPES = [
   { label: "Aadhaar Card", value: "AADHAAR", sides: ["front", "back"] },
@@ -275,12 +276,12 @@ export default function CompleteProfileScreen() {
                             }
                             className="absolute top-2 right-2 bg-black/50 w-8 h-8 rounded-full items-center justify-center"
                           >
-                            <Text className="text-white font-bold">✕</Text>
+                            <X size={16} color="#fff" />
                           </TouchableOpacity>
                         </View>
                       ) : (
                         <View className="w-full h-40 bg-white border border-dashed border-[#DDE3ED] rounded-xl items-center justify-center gap-3">
-                          <Text className="text-3xl">📷</Text>
+                          <Camera size={32} color="#1B4F8A" />
                           <View className="flex-row gap-3">
                             <TouchableOpacity
                               onPress={() =>

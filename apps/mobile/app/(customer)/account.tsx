@@ -360,7 +360,7 @@ function ActiveTripCard({ trip }: { trip: ActiveTrip }) {
           >
             <Text style={{ color: "#6B7280", fontSize: 13 }}>Paid Online</Text>
             <Text style={{ fontWeight: "700", color: "#16a34a", fontSize: 13 }}>
-              ₹{trip.amountPaidUpfront?.toLocaleString("en-IN")} ✓
+              ₹{trip.amountPaidUpfront?.toLocaleString("en-IN")} (Paid)
             </Text>
           </View>
           {trip.balanceRemaining > 0 && (
@@ -594,13 +594,13 @@ export default function AccountScreen() {
   if (user?.idVerified) {
     idVerificationItem = {
       Icon: Shield,
-      label: "✓ Identity Verified",
+      label: "Identity Verified",
       sub: "Verified",
     };
   } else if (user?.idSubmittedAt) {
     idVerificationItem = {
       Icon: Clock,
-      label: "⏳ Verification Pending",
+      label: "Verification Pending",
       onPress: () => router.push("/(auth)/pending-verification"),
     };
   }

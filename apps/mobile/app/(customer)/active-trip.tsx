@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import TopBar from "../../components/layout/TopBar";
 import { api } from "../../utils/api";
-import { Phone, CheckCircle, Info, Zap } from "lucide-react-native";
+import { Phone, CheckCircle, Info, Zap, User } from "lucide-react-native";
 import { getSocket, EVENTS } from "../../utils/socket";
 import { useMockStore, MockTripStatus } from "../../store/mock";
 
@@ -81,7 +81,7 @@ export default function ActiveTripScreen() {
         if (intervalRef.current) clearInterval(intervalRef.current);
         setTimeout(() => {
           Alert.alert(
-            "Trip Completed! ✅",
+            "Trip Completed",
             "Thank you for travelling with At Facility. Have a great stay!",
             [
               {
@@ -252,24 +252,21 @@ export default function ActiveTripScreen() {
             <Text className="font-bold text-gray-800 mb-2">Route</Text>
             {trip.waypoints.map((wp: any, i: number) => (
               <View key={i} className="flex-row items-start mb-1">
-                <Text
+                <View
                   style={{
-                    color:
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor:
                       i === 0
                         ? "#22c55e"
                         : i === trip.waypoints.length - 1
                           ? "#ef4444"
                           : "#f59e0b",
-                    marginRight: 6,
-                    fontSize: 16,
+                    marginTop: 6,
+                    marginRight: 8,
                   }}
-                >
-                  {i === 0
-                    ? "🟢"
-                    : i === trip.waypoints.length - 1
-                      ? "🔴"
-                      : "🟡"}
-                </Text>
+                />
                 <Text className="text-sm text-gray-700 flex-1">
                   {wp.address}
                 </Text>
@@ -282,7 +279,7 @@ export default function ActiveTripScreen() {
         {trip.driver && (
           <View className="bg-white p-4 rounded-2xl mb-4 shadow-sm flex-row items-center">
             <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center mr-3">
-              <Text className="text-xl">👤</Text>
+              <User size={22} color="#1B4F8A" />
             </View>
             <View className="flex-1">
               <Text className="font-bold text-gray-800">
@@ -334,7 +331,7 @@ export default function ActiveTripScreen() {
           <View className="flex-row justify-between mb-2">
             <Text className="text-gray-600">Paid Online</Text>
             <Text className="font-bold text-green-600">
-              ₹{trip.amountPaidUpfront} ✓
+              ₹{trip.amountPaidUpfront} (Paid)
             </Text>
           </View>
           <View className="flex-row justify-between mt-2 pt-2 border-t border-gray-100">

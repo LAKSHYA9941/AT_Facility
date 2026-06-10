@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useState, useEffect } from "react";
 import { api } from "../../utils/api";
+import { Landmark, Car } from "lucide-react-native";
 
 const WEEK_BARS = [
   { day: "Mon", amount: 1200, trips: 4 },
@@ -139,7 +140,7 @@ export default function EarningsScreen() {
               className="mx-5 mb-4 border border-brand-border rounded-2xl px-4 py-4 flex-row items-center gap-3"
             >
               <View className="w-10 h-10 rounded-xl bg-brand-input items-center justify-center">
-                <Text style={{ fontSize: 18 }}>🏦</Text>
+                <Landmark size={20} color="#1B4F8A" />
               </View>
               <View className="flex-1">
                 <Text className="text-brand-sub text-xs">Next payout</Text>
@@ -168,7 +169,7 @@ export default function EarningsScreen() {
                 className="flex-row items-center gap-3 px-5 py-3.5 border-b border-brand-border"
               >
                 <View className="w-10 h-10 rounded-2xl bg-brand-input items-center justify-center">
-                  <Text style={{ fontSize: 18 }}>🚗</Text>
+                  <Car size={20} color="#1B4F8A" />
                 </View>
                 <View className="flex-1">
                   <Text className="text-brand-text font-bold text-sm">

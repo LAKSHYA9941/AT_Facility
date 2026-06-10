@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, ImageBackground } from "react-native";
+import { Star } from "lucide-react-native";
 
 type Props = {
   title: string;
@@ -42,7 +43,12 @@ export default function CityCard({
       <Text className="text-brand-sub text-xs mt-0.5">{subtitle}</Text>
       <View className="flex-row items-center justify-between mt-1">
         <Text className="text-brand-primary font-bold text-sm">${price}</Text>
-        {rating && <Text className="text-brand-sub text-xs">★ {rating}</Text>}
+        {rating && (
+          <View className="flex-row items-center gap-1">
+            <Star size={12} color="#EAB308" fill="#EAB308" />
+            <Text className="text-brand-sub text-xs">{rating}</Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );

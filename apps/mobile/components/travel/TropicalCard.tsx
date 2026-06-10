@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, ImageBackground } from "react-native";
+import { Star } from "lucide-react-native";
 
 type Props = {
   title: string;
@@ -37,8 +38,11 @@ export default function TropicalCard({
           <Text className="text-white font-bold text-sm">{title}</Text>
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-1 bg-black/40 rounded-full px-2 py-0.5">
-              <Text className="text-yellow-400 text-xs">★ {rating}</Text>
-              <Text className="text-white text-xs"> {days} days</Text>
+              <Star size={10} color="#EAB308" fill="#EAB308" />
+              <Text className="text-yellow-400 text-xs font-semibold">
+                {rating}
+              </Text>
+              <Text className="text-white text-xs">· {days} days</Text>
             </View>
             <View>
               <Text className="text-white text-xs opacity-80">From</Text>

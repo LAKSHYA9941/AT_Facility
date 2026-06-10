@@ -7,7 +7,7 @@ dotenv.config();
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Seeding database...");
+  console.log("Seeding database...");
 
   const admin = await prisma.user.upsert({
     where: { email: process.env.ADMIN_EMAIL || "admin@atfacility.com" },
@@ -24,7 +24,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Admin created: ${admin.phone}`);
+  console.log(`Admin created: ${admin.phone}`);
 
   // Seed packages
   await prisma.package.createMany({
@@ -138,8 +138,8 @@ async function main() {
     ],
   });
 
-  console.log("✅ Packages seeded");
-  console.log("\n🎉 Seed complete!");
+  console.log("Packages seeded");
+  console.log("\nSeed complete!");
   console.log(`\nAdmin credentials:`);
   console.log(`  Phone: 9999999999`);
   console.log(`  Role:  ADMIN`);

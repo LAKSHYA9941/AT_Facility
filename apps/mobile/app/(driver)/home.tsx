@@ -14,6 +14,7 @@ import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 import { useDriverStore } from "../../store/driver";
 import { useFocusEffect } from "expo-router";
 import { api } from "../../utils/api";
+import ActiveTripScreen from "../../components/ActiveTripScreen";
 
 const TODAY_STATS = [
   { val: "6", label: "Trips" },
@@ -184,6 +185,17 @@ export default function DriverHome() {
       ],
     );
   };
+
+  // ── If the trip is ACTIVE, render the immersive in-trip screen ──
+  if (activeTrip?.status === "ACTIVE") {
+    return (
+      <ActiveTripScreen
+        trip={activeTrip}
+        onTripCompleted={() => setActiveTrip(null)}
+        onTripCancelled={() => setActiveTrip(null)}
+      />
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>

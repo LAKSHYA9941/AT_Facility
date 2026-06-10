@@ -8,6 +8,8 @@ import {
   Trash2,
   Users,
   Zap,
+  RefreshCw,
+  Clock,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -344,7 +346,7 @@ export default function PlanTripScreen() {
                 color: isMockMode ? "#fff" : "#6B7280",
               }}
             >
-              {isMockMode ? "🟡 MOCK MODE ON" : "Mock Mode"}
+              {isMockMode ? "MOCK MODE ON" : "Mock Mode"}
             </Text>
             {isMockMode && (
               <Text style={{ fontSize: 11, color: "#FEF3C7", marginTop: 1 }}>
@@ -524,7 +526,7 @@ export default function PlanTripScreen() {
                 gap: 6,
               }}
             >
-              <Text style={{ fontSize: 14 }}>🔄</Text>
+              <RefreshCw size={14} color="#1D4ED8" />
               <Text
                 style={{ fontSize: 12, color: "#1D4ED8", fontWeight: "600" }}
               >
@@ -613,7 +615,7 @@ export default function PlanTripScreen() {
                         fontWeight: "700",
                       }}
                     >
-                      ⚡ Testing Locations — Tap to select
+                      Testing Locations — Tap to select
                     </Text>
                   </View>
                 ) : (
@@ -804,7 +806,7 @@ export default function PlanTripScreen() {
               }}
               onPress={() => setShowTimePicker(true)}
             >
-              <Text style={{ fontSize: 14 }}>🕒</Text>
+              <Clock size={14} color="#6b7280" />
               <Text
                 style={{
                   marginLeft: 6,
@@ -998,7 +1000,7 @@ export default function PlanTripScreen() {
             <Text
               style={{ color: "#FFFFFF", fontWeight: "bold", fontSize: 18 }}
             >
-              {isMockMode ? "⚡ Find Cabs (Mock)" : "Find Cabs"}
+              {isMockMode ? "Find Cabs (Mock)" : "Find Cabs"}
             </Text>
           )}
         </TouchableOpacity>

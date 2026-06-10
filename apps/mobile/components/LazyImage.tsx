@@ -8,6 +8,7 @@ import {
   ImageStyle,
   ViewStyle,
 } from "react-native";
+import { AlertTriangle } from "lucide-react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -109,7 +110,7 @@ export default function LazyImage({
             { borderRadius },
           ]}
         >
-          <Text style={styles.errorIcon}>⚠️</Text>
+          <AlertTriangle size={20} color="#A32D2D" />
           <Text style={styles.errorText}>Tap to retry</Text>
         </TouchableOpacity>
       )}

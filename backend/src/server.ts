@@ -41,8 +41,8 @@ const start = async () => {
     const port = parseInt(process.env.PORT || "4000");
 
     await app.listen({ port, host: "0.0.0.0" });
-    logger.info(`🚀 Server running on port ${port}`);
-    logger.info(`📡 Health: http://localhost:${port}/health`);
+    logger.info(` Server running on port ${port}`);
+    logger.info(` Health: http://localhost:${port}/health`);
 
     // Attach Socket.io AFTER Fastify is listening
     const io = new SocketServer(app.server, {
@@ -74,7 +74,7 @@ const start = async () => {
 
     io.on("connection", async (socket) => {
       const { userId, role } = socket.data;
-      logger.info({ role, userId }, `🔌 Connected`);
+      logger.info({ role, userId }, `Socket connection established`);
 
       socket.join(`user:${userId}`);
       socket.join(`role:${role}`);
@@ -86,9 +86,9 @@ const start = async () => {
       setupTripsGateway(io, socket);
     });
 
-    logger.info(`🔌 Socket.io ready`);
+    logger.info(` Socket.io ready`);
   } catch (err) {
-    logger.error({ err }, "❌ Server failed to start");
+    logger.error({ err }, " Server failed to start");
     await prisma.$disconnect();
     redis.disconnect();
     process.exit(1);

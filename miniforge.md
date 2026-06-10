@@ -72,7 +72,7 @@ catch (err: any) {
 
 ## D. RISK ASSESSMENT
 
-**🔴 RED**
+**RED**
 
 **Reasoning:** Since this app handles financial transactions, driver payouts, and will be public-facing in production, the current state of the backend is too fragile. The lack of proper Zod integration with Fastify means malicious users could bypass validation entirely. The socket handlers silently swallowing errors will lead to a terrible user experience (hanging apps), and hardcoded fallback secrets are a severe security risk. These must be addressed before real users or money touch this system.
 
