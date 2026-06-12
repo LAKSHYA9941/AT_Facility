@@ -9,22 +9,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useState, useEffect } from "react";
+import { useRouter } from "expo-router";
 import { api } from "../../utils/api";
 import { Landmark, Car } from "lucide-react-native";
 
-const WEEK_BARS = [
-  { day: "Mon", amount: 1200, trips: 4 },
-  { day: "Tue", amount: 1850, trips: 6 },
-  { day: "Wed", amount: 980, trips: 3 },
-  { day: "Thu", amount: 2100, trips: 7 },
-  { day: "Fri", amount: 1640, trips: 5 },
-  { day: "Sat", amount: 2400, trips: 8 },
-  { day: "Sun", amount: 1840, trips: 6 },
-];
-
-const MAX_AMOUNT = Math.max(...WEEK_BARS.map((b) => b.amount));
-
 export default function EarningsScreen() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState([
     { val: "0", label: "Trips today" },
@@ -33,6 +23,18 @@ export default function EarningsScreen() {
     { val: "₹0", label: "This month" },
   ]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [bankDetails, setBankDetails] = useState<{
+    accountNumber: string | null;
+  } | null>(null);
+  const [weekBars, setWeekBars] = useState<any[]>([
+    { day: "Mon", amount: 0, trips: 0 },
+    { day: "Tue", amount: 0, trips: 0 },
+    { day: "Wed", amount: 0, trips: 0 },
+    { day: "Thu", amount: 0, trips: 0 },
+    { day: "Fri", amount: 0, trips: 0 },
+    { day: "Sat", amount: 0, trips: 0 },
+    { day: "Sun", amount: 0, trips: 0 },
+  ]);
 
   useEffect(() => {
     fetchEarningsData();
@@ -53,6 +55,14 @@ export default function EarningsScreen() {
         { val: `₹${data.thisWeek || 0}`, label: "This week" },
         { val: `₹${data.thisMonth || 0}`, label: "This month" },
       ]);
+
+      if (data.weekBars) {
+        setWeekBars(data.weekBars);
+      }
+
+      if (data.bankDetails) {
+        setBankDetails(data.bankDetails);
+      }
 
       setTransactions(historyRes.data.data || []);
     } catch (error: any) {
@@ -108,9 +118,17 @@ export default function EarningsScreen() {
                 className="flex-row items-end justify-between"
                 style={{ height: 80 }}
               >
-                {WEEK_BARS.map((b, i) => {
-                  const barH = Math.max(8, (b.amount / MAX_AMOUNT) * 72);
-                  const isToday = b.day === "Sun";
+                {weekBars.map((b, i) => {
+                  const maxAmount = Math.max(
+                    1,
+                    ...weekBars.map((w) => w.amount),
+                  );
+                  const barH = Math.max(8, (b.amount / maxAmount) * 72);
+                  const isToday =
+                    b.day ===
+                    new Date().toLocaleDateString("en-US", {
+                      weekday: "short",
+                    });
                   return (
                     <View
                       key={b.day}
@@ -145,15 +163,20 @@ export default function EarningsScreen() {
               <View className="flex-1">
                 <Text className="text-brand-sub text-xs">Next payout</Text>
                 <Text className="text-brand-text font-bold text-sm">
-                  HDFC ···· 8821
+                  {bankDetails?.accountNumber
+                    ? `Bank Acct ···· ${bankDetails.accountNumber}`
+                    : "No Bank Added"}
                 </Text>
                 <Text className="text-brand-sub text-xs mt-0.5">
                   Monday, 9 AM · {summary[2]?.val || "₹0"}
                 </Text>
               </View>
-              <TouchableOpacity activeOpacity={0.8}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push("/(driver)/kyc")}
+              >
                 <Text className="text-brand-primary font-semibold text-sm">
-                  Change
+                  {bankDetails?.accountNumber ? "Change" : "Add"}
                 </Text>
               </TouchableOpacity>
             </Animated.View>

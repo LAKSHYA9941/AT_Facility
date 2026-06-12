@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
+  RefreshControl,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,7 +13,6 @@ import { useLocalSearchParams, router } from "expo-router";
 import TopBar from "../../components/layout/TopBar";
 import { api } from "../../utils/api";
 import { Phone, CheckCircle, Info, Zap, User } from "lucide-react-native";
-import { getSocket, EVENTS } from "../../utils/socket";
 import { useMockStore, MockTripStatus } from "../../store/mock";
 
 const STATUS_STEPS: MockTripStatus[] = [
@@ -40,6 +40,7 @@ export default function ActiveTripScreen() {
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sequenceIndexRef = useRef(0);
 
@@ -99,25 +100,16 @@ export default function ActiveTripScreen() {
     };
   }, [isMockTrip, isMockMode]);
 
-  // ── Real socket subscription ──
+  // ── Polling for status updates ──
   useEffect(() => {
     if (isMockTrip || isMockMode) return;
-    const socket = getSocket();
-    if (socket) {
-      socket.on(EVENTS.TRIP_STATUS_UPDATED, (data: any) => {
-        setTrip((prev: any) => ({ ...prev, status: data.status }));
-      });
-      socket.on(EVENTS.DRIVER_ASSIGNED, () => {
-        fetchTrip();
-      });
-    }
-    return () => {
-      if (socket) {
-        socket.off(EVENTS.TRIP_STATUS_UPDATED);
-        socket.off(EVENTS.DRIVER_ASSIGNED);
-      }
-    };
-  }, [isMockTrip, isMockMode]);
+
+    const interval = setInterval(() => {
+      fetchTrip();
+    }, 12000); // 12 seconds
+
+    return () => clearInterval(interval);
+  }, [isMockTrip, isMockMode, tripId]);
 
   const fetchTrip = async () => {
     try {
@@ -128,6 +120,12 @@ export default function ActiveTripScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchTrip();
+    setRefreshing(false);
   };
 
   const handleCancel = async () => {
@@ -206,7 +204,16 @@ export default function ActiveTripScreen() {
         </View>
       )}
 
-      <ScrollView className="flex-1 px-5 pt-4">
+      <ScrollView
+        className="flex-1 px-5 pt-4"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#1B4F8A"
+          />
+        }
+      >
         {/* Status Tracker */}
         <View className="bg-white p-4 rounded-2xl mb-4 shadow-sm">
           <View className="flex-row justify-between items-center">

@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { api } from "../../utils/api";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { Car } from "lucide-react-native";
 import Button from "../../components/ui/Button";
 
 const SEGMENTS = ["HATCHBACK", "SEDAN", "MINI_SUV", "SUV", "TEMPO"];
@@ -122,9 +123,12 @@ export default function VehicleScreen() {
       <SafeAreaView className="flex-1 bg-[#EEF2F7]" edges={["top"]}>
         <ScrollView contentContainerClassName="flex-grow px-6 pt-6 pb-10">
           <Animated.View entering={FadeInDown.delay(80).springify()}>
-            <Text className="text-[#1B4F8A] font-bold text-3xl mb-2">
-              My Vehicle
-            </Text>
+            <View className="flex-row items-center gap-3 mb-2">
+              <Car size={32} color="#1B4F8A" />
+              <Text className="text-[#1B4F8A] font-bold text-3xl">
+                My Vehicle
+              </Text>
+            </View>
             <Text className="text-[#9CA3AF] text-sm mb-6">
               Details of your currently registered vehicle
             </Text>
@@ -207,9 +211,16 @@ export default function VehicleScreen() {
       <ScrollView contentContainerClassName="flex-grow px-6 pt-6 pb-10">
         <Animated.View entering={FadeInDown.delay(80).springify()}>
           <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-[#1B4F8A] font-bold text-3xl">
-              {existingVehicle ? "Update Vehicle" : "Vehicle Registration"}
-            </Text>
+            <View className="flex-row items-center gap-3 flex-1">
+              <Car size={32} color="#1B4F8A" />
+              <Text
+                className="text-[#1B4F8A] font-bold text-3xl flex-1"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {existingVehicle ? "Update Vehicle" : "Vehicle Registration"}
+              </Text>
+            </View>
             {existingVehicle && (
               <TouchableOpacity onPress={() => setIsEditing(false)}>
                 <Text className="text-red-500 font-bold text-sm">Cancel</Text>

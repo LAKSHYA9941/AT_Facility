@@ -2,7 +2,6 @@ import { router } from "expo-router";
 import { create } from "zustand";
 import { api } from "../utils/api";
 import { SecureStorage } from "../utils/secureStorage";
-import { connectSocket } from "../utils/socket";
 
 type Role = "CUSTOMER" | "DRIVER" | "ADMIN";
 
@@ -93,7 +92,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     );
     await SecureStorage.setUser(data.data.user);
     set({ user: data.data.user, isAuthenticated: true });
-    connectSocket().catch(console.error);
 
     return {
       isNewUser: data.data.isNewUser,
@@ -132,7 +130,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       const user = data.data.user || (await SecureStorage.getUser());
       set({ user, isAuthenticated: true, isLoading: false });
-      connectSocket().catch(console.error);
 
       return true;
     } catch {

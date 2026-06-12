@@ -251,7 +251,9 @@ export default function ActiveTripScreen({
 
   // ── Fit map to waypoints ───────────────────────────────────
   useEffect(() => {
-    if (trip.waypoints?.length > 1 && mapRef.current) {
+    if (!mapRef.current || !trip.waypoints?.length) return;
+
+    if (trip.waypoints.length > 1) {
       const coords = trip.waypoints.map((w) => ({
         latitude: w.lat,
         longitude: w.lng,
@@ -266,6 +268,18 @@ export default function ActiveTripScreen({
           },
           animated: true,
         });
+      }, 500);
+    } else if (trip.waypoints.length === 1) {
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(
+          {
+            latitude: trip.waypoints[0].lat,
+            longitude: trip.waypoints[0].lng,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          },
+          1000,
+        );
       }, 500);
     }
   }, [trip.waypoints]);
@@ -388,13 +402,19 @@ export default function ActiveTripScreen({
             </View>
             <View className="flex-1">
               <Text className="text-brand-sub text-[9px] font-bold tracking-wider">
-                NAVIGATING TO DROP-OFF
+                {trip.tripType === "ROUND_TRIP" &&
+                (!trip.waypoints || trip.waypoints.length === 1)
+                  ? "DESTINATION TBD"
+                  : "NAVIGATING TO DROP-OFF"}
               </Text>
               <Text
                 className="text-brand-text text-sm font-bold mt-0.5"
                 numberOfLines={1}
               >
-                {drop?.address || "Destination"}
+                {trip.tripType === "ROUND_TRIP" &&
+                (!trip.waypoints || trip.waypoints.length === 1)
+                  ? "Customer will confirm live"
+                  : drop?.address || "Destination"}
               </Text>
             </View>
             <View className="bg-brand-bg rounded-xl px-3 py-2 items-center">
@@ -511,13 +531,19 @@ export default function ActiveTripScreen({
               <View className="h-3" />
               <View>
                 <Text className="text-brand-sub text-[9px] font-bold tracking-wider">
-                  DROP-OFF
+                  {trip.tripType === "ROUND_TRIP" &&
+                  (!trip.waypoints || trip.waypoints.length === 1)
+                    ? "DESTINATION"
+                    : "DROP-OFF"}
                 </Text>
                 <Text
                   className="text-brand-text text-[13px] font-semibold mt-0.5"
                   numberOfLines={1}
                 >
-                  {drop?.address || "Drop-off location"}
+                  {trip.tripType === "ROUND_TRIP" &&
+                  (!trip.waypoints || trip.waypoints.length === 1)
+                    ? "Customer will confirm live"
+                    : drop?.address || "Drop-off location"}
                 </Text>
               </View>
             </View>

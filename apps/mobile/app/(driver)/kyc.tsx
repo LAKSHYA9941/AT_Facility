@@ -11,6 +11,14 @@ import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as ImagePicker from "expo-image-picker";
+import {
+  CreditCard,
+  Car,
+  FileText,
+  Camera,
+  Landmark,
+  AlertTriangle,
+} from "lucide-react-native";
 import { api } from "../../utils/api";
 
 type DocStatus = "empty" | "uploaded" | "verified" | "rejected";
@@ -19,7 +27,6 @@ type Doc = {
   id: string;
   label: string;
   sub: string;
-  emoji: string;
   status: DocStatus;
   rejectReason?: string;
   uploading?: boolean;
@@ -32,7 +39,6 @@ const INITIAL_DOCS: Doc[] = [
     id: "AADHAAR",
     label: "Aadhaar Card",
     sub: "Front & back photo",
-    emoji: "🪪",
     status: "empty",
     placeholder: "Enter Adhaar number",
   },
@@ -40,7 +46,6 @@ const INITIAL_DOCS: Doc[] = [
     id: "DRIVING_LICENSE",
     label: "Driving License",
     sub: "Valid DL — all vehicle classes",
-    emoji: "🚗",
     status: "empty",
     placeholder: "Enter Driving License number",
   },
@@ -48,7 +53,6 @@ const INITIAL_DOCS: Doc[] = [
     id: "VEHICLE_RC",
     label: "Vehicle RC",
     sub: "Registration certificate",
-    emoji: "📄",
     status: "empty",
     placeholder: "Enter Vehicle RC number",
   },
@@ -56,7 +60,6 @@ const INITIAL_DOCS: Doc[] = [
     id: "PAN",
     label: "PAN Card",
     sub: "For payment & tax purposes",
-    emoji: "💳",
     status: "empty",
     placeholder: "Enter PAN number",
   },
@@ -64,7 +67,6 @@ const INITIAL_DOCS: Doc[] = [
     id: "SELFIE",
     label: "Live Selfie",
     sub: "Face must match Aadhaar photo",
-    emoji: "🤳",
     status: "empty",
     placeholder: "Take a selfie with your face clearly visible",
   },
@@ -72,7 +74,6 @@ const INITIAL_DOCS: Doc[] = [
     id: "BANK_DETAILS",
     label: "Bank Passbook / Cancelled Cheque",
     sub: "For receiving payments",
-    emoji: "🏦",
     status: "empty",
     placeholder: "Enter Account number",
   },
@@ -94,7 +95,7 @@ const STATUS_CONFIG = {
   verified: {
     bg: "bg-green-50",
     text: "text-green-700",
-    label: "Verified ✓",
+    label: "Verified",
     border: "border-green-200",
   },
   rejected: {
@@ -103,6 +104,25 @@ const STATUS_CONFIG = {
     label: "Rejected",
     border: "border-red-200",
   },
+};
+
+const renderDocIcon = (id: string) => {
+  switch (id) {
+    case "AADHAAR":
+      return <CreditCard size={22} color="#1B4F8A" />;
+    case "DRIVING_LICENSE":
+      return <Car size={22} color="#1B4F8A" />;
+    case "VEHICLE_RC":
+      return <FileText size={22} color="#1B4F8A" />;
+    case "PAN":
+      return <CreditCard size={22} color="#1B4F8A" />;
+    case "SELFIE":
+      return <Camera size={22} color="#1B4F8A" />;
+    case "BANK_DETAILS":
+      return <Landmark size={22} color="#1B4F8A" />;
+    default:
+      return <FileText size={22} color="#1B4F8A" />;
+  }
 };
 
 export default function KYCScreen() {
@@ -334,19 +354,22 @@ export default function KYCScreen() {
             />
           </View>
           {!allUploaded && (
-            <Text className="text-brand-sub text-xs mt-2">
-              ⚠️ You won't be able to accept jobs until all docs are submitted
-              and verified
-            </Text>
+            <View className="flex-row items-center gap-1.5 mt-2">
+              <AlertTriangle size={12} color="#9CA3AF" />
+              <Text className="text-brand-sub text-xs flex-1">
+                You won't be able to accept jobs until all docs are submitted
+                and verified
+              </Text>
+            </View>
           )}
           {allUploaded && overallStatus !== "VERIFIED" && (
             <Text className="text-green-600 font-semibold text-xs mt-2">
-              ✓ All documents uploaded — tap Submit below
+              All documents uploaded — tap Submit below
             </Text>
           )}
           {overallStatus === "VERIFIED" && (
             <Text className="text-green-600 font-semibold text-xs mt-2">
-              ✓ Documents Verified. You can now accept jobs.
+              Documents Verified. You can now accept jobs.
             </Text>
           )}
         </Animated.View>
@@ -397,7 +420,7 @@ export default function KYCScreen() {
             >
               <View className="flex-row items-center gap-3">
                 <View className="w-12 h-12 rounded-2xl bg-brand-input items-center justify-center">
-                  <Text style={{ fontSize: 22 }}>{doc.emoji}</Text>
+                  {renderDocIcon(doc.id)}
                 </View>
                 <View className="flex-1">
                   <Text className="text-brand-text font-bold text-sm">

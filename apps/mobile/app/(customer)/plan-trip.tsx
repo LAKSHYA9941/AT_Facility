@@ -22,7 +22,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import TopBar from "../../components/layout/TopBar";
 import {
   MOCK_FARE_ESTIMATES,
@@ -44,6 +47,7 @@ type Waypoint = { address: string; lat: number; lng: number };
 export default function PlanTripScreen() {
   const router = useRouter();
   const { isMockMode, toggleMockMode } = useMockStore();
+  const insets = useSafeAreaInsets();
 
   const [tripType, setTripType] = useState<"ONE_WAY" | "ROUND_TRIP">("ONE_WAY");
   const [waypoints, setWaypoints] = useState<Waypoint[]>([
@@ -249,12 +253,16 @@ export default function PlanTripScreen() {
     }
 
     // ─── REAL MODE ───
-    if (!waypoints[0].address || !waypoints[waypoints.length - 1].address) {
+    if (!waypoints[0].address) {
+      return Alert.alert("Missing Fields", "Please enter a pickup location");
+    }
+    if (tripType === "ONE_WAY" && !waypoints[waypoints.length - 1].address) {
       return Alert.alert(
         "Missing Fields",
-        "Please enter pickup and drop locations",
+        "Please enter a drop location for one-way trips",
       );
     }
+
     const startDay = new Date(
       startDate.getFullYear(),
       startDate.getMonth(),
@@ -275,13 +283,11 @@ export default function PlanTripScreen() {
     try {
       setLoading(true);
 
-      // Silently append the return point if it is a round trip
-      const finalWaypoints = [...waypoints];
-      if (tripType === "ROUND_TRIP" && waypoints[0].address) {
-        finalWaypoints.push({ ...waypoints[0] });
-      }
+      // Remove empty waypoints from the end (like an optional empty dropoff)
+      const finalWaypoints = waypoints.filter((wp) => wp.address.trim() !== "");
 
       const res = await api.post("/api/trips/estimate", {
+        tripType,
         waypoints: finalWaypoints,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -496,7 +502,9 @@ export default function PlanTripScreen() {
                       (isPickup
                         ? "Pickup Location"
                         : isDrop
-                          ? "Final Drop Location"
+                          ? tripType === "ROUND_TRIP"
+                            ? "Approx. return destination (optional)"
+                            : "Final Drop Location"
                           : `Stop ${index}`)}
                   </Text>
                 </TouchableOpacity>
@@ -566,6 +574,7 @@ export default function PlanTripScreen() {
               backgroundColor: "#FFFFFF",
               zIndex: 50,
               padding: 20,
+              paddingTop: Math.max(20, insets.top + 10),
             }}
           >
             <View

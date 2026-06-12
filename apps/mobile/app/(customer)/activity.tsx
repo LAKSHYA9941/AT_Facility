@@ -104,8 +104,9 @@ function TripRow({
       </View>
 
       {item.balanceRemaining > 0 &&
+        item.status !== "CANCELLED" &&
         item.status !== "PENDING_PAYMENT" &&
-        item.status !== "CANCELLED" && (
+        item.status !== "COMPLETED" && (
           <View className="mt-4 flex-row items-center justify-between bg-orange-50 p-3 rounded-xl border border-orange-100">
             <View>
               <Text className="text-orange-800 text-xs font-semibold">

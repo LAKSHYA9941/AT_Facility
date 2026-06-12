@@ -18,7 +18,14 @@ import {
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api } from "../../utils/api";
-import { getSocket } from "../../utils/socket";
+import {
+  Phone,
+  Map,
+  Users,
+  Hotel,
+  MessageSquare,
+  CheckCircle,
+} from "lucide-react-native";
 
 type PlanStatus = "NEW" | "REVIEWED" | "QUOTED" | "ACCEPTED" | "REJECTED";
 
@@ -139,27 +146,43 @@ function PlanCard({
         </View>
 
         {/* Phone (always visible) */}
-        <Text className="text-xs text-gray-400 mb-1.5">
-          📞 {plan.user.phone}
-        </Text>
+        <View className="flex-row items-center gap-1 mb-1.5">
+          <Phone size={11} color="#9CA3AF" />
+          <Text className="text-xs text-gray-400">{plan.user.phone}</Text>
+        </View>
 
         {/* Route */}
-        <Text className="text-sm font-medium text-gray-700 mb-1">
-          🗺 {routeSummary}
-        </Text>
+        <View className="flex-row items-center gap-1.5 mb-1.5">
+          <Map size={13} color="#4B5563" />
+          <Text className="text-sm font-medium text-gray-700">
+            {routeSummary}
+          </Text>
+        </View>
 
         {/* Details row */}
         <View className="flex-row flex-wrap gap-1.5 mt-1">
-          {[
-            `👥 ${plan.numberOfTravellers}`,
-            formatBudget(plan.budgetMin, plan.budgetMax),
-            plan.carType ?? "Any car",
-            plan.hotelRequired ? "🏨 Hotel" : "No hotel",
-          ].map((chip, i) => (
-            <View key={i} className="bg-brand-bg px-2 py-1 rounded-full">
-              <Text className="text-[11px] text-gray-700">{chip}</Text>
-            </View>
-          ))}
+          <View className="bg-brand-bg px-2 py-1 rounded-full flex-row items-center gap-1">
+            <Users size={10} color="#4B5563" />
+            <Text className="text-[11px] text-gray-700">
+              {plan.numberOfTravellers} Pax
+            </Text>
+          </View>
+          <View className="bg-brand-bg px-2 py-1 rounded-full">
+            <Text className="text-[11px] text-gray-700">
+              {formatBudget(plan.budgetMin, plan.budgetMax)}
+            </Text>
+          </View>
+          <View className="bg-brand-bg px-2 py-1 rounded-full">
+            <Text className="text-[11px] text-gray-700">
+              {plan.carType ?? "Any car"}
+            </Text>
+          </View>
+          <View className="bg-brand-bg px-2 py-1 rounded-full flex-row items-center gap-1">
+            {plan.hotelRequired && <Hotel size={10} color="#4B5563" />}
+            <Text className="text-[11px] text-gray-700">
+              {plan.hotelRequired ? "Hotel" : "No hotel"}
+            </Text>
+          </View>
         </View>
 
         <Text className="text-[11px] text-gray-400 mt-2">
@@ -302,10 +325,11 @@ function PlanDetailModal({
 
             <TouchableOpacity
               onPress={openWhatsApp}
-              className="mt-2.5 bg-[#25D366] rounded-lg p-2.5 items-center"
+              className="mt-2.5 bg-[#25D366] rounded-lg p-2.5 flex-row items-center justify-center gap-1.5"
             >
+              <MessageSquare size={16} color="white" />
               <Text className="text-white font-bold text-sm">
-                💬 Contact on WhatsApp
+                Contact on WhatsApp
               </Text>
             </TouchableOpacity>
           </View>
@@ -376,9 +400,12 @@ function PlanDetailModal({
               </Text>
               {plan.assignedDriverId ? (
                 <View>
-                  <Text className="text-sm text-green-700 font-semibold mb-2">
-                    ✅ Driver Assigned
-                  </Text>
+                  <View className="flex-row items-center gap-1.5 mb-2">
+                    <CheckCircle size={14} color="#16a34a" />
+                    <Text className="text-sm text-green-700 font-semibold">
+                      Driver Assigned
+                    </Text>
+                  </View>
                   <Text className="text-sm text-gray-700">
                     Platform Commission: ₹{plan.platformCommission}
                   </Text>
@@ -588,19 +615,6 @@ export default function CustomPlansScreen() {
   useEffect(() => {
     fetchPlans(activeFilter, 1, true);
   }, [activeFilter]);
-
-  // Real-time: new plan arrives
-  const socket = getSocket();
-  useEffect(() => {
-    if (!socket) return;
-    const handler = (plan: CustomPlan) => {
-      setPlans((prev) => [plan, ...prev]);
-    };
-    socket.on("admin:custom_plan:new", handler);
-    return () => {
-      socket.off("admin:custom_plan:new", handler);
-    };
-  }, [socket]);
 
   const handleUpdate = (updatedPlan: Partial<CustomPlan>) => {
     setPlans((prev) =>

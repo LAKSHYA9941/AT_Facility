@@ -18,7 +18,14 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { router } from "expo-router";
 import { api } from "../../utils/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check, X } from "lucide-react-native";
+import {
+  Check,
+  X,
+  MapPin,
+  Settings2,
+  FileText,
+  ArrowLeft,
+} from "lucide-react-native";
 
 const CAR_TYPES = ["HATCHBACK", "SEDAN", "MINI_SUV", "SUV", "TEMPO"] as const;
 type CarType = (typeof CAR_TYPES)[number];
@@ -187,9 +194,9 @@ export default function CustomPlanScreen() {
       <View className="flex-row items-center p-4 bg-white border-b-[0.5px] border-brand-border">
         <TouchableOpacity
           onPress={() => (step > 0 ? setStep(step - 1) : router.back())}
-          className="mr-3"
+          className="mr-3 p-1"
         >
-          <Text className="text-[22px] text-brand-primary">←</Text>
+          <ArrowLeft size={22} color="#1B4F8A" />
         </TouchableOpacity>
         <Text className="text-[17px] font-bold text-gray-900">
           Plan your trip
@@ -205,9 +212,12 @@ export default function CustomPlanScreen() {
         {/* ── Step 0: Where ─────────────────────────────────────────────── */}
         {step === 0 && (
           <Animated.View entering={FadeInDown.delay(0).springify()}>
-            <Text className="text-[22px] font-bold text-gray-900 mb-1">
-              Where are you going?
-            </Text>
+            <View className="flex-row items-center gap-2 mb-1">
+              <MapPin size={24} color="#111827" />
+              <Text className="text-[22px] font-bold text-gray-900">
+                Where are you going?
+              </Text>
+            </View>
             <Text className="text-sm text-gray-400 mb-5">
               Enter your pickup and destinations
             </Text>
@@ -290,9 +300,12 @@ export default function CustomPlanScreen() {
         {/* ── Step 1: Preferences ──────────────────────────────────────── */}
         {step === 1 && (
           <Animated.View entering={FadeInDown.delay(0).springify()}>
-            <Text className="text-[22px] font-bold text-gray-900 mb-1">
-              Your preferences
-            </Text>
+            <View className="flex-row items-center gap-2 mb-1">
+              <Settings2 size={24} color="#111827" />
+              <Text className="text-[22px] font-bold text-gray-900">
+                Your preferences
+              </Text>
+            </View>
             <Text className="text-sm text-gray-400 mb-5">
               Help us find the right option for you
             </Text>
@@ -382,9 +395,12 @@ export default function CustomPlanScreen() {
         {/* ── Step 2: Review & Submit ──────────────────────────────────── */}
         {step === 2 && (
           <Animated.View entering={FadeInDown.delay(0).springify()}>
-            <Text className="text-[22px] font-bold text-gray-900 mb-1">
-              Review your plan
-            </Text>
+            <View className="flex-row items-center gap-2 mb-1">
+              <FileText size={24} color="#111827" />
+              <Text className="text-[22px] font-bold text-gray-900">
+                Review your plan
+              </Text>
+            </View>
             <Text className="text-sm text-gray-400 mb-5">
               Looks good? We'll reach out on your registered number.
             </Text>

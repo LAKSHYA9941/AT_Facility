@@ -8,11 +8,11 @@ import {
   Dimensions,
   Linking,
 } from "react-native";
+import { Car, Map, MapPin, Phone } from "lucide-react-native";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
 import { api } from "../../utils/api";
-import { connectSocket, getSocket, EVENTS } from "../../utils/socket";
 import { SkeletonCard } from "../../components/SkeletonLoader";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -39,18 +39,15 @@ type ActiveDriver = {
 
 // ── Segment colors ──────────────────────────────────────
 
-const SEGMENT_COLORS: Record<
-  string,
-  { bg: string; text: string; emoji: string }
-> = {
-  HATCHBACK: { bg: "#EAF3DE", text: "#3B6D11", emoji: "🚗" },
-  SEDAN: { bg: "#E8EFF9", text: "#1B4F8A", emoji: "🚙" },
-  MINI_SUV: { bg: "#FAEEDA", text: "#854F0B", emoji: "🚐" },
-  SUV: { bg: "#F3E8FF", text: "#7C3AED", emoji: "🚘" },
-  TEMPO: { bg: "#FCEBEB", text: "#A32D2D", emoji: "🚚" },
+const SEGMENT_COLORS: Record<string, { bg: string; text: string }> = {
+  HATCHBACK: { bg: "#EAF3DE", text: "#3B6D11" },
+  SEDAN: { bg: "#E8EFF9", text: "#1B4F8A" },
+  MINI_SUV: { bg: "#FAEEDA", text: "#854F0B" },
+  SUV: { bg: "#F3E8FF", text: "#7C3AED" },
+  TEMPO: { bg: "#FCEBEB", text: "#A32D2D" },
 };
 
-const DEFAULT_SEGMENT = { bg: "#EEF2F7", text: "#9CA3AF", emoji: "📍" };
+const DEFAULT_SEGMENT = { bg: "#EEF2F7", text: "#9CA3AF" };
 
 export default function MapScreen() {
   const [drivers, setDrivers] = useState<ActiveDriver[]>([]);
@@ -88,44 +85,8 @@ export default function MapScreen() {
       fetchDrivers(false);
     }, 15000);
 
-    // Setup socket for live location updates
-    const setupSocket = async () => {
-      if (socketSetup.current) return;
-      try {
-        const socket = await connectSocket();
-        socket.on(
-          EVENTS.ADMIN_DRIVER_LOCATION,
-          (data: {
-            driverId: string;
-            lat: number;
-            lng: number;
-            heading?: number;
-          }) => {
-            setDrivers((prev) =>
-              prev.map((d) =>
-                d.driverId === data.driverId
-                  ? { ...d, lat: data.lat, lng: data.lng }
-                  : d,
-              ),
-            );
-            setLastUpdated(new Date());
-          },
-        );
-        socketSetup.current = true;
-      } catch {
-        // Socket connection failed — fallback to polling only
-      }
-    };
-
-    setupSocket();
-
     return () => {
       if (refreshInterval.current) clearInterval(refreshInterval.current);
-      const socket = getSocket();
-      if (socket) {
-        socket.off(EVENTS.ADMIN_DRIVER_LOCATION);
-      }
-      socketSetup.current = false;
     };
   }, [fetchDrivers]);
 
@@ -214,14 +175,14 @@ export default function MapScreen() {
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 4,
+                    gap: 6,
                     backgroundColor: style.bg,
                     borderRadius: 20,
                     paddingHorizontal: 10,
                     paddingVertical: 5,
                   }}
                 >
-                  <Text style={{ fontSize: 12 }}>{style.emoji}</Text>
+                  <Car size={12} color={style.text} />
                   <Text
                     style={{
                       color: style.text,
@@ -252,7 +213,7 @@ export default function MapScreen() {
               justifyContent: "center",
             }}
           >
-            <Text style={{ fontSize: 40, marginBottom: 8 }}>🗺️</Text>
+            <Map size={48} color="#9CA3AF" style={{ marginBottom: 16 }} />
             <Text style={{ color: "#9CA3AF", fontSize: 12 }}>
               Loading driver locations...
             </Text>
@@ -263,7 +224,7 @@ export default function MapScreen() {
         </View>
       ) : drivers.length === 0 ? (
         <View className="flex-1 items-center justify-center">
-          <Text style={{ fontSize: 56, marginBottom: 12 }}>🚗💤</Text>
+          <Car size={56} color="#9CA3AF" style={{ marginBottom: 16 }} />
           <Text className="text-brand-text font-bold text-lg">
             No drivers online
           </Text>
@@ -316,11 +277,16 @@ export default function MapScreen() {
                 marginBottom: 16,
               }}
             >
-              <Text
-                style={{ color: "#111827", fontWeight: "700", fontSize: 15 }}
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
               >
-                📍 Driver Locations
-              </Text>
+                <MapPin size={16} color="#111827" />
+                <Text
+                  style={{ color: "#111827", fontWeight: "700", fontSize: 15 }}
+                >
+                  Driver Locations
+                </Text>
+              </View>
               <Text
                 style={{ color: "#1B4F8A", fontWeight: "700", fontSize: 13 }}
               >
@@ -347,9 +313,11 @@ export default function MapScreen() {
                       borderColor: driver.isAvailable ? "#C0DD97" : "#DDE3ED",
                     }}
                   >
-                    <Text style={{ fontSize: 20, marginBottom: 4 }}>
-                      {seg.emoji}
-                    </Text>
+                    <Car
+                      size={20}
+                      color={seg.text}
+                      style={{ marginBottom: 4 }}
+                    />
                     <Text
                       style={{
                         fontSize: 9,
@@ -429,7 +397,7 @@ export default function MapScreen() {
                         justifyContent: "center",
                       }}
                     >
-                      <Text style={{ fontSize: 20 }}>{seg.emoji}</Text>
+                      <Car size={20} color={seg.text} />
                     </View>
                     <View
                       style={{
@@ -457,11 +425,19 @@ export default function MapScreen() {
                         : "No vehicle info"}
                     </Text>
                     {driver.lat && driver.lng && (
-                      <Text
-                        style={{ color: "#9CA3AF", fontSize: 10, marginTop: 2 }}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                          marginTop: 2,
+                        }}
                       >
-                        📍 {driver.lat.toFixed(4)}, {driver.lng.toFixed(4)}
-                      </Text>
+                        <MapPin size={10} color="#9CA3AF" />
+                        <Text style={{ color: "#9CA3AF", fontSize: 10 }}>
+                          {driver.lat.toFixed(4)}, {driver.lng.toFixed(4)}
+                        </Text>
+                      </View>
                     )}
                   </View>
                   <View className="items-end gap-1">
@@ -546,9 +522,10 @@ export default function MapScreen() {
                   justifyContent: "center",
                 }}
               >
-                <Text style={{ fontSize: 28 }}>
-                  {getSegmentStyle(selectedDriver.segment).emoji}
-                </Text>
+                <Car
+                  size={28}
+                  color={getSegmentStyle(selectedDriver.segment).text}
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text
@@ -625,13 +602,17 @@ export default function MapScreen() {
                   backgroundColor: "#EAF3DE",
                   borderRadius: 16,
                   paddingVertical: 16,
+                  flexDirection: "row",
                   alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
                 }}
               >
+                <Phone size={15} color="#3B6D11" />
                 <Text
                   style={{ color: "#3B6D11", fontWeight: "700", fontSize: 15 }}
                 >
-                  📞 Call Driver
+                  Call Driver
                 </Text>
               </TouchableOpacity>
               {selectedDriver.lat && selectedDriver.lng && (
@@ -647,9 +628,13 @@ export default function MapScreen() {
                     backgroundColor: "#E8EFF9",
                     borderRadius: 16,
                     paddingVertical: 16,
+                    flexDirection: "row",
                     alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
                   }}
                 >
+                  <Map size={15} color="#1B4F8A" />
                   <Text
                     style={{
                       color: "#1B4F8A",
@@ -657,7 +642,7 @@ export default function MapScreen() {
                       fontSize: 15,
                     }}
                   >
-                    🗺️ Open Map
+                    Open Map
                   </Text>
                 </TouchableOpacity>
               )}

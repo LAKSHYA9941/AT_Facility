@@ -15,9 +15,11 @@ export const tripsController = {
 
   estimate: async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { waypoints, startDate, endDate, passengerCount } = req.body as any;
+      const { tripType, waypoints, startDate, endDate, passengerCount } =
+        req.body as any;
 
       const result = await tripsService.estimate({
+        tripType,
         waypoints,
         startDate,
         endDate,

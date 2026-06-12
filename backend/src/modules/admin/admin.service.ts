@@ -380,9 +380,6 @@ export class AdminService {
       select: {
         id: true,
         userId: true,
-        currentLat: true,
-        currentLng: true,
-        lastLocationAt: true,
         segment: true,
         isAvailable: true,
         user: {
@@ -409,11 +406,11 @@ export class AdminService {
           userId: driver.userId,
           name: driver.user.name,
           phone: driver.user.phone,
-          lat: redisLoc?.lat ?? driver.currentLat,
-          lng: redisLoc?.lng ?? driver.currentLng,
+          lat: redisLoc?.lat ?? null,
+          lng: redisLoc?.lng ?? null,
           lastLocationAt: redisLoc?.updatedAt
             ? new Date(redisLoc.updatedAt)
-            : driver.lastLocationAt,
+            : null,
           segment: driver.vehicle?.segment ?? driver.segment,
           isAvailable: driver.isAvailable,
           vehicle: driver.vehicle

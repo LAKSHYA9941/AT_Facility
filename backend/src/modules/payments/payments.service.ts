@@ -2,9 +2,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import prisma from "../../shared/db/prisma";
 import { PaymentStatus } from "../../shared/types/enums";
-import { io } from "../../shared/socket/socket";
-import { SOCKET_EVENTS } from "../../shared/socket/socket.events";
-import { notificationsService } from "../notifications/notifications.service";
+import { messagingService } from "../notifications/messaging.service";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -73,14 +71,20 @@ export class PaymentsService {
     const options = {
       amount: amountPaise,
       currency: "INR",
-      receipt: `trip_${trip.id}`,
+      receipt: `trip_${trip.id.replace(/-/g, "").substring(0, 20)}`,
     };
 
     const order = await razorpay.orders.create(options);
 
-    await prisma.payment.create({
-      data: {
+    await prisma.payment.upsert({
+      where: { tripId },
+      create: {
         tripId,
+        razorpayOrderId: order.id,
+        amount: trip.amountPaidUpfront,
+        status: "INITIATED",
+      },
+      update: {
         razorpayOrderId: order.id,
         amount: trip.amountPaidUpfront,
         status: "INITIATED",
@@ -110,10 +114,18 @@ export class PaymentsService {
       throw new Error("Invalid payment signature");
     }
 
+    const currentTrip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      select: { status: true },
+    });
+    if (currentTrip?.status !== "PENDING_PAYMENT") {
+      return true; // Already handled by webhook or invalid state
+    }
+
     const trip = await prisma.trip.update({
       where: { id: tripId },
       data: { status: "CONFIRMED" },
-      include: { waypoints: { orderBy: { orderIndex: "asc" } } },
+      include: { waypoints: { orderBy: { orderIndex: "asc" } }, user: true },
     });
 
     await prisma.payment.update({
@@ -121,28 +133,20 @@ export class PaymentsService {
       data: { status: "CAPTURED" },
     });
 
-    if (io) {
-      io.emit(SOCKET_EVENTS.TRIP_JOB_AVAILABLE, {
-        tripId: trip.id,
-        vehicleSegment: trip.vehicleSegment,
-        pickupAddress: trip.waypoints[0]?.address,
-        destinationAddress: trip.waypoints[trip.waypoints.length - 1]?.address,
-        startDate: trip.startDate,
-        endDate: trip.endDate,
-        passengerCount: trip.passengerCount,
-        totalKm: 0,
-        totalFare: trip.totalFare,
-        driverEarning: trip.balanceRemaining,
-        waypoints: trip.waypoints,
-        tripType: trip.tripType,
-      });
+    if (trip.user?.phone && trip.startOtp) {
+      messagingService.sendCustomerBookingConfirmed(
+        trip.id,
+        trip.user.phone,
+        trip.startOtp,
+      );
     }
-
-    await notificationsService.sendPushNotification(
-      trip.userId,
-      "Your booking is confirmed!",
-      `Your trip is confirmed. OTP: ${trip.startOtp}`,
-      { tripId },
+    const pickup = trip.waypoints[0]?.address || "Pickup";
+    const drop = trip.waypoints[trip.waypoints.length - 1]?.address || "Drop";
+    messagingService.sendNewJobAvailable(
+      trip.id,
+      trip.vehicleSegment,
+      pickup,
+      drop,
     );
 
     return true;
@@ -151,14 +155,13 @@ export class PaymentsService {
   async bypassTripSignature(tripId: string, userId: string) {
     const trip = await prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) throw new Error("Trip not found");
-    if (trip.status !== "PENDING_PAYMENT")
-      throw new Error("Trip is not pending payment");
+    if (trip.status !== "PENDING_PAYMENT") return true; // Already handled
     if (trip.userId !== userId) throw new Error("Unauthorized");
 
     const updatedTrip = await prisma.trip.update({
       where: { id: tripId },
       data: { status: "CONFIRMED" },
-      include: { waypoints: { orderBy: { orderIndex: "asc" } } },
+      include: { waypoints: { orderBy: { orderIndex: "asc" } }, user: true },
     });
 
     await prisma.payment.create({
@@ -170,29 +173,22 @@ export class PaymentsService {
       },
     });
 
-    if (io) {
-      io.emit(SOCKET_EVENTS.TRIP_JOB_AVAILABLE, {
-        tripId: updatedTrip.id,
-        vehicleSegment: updatedTrip.vehicleSegment,
-        pickupAddress: updatedTrip.waypoints[0]?.address,
-        destinationAddress:
-          updatedTrip.waypoints[updatedTrip.waypoints.length - 1]?.address,
-        startDate: updatedTrip.startDate,
-        endDate: updatedTrip.endDate,
-        passengerCount: updatedTrip.passengerCount,
-        totalKm: 0,
-        totalFare: updatedTrip.totalFare,
-        driverEarning: updatedTrip.balanceRemaining,
-        waypoints: updatedTrip.waypoints,
-        tripType: updatedTrip.tripType,
-      });
+    if (updatedTrip.user?.phone && updatedTrip.startOtp) {
+      messagingService.sendCustomerBookingConfirmed(
+        updatedTrip.id,
+        updatedTrip.user.phone,
+        updatedTrip.startOtp,
+      );
     }
-
-    await notificationsService.sendPushNotification(
-      updatedTrip.userId,
-      "Your booking is confirmed!",
-      `Your trip is confirmed. OTP: ${updatedTrip.startOtp}`,
-      { tripId },
+    const pickup = updatedTrip.waypoints[0]?.address || "Pickup";
+    const drop =
+      updatedTrip.waypoints[updatedTrip.waypoints.length - 1]?.address ||
+      "Drop";
+    messagingService.sendNewJobAvailable(
+      updatedTrip.id,
+      updatedTrip.vehicleSegment,
+      pickup,
+      drop,
     );
 
     return true;
@@ -283,12 +279,45 @@ export class PaymentsService {
     // Try finding payment directly by orderId
     const payment = await prisma.payment.findFirst({
       where: { razorpayOrderId: orderId },
+      include: {
+        trip: {
+          include: {
+            waypoints: { orderBy: { orderIndex: "asc" } },
+            user: true,
+          },
+        },
+      },
     });
     if (payment) {
       await prisma.payment.update({
         where: { id: payment.id },
         data: { status: "PAID", razorpayPaymentId: paymentId },
       });
+
+      if (payment.trip && payment.trip.status === "PENDING_PAYMENT") {
+        await prisma.trip.update({
+          where: { id: payment.trip.id },
+          data: { status: "CONFIRMED" },
+        });
+
+        if (payment.trip.user?.phone && payment.trip.startOtp) {
+          messagingService.sendCustomerBookingConfirmed(
+            payment.trip.id,
+            payment.trip.user.phone,
+            payment.trip.startOtp,
+          );
+        }
+        const pickup = payment.trip.waypoints[0]?.address || "Pickup";
+        const drop =
+          payment.trip.waypoints[payment.trip.waypoints.length - 1]?.address ||
+          "Drop";
+        messagingService.sendNewJobAvailable(
+          payment.trip.id,
+          payment.trip.vehicleSegment,
+          pickup,
+          drop,
+        );
+      }
       return;
     }
 
@@ -356,7 +385,7 @@ export class PaymentsService {
     const options = {
       amount: amountPaise,
       currency: "INR",
-      receipt: `custom_plan_${plan.id}`,
+      receipt: `cp_${plan.id.replace(/-/g, "").substring(0, 20)}`,
     };
 
     const order = await razorpay.orders.create(options);
@@ -405,11 +434,6 @@ export class PaymentsService {
       data: { status: "ACCEPTED" },
     });
 
-    // Notify admin
-    if (io) {
-      io.to("admin:room").emit("admin:custom_plan:paid", { planId });
-    }
-
     return true;
   }
 
@@ -433,10 +457,6 @@ export class PaymentsService {
       where: { id: planId },
       data: { status: "ACCEPTED" },
     });
-
-    if (io) {
-      io.to("admin:room").emit("admin:custom_plan:paid", { planId });
-    }
 
     return true;
   }

@@ -9,10 +9,17 @@ import {
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../../utils/api";
-import { getSocket, EVENTS } from "../../utils/socket";
 import TopBar from "../../components/layout/TopBar";
 import { useAuthStore } from "../../store/auth";
-import { MapPin, Calendar, CreditCard } from "lucide-react-native";
+import {
+  MapPin,
+  Calendar,
+  CreditCard,
+  Clock,
+  Flag,
+  Users,
+  Map,
+} from "lucide-react-native";
 import { router } from "expo-router";
 
 export default function DriverJobsScreen() {
@@ -24,26 +31,11 @@ export default function DriverJobsScreen() {
   useEffect(() => {
     fetchJobsAndStatus();
 
-    const socket = getSocket();
-    if (socket) {
-      socket.on(EVENTS.TRIP_JOB_AVAILABLE, (job) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setJobs((prev) => [job, ...prev]);
-      });
-      socket.on(EVENTS.TRIP_JOB_TAKEN, (data) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setJobs((prev) =>
-          prev.filter((j) => j.tripId !== data.tripId && j.id !== data.tripId),
-        );
-      });
-    }
+    const interval = setInterval(() => {
+      fetchJobsAndStatus();
+    }, 15000);
 
-    return () => {
-      if (socket) {
-        socket.off(EVENTS.TRIP_JOB_AVAILABLE);
-        socket.off(EVENTS.TRIP_JOB_TAKEN);
-      }
-    };
+    return () => clearInterval(interval);
   }, []);
 
   const fetchJobsAndStatus = async () => {
@@ -61,16 +53,17 @@ export default function DriverJobsScreen() {
   };
 
   const handleAccept = async (tripId: string) => {
-    const socket = getSocket();
-    if (socket && user) {
-      socket.emit(EVENTS.DRIVER_ACCEPT_JOB, { tripId, driverId: user.id });
-      // Remove optimistically
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setJobs((prev) =>
-        prev.filter((j) => j.id !== tripId && j.tripId !== tripId),
-      );
-      // In a real app we'd navigate to active trip dashboard
-      router.push("/(driver)/home");
+    if (user) {
+      try {
+        await api.post(`/api/trips/${tripId}/accept`);
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setJobs((prev) =>
+          prev.filter((j) => j.id !== tripId && j.tripId !== tripId),
+        );
+        router.push("/(driver)/home");
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 
@@ -79,7 +72,7 @@ export default function DriverJobsScreen() {
       return (
         <View className="bg-green-100 p-3 rounded-lg mb-4 flex-row items-center">
           <Text className="text-green-800 font-bold flex-1 text-center">
-            ✓ Verified Driver — You can accept jobs.
+            Verified Driver — You can accept jobs.
           </Text>
         </View>
       );
@@ -132,7 +125,7 @@ export default function DriverJobsScreen() {
 
         {jobs.length === 0 && kycStatus === "VERIFIED" ? (
           <View className="flex-1 items-center justify-center pb-20">
-            <Text className="text-4xl mb-4">🗺️</Text>
+            <Map size={48} color="#9ca3af" style={{ marginBottom: 16 }} />
             <Text className="text-gray-500 text-center px-10">
               No trips available right now. Stay online to see new jobs as they
               come in.
@@ -147,7 +140,7 @@ export default function DriverJobsScreen() {
                 <View className="flex-row justify-between items-start border-b border-gray-100 pb-3 mb-3">
                   <View className="flex-1 mr-2">
                     <Text className="font-bold text-gray-800 text-base mb-1">
-                      {item.tripType === "ROUND_TRIP" ? "🔄 ROUND TRIP\n" : ""}
+                      {item.tripType === "ROUND_TRIP" ? "ROUND TRIP\n" : ""}
                       {item.waypoints
                         ?.map((w: any) => w.address.split(",")[0])
                         .join(" → ") ||
@@ -176,7 +169,11 @@ export default function DriverJobsScreen() {
                     </Text>
                   </View>
                   <View className="flex-row items-center mr-4">
-                    <Text className="text-[12px] text-gray-500 mr-1">🕒</Text>
+                    <Clock
+                      size={14}
+                      color="#6b7280"
+                      style={{ marginRight: 4 }}
+                    />
                     <Text className="text-xs text-gray-600">
                       {new Date(item.startDate).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -186,15 +183,24 @@ export default function DriverJobsScreen() {
                   </View>
                   {item.endDate && (
                     <View className="flex-row items-center mr-4">
-                      <Text className="text-[12px] text-gray-500 mr-1">🏁</Text>
+                      <Flag
+                        size={14}
+                        color="#6b7280"
+                        style={{ marginRight: 4 }}
+                      />
                       <Text className="text-xs text-gray-600">
                         {new Date(item.endDate).toLocaleDateString()}
                       </Text>
                     </View>
                   )}
                   <View className="flex-row items-center">
+                    <Users
+                      size={14}
+                      color="#6b7280"
+                      style={{ marginRight: 4 }}
+                    />
                     <Text className="text-xs text-gray-600">
-                      👤 {item.passengerCount} Pax
+                      {item.passengerCount} Pax
                     </Text>
                   </View>
                 </View>

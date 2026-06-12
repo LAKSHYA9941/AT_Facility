@@ -83,7 +83,11 @@ const SEGMENT_IMAGES: Record<string, any> = {
 
 export default function FleetSelectionScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const rawParams = useLocalSearchParams();
+
+  // Expo Router bug: useLocalSearchParams drops data on state updates in some versions.
+  // Lock the params into state on initial mount so they survive re-renders.
+  const [params] = useState(rawParams);
 
   const waypoints = useMemo<Waypoint[]>(() => {
     const raw = params.waypoints;
@@ -275,14 +279,32 @@ export default function FleetSelectionScreen() {
               <TouchableOpacity
                 key={vehicle.segment}
                 onPress={() => setSelectedSegment(vehicle)}
-                className={`w-36 bg-white mr-4 p-4 rounded-2xl border-2 ${isSelected ? "border-brand-primary bg-blue-50" : "border-transparent"}`}
+                style={{
+                  width: 144,
+                  backgroundColor: isSelected ? "#EFF6FF" : "#fff",
+                  marginRight: 16,
+                  padding: 16,
+                  borderRadius: 16,
+                  borderWidth: 2,
+                  borderColor: isSelected ? "#1B4F8A" : "transparent",
+                }}
               >
                 {isSelected && (
-                  <View className="absolute top-2 right-2">
+                  <View style={{ position: "absolute", top: 8, right: 8 }}>
                     <CheckCircle2 size={20} color="#1B4F8A" />
                   </View>
                 )}
-                <View className="h-16 bg-gray-100 rounded-lg mb-3 items-center justify-center overflow-hidden">
+                <View
+                  style={{
+                    height: 64,
+                    backgroundColor: "#f3f4f6",
+                    borderRadius: 8,
+                    marginBottom: 12,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
                   {SEGMENT_IMAGES[vehicle.segment] ? (
                     <Image
                       source={SEGMENT_IMAGES[vehicle.segment]}
@@ -290,13 +312,15 @@ export default function FleetSelectionScreen() {
                       resizeMode="cover"
                     />
                   ) : (
-                    <Text className="text-xs text-gray-400">Image</Text>
+                    <Text style={{ fontSize: 12, color: "#9ca3af" }}>
+                      Image
+                    </Text>
                   )}
                 </View>
-                <Text className="font-bold text-gray-800">
+                <Text style={{ fontWeight: "bold", color: "#1f2937" }}>
                   {vehicle.segment}
                 </Text>
-                <Text className="text-xs text-gray-500 mt-1">
+                <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
                   {showOnRequest
                     ? "Available on request"
                     : `₹${vehicle.totalFare}`}
@@ -360,6 +384,7 @@ export default function FleetSelectionScreen() {
                   selectedSegment.segment === "URBANIA";
                 const upfront =
                   selectedSegment.paymentTiers?.[tierKeyOption]?.upfront ?? 0;
+                const isActive = paymentTier === tier;
 
                 return (
                   <TouchableOpacity
@@ -368,15 +393,37 @@ export default function FleetSelectionScreen() {
                       !disabledTier && setPaymentTier(tier as PaymentTier)
                     }
                     disabled={disabledTier}
-                    className={`flex-1 py-2 items-center rounded-full ${paymentTier === tier ? "bg-white shadow-sm" : ""} ${disabledTier ? "opacity-60" : ""}`}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      alignItems: "center",
+                      borderRadius: 999,
+                      backgroundColor: isActive ? "#fff" : "transparent",
+                      opacity: disabledTier ? 0.6 : 1,
+                      ...(isActive
+                        ? {
+                            shadowColor: "#000",
+                            shadowOpacity: 0.05,
+                            shadowRadius: 2,
+                            elevation: 1,
+                          }
+                        : {}),
+                    }}
                   >
                     <Text
-                      className={`text-xs font-bold ${paymentTier === tier ? "text-brand-primary" : "text-gray-600"}`}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "bold",
+                        color: isActive ? "#1B4F8A" : "#4b5563",
+                      }}
                     >
                       Pay {tier}%
                     </Text>
                     <Text
-                      className={`text-[10px] ${paymentTier === tier ? "text-brand-primary" : "text-gray-500"}`}
+                      style={{
+                        fontSize: 10,
+                        color: isActive ? "#1B4F8A" : "#6b7280",
+                      }}
                     >
                       {disabledTier ? "—" : `₹${upfront}`}
                     </Text>

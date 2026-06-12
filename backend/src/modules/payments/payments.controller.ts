@@ -98,6 +98,8 @@ export class PaymentsController {
     reply: FastifyReply,
   ) => {
     try {
+      if (process.env.ENABLE_DEV_BYPASS !== "true")
+        return sendError(reply, "Bypass disabled in production", 403);
       const { tripId } = req.body;
       const user = (req as any).user;
       if (!tripId) return sendError(reply, "tripId is required");
@@ -118,6 +120,8 @@ export class PaymentsController {
     reply: FastifyReply,
   ) => {
     try {
+      if (process.env.ENABLE_DEV_BYPASS !== "true")
+        return sendError(reply, "Bypass disabled in production", 403);
       const { tripId } = req.body;
       const user = (req as any).user;
       if (!tripId) return sendError(reply, "tripId is required");

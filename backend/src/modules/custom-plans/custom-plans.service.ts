@@ -1,7 +1,6 @@
 // backend/src/modules/custom-plans/custom-plans.service.ts
 import prisma from "../../shared/db/prisma";
 import { Role, VehicleSegment, CustomPlanStatus } from "@prisma/client";
-import { io } from "../../shared/socket/socket";
 import { logger } from "../../shared/logger/logger";
 
 type CreateCustomPlanInput = {
@@ -39,27 +38,6 @@ export async function createCustomPlan(
       user: { select: { name: true, phone: true, role: true } },
     },
   });
-
-  // Notify admin room in real-time via Socket.io
-  try {
-    io.to("admin:room").emit("admin:custom_plan:new", {
-      id: plan.id,
-      submittedByRole: plan.submittedByRole,
-      submitterName: plan.user.name,
-      submitterPhone: plan.user.phone,
-      pickupLocation: plan.pickupLocation,
-      destinations: plan.destinations,
-      numberOfTravellers: plan.numberOfTravellers,
-      budgetMin: plan.budgetMin,
-      budgetMax: plan.budgetMax,
-      carType: plan.carType,
-      hotelRequired: plan.hotelRequired,
-      createdAt: plan.createdAt,
-    });
-  } catch (e) {
-    // Socket emit failure should never crash the HTTP response
-    logger.warn({ err: e }, "Failed to emit admin:custom_plan:new");
-  }
 
   return plan;
 }
@@ -136,18 +114,6 @@ export async function patchCustomPlan(
     },
   });
 
-  // Notify the submitter that their plan was updated
-  try {
-    io.to(`user:${updated.submittedBy}`).emit("custom_plan:updated", {
-      id: updated.id,
-      status: updated.status,
-      quotedAmount: updated.quotedAmount,
-      adminNotes: updated.adminNotes,
-    });
-  } catch (e) {
-    logger.warn({ err: e }, "Failed to emit custom_plan:updated");
-  }
-
   return updated;
 }
 
@@ -202,17 +168,6 @@ export async function assignDriverToCustomPlan(
       user: { select: { name: true, phone: true } },
     },
   });
-
-  // Notify the customer
-  try {
-    io.to(`user:${updated.submittedBy}`).emit("custom_plan:driver_assigned", {
-      id: updated.id,
-      driverName: driver.user.name,
-      driverPhone: driver.user.phone,
-    });
-  } catch (e) {
-    logger.warn({ err: e }, "Failed to emit custom_plan:driver_assigned");
-  }
 
   return updated;
 }

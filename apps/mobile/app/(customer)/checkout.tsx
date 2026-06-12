@@ -11,7 +11,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import TopBar from "../../components/layout/TopBar";
 import { api } from "../../utils/api";
-import RazorpayCheckout from "react-native-razorpay";
+// react-native-razorpay requires a custom dev build (expo run:android).
+// In Expo Go, always use bypass payment.
+const RazorpayCheckout: any = null;
 import {
   ShieldCheck,
   Zap,
@@ -181,16 +183,20 @@ export default function CheckoutScreen() {
   };
 
   // ── Primary payment handler ──
+  const razorpayAvailable = typeof RazorpayCheckout?.open === "function";
+
   const handlePayment = () => {
     if (isMock) {
       handleMockPayment();
-    } else if (RAZORPAY_KEY) {
+    } else if (RAZORPAY_KEY && razorpayAvailable) {
       handleRazorpayPayment();
     } else {
-      // No Razorpay key configured — use bypass with a warning
+      // Native module unavailable (Expo Go) or no key — use bypass
       Alert.alert(
         "Dev Mode",
-        "Razorpay key not configured. Using bypass payment for development.",
+        razorpayAvailable
+          ? "Razorpay key not configured. Using bypass payment for development."
+          : "Razorpay native module not available (Expo Go). Using bypass payment.",
         [
           { text: "Cancel", style: "cancel", onPress: () => {} },
           { text: "Proceed (Dev)", onPress: handleBypassPayment },

@@ -31,9 +31,18 @@ export const sendError = (
   statusCode = 400,
   errors: unknown = null,
 ) => {
+  // Sanitize internal errors (like Prisma stack traces) so they don't leak to the UI
+  const safeMessage =
+    message &&
+    (message.includes("prisma") ||
+      message.includes("Invalid `") ||
+      message.length > 200)
+      ? "Something went wrong. Please try again."
+      : message;
+
   return reply.status(statusCode).send({
     success: false,
-    message,
+    message: safeMessage,
     errors,
     data: null,
   });

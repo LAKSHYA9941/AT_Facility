@@ -5,6 +5,8 @@ import {
   User,
   ShieldCheck,
   Briefcase,
+  Car,
+  Map,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -66,6 +68,20 @@ export default function DriverLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="vehicle"
+        options={{
+          title: "Vehicle",
+          tabBarIcon: ({ color, size }) => <Car size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="custom-plan"
+        options={{
+          title: "Plans",
+          tabBarIcon: ({ color, size }) => <Map size={size} color={color} />,
         }}
       />
     </Tabs>

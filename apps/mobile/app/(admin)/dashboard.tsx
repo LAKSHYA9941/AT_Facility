@@ -15,7 +15,23 @@ import {
   SkeletonCard,
 } from "../../components/SkeletonLoader";
 
-import { LogOut } from "lucide-react-native";
+import {
+  LogOut,
+  Users,
+  Car,
+  MapPin,
+  IndianRupee,
+  ClipboardList,
+  ShieldCheck,
+  BarChart2,
+  Bell,
+  Briefcase,
+  Clock,
+  CheckCircle,
+  Map,
+  Flag,
+  XCircle,
+} from "lucide-react-native";
 import { useAuthStore } from "../../store/auth";
 
 const WEEK = [
@@ -32,9 +48,52 @@ const MAX_RIDES = Math.max(...WEEK.map((w) => w.rides));
 type StatItem = {
   val: string;
   label: string;
-  emoji: string;
+  icon: string;
   color: string;
   text: string;
+};
+
+const renderStatIcon = (icon: string, color: string) => {
+  switch (icon) {
+    case "riders":
+      return <Users size={22} color={color} />;
+    case "drivers":
+      return <Car size={22} color={color} />;
+    case "rides":
+      return <MapPin size={22} color={color} />;
+    case "revenue":
+      return <IndianRupee size={22} color={color} />;
+    case "kyc":
+      return <ClipboardList size={22} color={color} />;
+    case "id":
+      return <ShieldCheck size={22} color={color} />;
+    default:
+      return <MapPin size={22} color={color} />;
+  }
+};
+
+const renderActivityIcon = (icon: string, size = 16, color = "#1B4F8A") => {
+  switch (icon) {
+    case "car":
+      return <Car size={size} color={color} />;
+    case "briefcase":
+      return <Briefcase size={size} color={color} />;
+    case "clock":
+      return <Clock size={size} color={color} />;
+    case "check-circle":
+      return <CheckCircle size={size} color={color} />;
+    case "map":
+      return <Map size={size} color={color} />;
+    case "flag":
+      return <Flag size={size} color={color} />;
+    case "x-circle":
+      return <XCircle size={size} color="#A32D2D" />;
+    case "clipboard":
+      return <ClipboardList size={size} color={color} />;
+    case "bell":
+    default:
+      return <Bell size={size} color={color} />;
+  }
 };
 
 export default function DashboardScreen() {
@@ -57,42 +116,42 @@ export default function DashboardScreen() {
         {
           val: `${data.totalCustomers || 0}`,
           label: "Total riders",
-          emoji: "🧳",
+          icon: "riders",
           color: "#EEF2F7",
           text: "#1B4F8A",
         },
         {
           val: `${data.totalDrivers || 0}`,
           label: "Total drivers",
-          emoji: "🚗",
+          icon: "drivers",
           color: "#EEF2F7",
           text: "#1B4F8A",
         },
         {
           val: `${data.tripsToday || 0}`,
           label: "Rides today",
-          emoji: "📍",
+          icon: "rides",
           color: "#EAF3DE",
           text: "#3B6D11",
         },
         {
           val: `₹${data.revenueToday || 0}`,
           label: "Revenue today",
-          emoji: "💰",
+          icon: "revenue",
           color: "#FAEEDA",
           text: "#854F0B",
         },
         {
           val: `${data.pendingKyc || 0}`,
           label: "KYC pending",
-          emoji: "📋",
+          icon: "kyc",
           color: "#FAEEDA",
           text: "#854F0B",
         },
         {
           val: `${data.pendingIdProofs || 0}`,
           label: "ID proofs pending",
-          emoji: "🪪",
+          icon: "id",
           color: "#FCEBEB",
           text: "#A32D2D",
         },
@@ -152,7 +211,7 @@ export default function DashboardScreen() {
           className="px-5 pt-4 pb-2 flex-row justify-between items-center"
         >
           <View>
-            <Text className="text-brand-sub text-sm">{greeting} 👋</Text>
+            <Text className="text-brand-sub text-sm">{greeting}</Text>
             <Text className="text-brand-text font-bold text-2xl">
               Admin Panel
             </Text>
@@ -229,9 +288,9 @@ export default function DashboardScreen() {
                       padding: 16,
                     }}
                   >
-                    <Text style={{ fontSize: 22, marginBottom: 6 }}>
-                      {s.emoji}
-                    </Text>
+                    <View style={{ marginBottom: 6 }}>
+                      {renderStatIcon(s.icon, s.text)}
+                    </View>
                     <Text
                       style={{ color: s.text, fontWeight: "700", fontSize: 22 }}
                     >
@@ -317,9 +376,9 @@ export default function DashboardScreen() {
             >
               <TouchableOpacity
                 activeOpacity={0.85}
-                className="flex-1 bg-brand-primary rounded-2xl py-4 items-center gap-1"
+                className="flex-1 bg-brand-primary rounded-2xl py-4 items-center gap-1.5"
               >
-                <Text style={{ fontSize: 20 }}>📋</Text>
+                <ClipboardList size={20} color="white" />
                 <Text className="text-white font-bold text-xs text-center">
                   Verify KYC{"\n"}Queue (
                   {stats.find((s) => s.label === "KYC pending")?.val || 0})
@@ -327,9 +386,9 @@ export default function DashboardScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.85}
-                className="flex-1 bg-amber-50 border border-amber-100 rounded-2xl py-4 items-center gap-1"
+                className="flex-1 bg-amber-50 border border-amber-100 rounded-2xl py-4 items-center gap-1.5"
               >
-                <Text style={{ fontSize: 20 }}>🪪</Text>
+                <ShieldCheck size={20} color="#854F0B" />
                 <Text className="text-amber-700 font-bold text-xs text-center">
                   ID Proofs{"\n"}Queue (
                   {stats.find((s) => s.label === "ID proofs pending")?.val || 0}
@@ -338,9 +397,9 @@ export default function DashboardScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.85}
-                className="flex-1 bg-green-50 border border-green-100 rounded-2xl py-4 items-center gap-1"
+                className="flex-1 bg-green-50 border border-green-100 rounded-2xl py-4 items-center gap-1.5"
               >
-                <Text style={{ fontSize: 20 }}>📊</Text>
+                <BarChart2 size={20} color="#3B6D11" />
                 <Text className="text-green-700 font-bold text-xs text-center">
                   Full{"\n"}Reports
                 </Text>
@@ -379,7 +438,7 @@ export default function DashboardScreen() {
                         justifyContent: "center",
                       }}
                     >
-                      <Text style={{ fontSize: 16 }}>{a.icon || "🔔"}</Text>
+                      {renderActivityIcon(a.icon)}
                     </View>
                     <View className="flex-1">
                       <Text className="text-brand-text font-bold text-sm">

@@ -12,7 +12,6 @@ export class NotificationsController {
       const user = req.user as JWTPayload;
       const { token } = req.body;
       if (!token) return sendError(reply, "Token is required");
-      await notificationsService.registerToken(user.userId, token);
       return sendSuccess(reply, null, "Token registered successfully");
     } catch (err: any) {
       return sendError(reply, err.message);

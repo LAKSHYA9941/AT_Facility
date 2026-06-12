@@ -1,25 +1,58 @@
 import prisma from "../../shared/db/prisma";
 import axios from "axios";
-import { VehicleSegment, TripStatus, TripType } from "../../shared/types/enums";
-import { io } from "../../shared/socket/socket";
-import { SOCKET_EVENTS } from "../../shared/socket/socket.events";
+import { VehicleSegment, TripStatus, TripType } from "@prisma/client";
+import { messagingService } from "../notifications/messaging.service";
 
 import { FLAT_RATES, SEGMENT_RATES } from "../../config/pricing";
 import { logger } from "../../shared/logger/logger";
 
 export const tripsService = {
   estimate: async (params: {
+    tripType?: string;
     waypoints: Array<{ lat: number; lng: number }>;
     startDate: string;
     endDate: string;
     passengerCount: number;
   }) => {
-    const { waypoints, startDate, endDate } = params;
+    const { tripType, waypoints, startDate, endDate } = params;
 
     let totalKm = 0;
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const googleKey = process.env.GOOGLE_MAPS_API_KEY;
+    const mapplsKey = process.env.MAPPLS_REST_API_KEY;
 
-    if (!apiKey) {
+    if (mapplsKey) {
+      // Mappls (MapMyIndia) Distance Matrix — preferred for India routes
+      for (let i = 0; i < waypoints.length - 1; i++) {
+        const origin = `${waypoints[i].lng},${waypoints[i].lat}`; // lng,lat order for Mappls
+        const dest = `${waypoints[i + 1].lng},${waypoints[i + 1].lat}`;
+        try {
+          const res = await axios.get(
+            `https://apis.mappls.com/advancedmaps/v1/${mapplsKey}/distance_matrix/driving/${origin};${dest}`,
+          );
+          const meters = res.data?.results?.distances?.[0]?.[1];
+          if (meters) totalKm += meters / 1000;
+        } catch (e) {
+          logger.error({ error: e }, "Mappls Distance Matrix API error");
+        }
+      }
+    } else if (googleKey) {
+      // Google Maps Distance Matrix fallback
+      for (let i = 0; i < waypoints.length - 1; i++) {
+        const origin = `${waypoints[i].lat},${waypoints[i].lng}`;
+        const dest = `${waypoints[i + 1].lat},${waypoints[i + 1].lng}`;
+        try {
+          const res = await axios.get(
+            `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${dest}&key=${googleKey}`,
+          );
+          const distanceText = res.data.rows[0]?.elements[0]?.distance?.value;
+          if (distanceText) {
+            totalKm += distanceText / 1000;
+          }
+        } catch (e) {
+          logger.error({ error: e }, "Google Maps API error");
+        }
+      }
+    } else {
       // Fallback rough estimate if no key
       for (let i = 0; i < waypoints.length - 1; i++) {
         const p1 = waypoints[i];
@@ -28,20 +61,47 @@ export const tripsService = {
         const dy = p1.lng - p2.lng;
         totalKm += Math.sqrt(dx * dx + dy * dy) * 111 * 1.3; // Haversine approx
       }
-    } else {
-      for (let i = 0; i < waypoints.length - 1; i++) {
-        const origin = `${waypoints[i].lat},${waypoints[i].lng}`;
-        const dest = `${waypoints[i + 1].lat},${waypoints[i + 1].lng}`;
-        try {
-          const res = await axios.get(
-            `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${dest}&key=${apiKey}`,
-          );
-          const distanceText = res.data.rows[0]?.elements[0]?.distance?.value;
-          if (distanceText) {
-            totalKm += distanceText / 1000;
+    }
+
+    const isRoundTrip = tripType === "ROUND_TRIP";
+
+    // If it's a round trip, we need to ensure the return distance is calculated
+    // since the frontend no longer auto-appends the pickup location.
+    if (isRoundTrip && waypoints.length > 1) {
+      const first = waypoints[0];
+      const last = waypoints[waypoints.length - 1];
+      const distanceToStart = Math.sqrt(
+        Math.pow(first.lat - last.lat, 2) + Math.pow(first.lng - last.lng, 2),
+      );
+
+      // If the last waypoint is not roughly the same as the first, add the return leg
+      if (distanceToStart > 0.01) {
+        if (mapplsKey) {
+          const origin = `${last.lng},${last.lat}`;
+          const dest = `${first.lng},${first.lat}`;
+          try {
+            const res = await axios.get(
+              `https://apis.mappls.com/advancedmaps/v1/${mapplsKey}/distance_matrix/driving/${origin};${dest}`,
+            );
+            const meters = res.data?.results?.distances?.[0]?.[1];
+            if (meters) totalKm += meters / 1000;
+          } catch (e) {
+            logger.error({ error: e }, "Mappls Return Leg API error");
           }
-        } catch (e) {
-          logger.error({ error: e }, "Google Maps API error");
+        } else if (googleKey) {
+          const origin = `${last.lat},${last.lng}`;
+          const dest = `${first.lat},${first.lng}`;
+          try {
+            const res = await axios.get(
+              `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${dest}&key=${googleKey}`,
+            );
+            const distanceText = res.data.rows[0]?.elements[0]?.distance?.value;
+            if (distanceText) totalKm += distanceText / 1000;
+          } catch (e) {
+            logger.error({ error: e }, "Google Maps Return Leg API error");
+          }
+        } else {
+          totalKm += distanceToStart * 111 * 1.3;
         }
       }
     }
@@ -53,39 +113,38 @@ export const tripsService = {
       Math.ceil((end.getTime() - start.getTime()) / 86400000),
     );
 
-    // We no longer double the totalKm here because the frontend will
-    // silently append the return leg to the waypoints array for round trips,
-    // meaning the loop above already calculates the full distance.
-    const isRoundTrip =
-      waypoints.length > 1 &&
-      waypoints[0].lat === waypoints[waypoints.length - 1].lat &&
-      waypoints[0].lng === waypoints[waypoints.length - 1].lng;
+    // In India, if a trip is one-way outstation, cabs usually charge for the return journey
+    // to cover the empty trip back, OR they have a 130km minimum.
+    // If it's a round trip, there's usually a 250km/day minimum.
+
+    let billableKm = totalKm;
+    if (isRoundTrip) {
+      // Standard 250km minimum per day for round trips
+      billableKm = Math.max(totalKm, days * 250);
+    } else {
+      // For one-way trips, charge for return journey (totalKm * 2)
+      // with a minimum of 130km to make it realistic
+      billableKm = Math.max(totalKm * 2, 130);
+    }
+
+    // Driver allowance is usually a flat fee per day for outstation
+    const driverAllowancePerDay = 300;
 
     // Pricing rules imported from config
-
     const estimates = Object.entries(SEGMENT_RATES).map(
       ([segment, ratePerKm]) => {
         let baseFare = 0;
-        let driverAllowance = 0;
+        let driverAllowance = days * driverAllowancePerDay;
         let totalFare = 0;
 
-        if (days > 1) {
-          // Multi-day trip uses flat rate per day
-          const flatRate = FLAT_RATES[segment] || 3500;
-          totalFare = days * flatRate;
-          baseFare = totalFare;
-          driverAllowance = 0; // Included in flat rate
+        if (days > 1 && isRoundTrip) {
+          // Multi-day round trip might use flat rate if it's a package,
+          // but typically outstation is still per-km with a 250km/day minimum.
+          baseFare = billableKm * ratePerKm;
+          totalFare = baseFare + driverAllowance;
         } else {
-          // Single-day trip
-          const effectiveKm = Math.max(totalKm, 250); // standard 250km min per day
-          baseFare = effectiveKm * ratePerKm;
-
-          if (totalKm > 300) {
-            driverAllowance = 500;
-          } else {
-            driverAllowance = 0; // "before 300 km its per km charge"
-          }
-
+          // Single-day or one-way trip
+          baseFare = billableKm * ratePerKm;
           totalFare = baseFare + driverAllowance;
         }
 
@@ -114,9 +173,9 @@ export const tripsService = {
 
     return {
       totalKm: Math.round(totalKm),
-      effectiveKm: Math.max(Math.round(totalKm), days * 250),
+      effectiveKm: Math.round(billableKm),
       days,
-      driverAllowancePerDay: 500, // standard reference
+      driverAllowancePerDay,
       estimates,
     };
   },
@@ -138,8 +197,27 @@ export const tripsService = {
       throw new Error("Invalid payment tier");
     }
 
-    const amountPaidUpfront = (data.totalFare * data.selectedPercentage) / 100;
-    const balanceRemaining = data.totalFare - amountPaidUpfront;
+    const estimateResult = await tripsService.estimate({
+      tripType: data.tripType,
+      waypoints: data.waypoints,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      passengerCount: data.passengerCount,
+    });
+
+    const segmentEstimate = estimateResult.estimates.find(
+      (e) => e.segment === data.vehicleSegment,
+    );
+
+    if (!segmentEstimate) {
+      throw new Error("Invalid vehicle segment for this route");
+    }
+
+    const trustedTotalFare = segmentEstimate.totalFare;
+    const amountPaidUpfront = Math.round(
+      (trustedTotalFare * data.selectedPercentage) / 100,
+    );
+    const balanceRemaining = trustedTotalFare - amountPaidUpfront;
     const startOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
     const trip = await prisma.$transaction(async (tx) => {
@@ -151,7 +229,7 @@ export const tripsService = {
           endDate: new Date(data.endDate),
           passengerCount: data.passengerCount,
           vehicleSegment: data.vehicleSegment,
-          totalFare: data.totalFare,
+          totalFare: trustedTotalFare,
           upfrontPercentage: data.selectedPercentage,
           amountPaidUpfront,
           balanceRemaining,
@@ -217,20 +295,27 @@ export const tripsService = {
 
     const updatedTrip = await prisma.trip.findUnique({
       where: { id: tripId },
-      include: { driver: { include: { user: true } }, waypoints: true },
+      include: {
+        user: true,
+        driver: { include: { user: true, vehicle: true } },
+        waypoints: true,
+      },
     });
 
-    if (io && updatedTrip) {
-      io.to(`user:${updatedTrip.userId}`).emit(SOCKET_EVENTS.DRIVER_ASSIGNED, {
-        driverId: driver.id,
-        driverName: updatedTrip.driver?.user?.name,
-        phone: updatedTrip.driver?.user?.phone,
-      });
-      io.to(`user:${updatedTrip.userId}`).emit(
-        SOCKET_EVENTS.TRIP_STATUS_UPDATED,
-        { status: TripStatus.DRIVER_ASSIGNED },
+    // Send MSG91 SMS to customer & driver
+    if (
+      updatedTrip?.user?.phone &&
+      updatedTrip?.driver?.user?.name &&
+      updatedTrip?.driver?.user?.phone
+    ) {
+      const vehiclePlate = updatedTrip.driver.vehicle?.plateNumber || "Vehicle";
+      messagingService.sendDriverAssigned(
+        tripId,
+        updatedTrip.user.phone,
+        updatedTrip.driver.user.name,
+        vehiclePlate,
+        updatedTrip.driver.user.phone,
       );
-      io.emit("trip:job_taken", { tripId }); // notify other drivers
     }
 
     return updatedTrip;
@@ -255,17 +340,30 @@ export const tripsService = {
       throw new Error("Unauthorized driver");
     if (trip.startOtp !== otp) throw new Error("Invalid OTP");
 
-    return await prisma.trip.update({
+    const updatedTrip = await prisma.trip.update({
       where: { id: tripId },
       data: { status: TripStatus.ACTIVE },
     });
+
+    // TODO: Consider adding sendTripStarted in the future.
+    return updatedTrip;
   },
 
   complete: async (tripId: string, driverUserId: string) => {
-    return await prisma.trip.update({
+    const updatedTrip = await prisma.trip.update({
       where: { id: tripId },
       data: { status: TripStatus.COMPLETED },
+      include: { user: true },
     });
+
+    if (updatedTrip.user?.phone) {
+      messagingService.sendTripCompleted(
+        tripId,
+        updatedTrip.user.phone,
+        updatedTrip.totalFare,
+      );
+    }
+    return updatedTrip;
   },
 
   cancelByDriver: async (
@@ -273,10 +371,16 @@ export const tripsService = {
     driverUserId: string,
     reason: string,
   ) => {
-    return await prisma.trip.update({
+    const updatedTrip = await prisma.trip.update({
       where: { id: tripId },
       data: { status: TripStatus.CONFIRMED, driverId: null },
+      include: { user: true },
     });
+
+    if (updatedTrip.user?.phone) {
+      messagingService.sendTripCancelled(updatedTrip.user.phone, "CUSTOMER");
+    }
+    return updatedTrip;
   },
 
   cancelByCustomer: async (
@@ -284,10 +388,19 @@ export const tripsService = {
     customerId: string,
     reason: string,
   ) => {
-    return await prisma.trip.update({
+    const updatedTrip = await prisma.trip.update({
       where: { id: tripId },
       data: { status: TripStatus.CANCELLED },
+      include: { driver: { include: { user: true } } },
     });
+
+    if (updatedTrip.driver?.user?.phone) {
+      messagingService.sendTripCancelled(
+        updatedTrip.driver.user.phone,
+        "DRIVER",
+      );
+    }
+    return updatedTrip;
   },
 
   getCustomerTrips: async (userId: string, page: number, limit: number) => {

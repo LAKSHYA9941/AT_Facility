@@ -22,7 +22,8 @@ export default function CustomerLayout() {
           (t: any) =>
             t.balanceRemaining > 0 &&
             t.status !== "PENDING_PAYMENT" &&
-            t.status !== "CANCELLED",
+            t.status !== "CANCELLED" &&
+            t.status !== "COMPLETED",
         );
         setHasPendingBalance(pending);
       } catch (e) {}
@@ -89,7 +90,7 @@ export default function CustomerLayout() {
             ),
           }}
         />
-        {/* <Tabs.Screen
+        <Tabs.Screen
           name="travel"
           options={{
             title: "Travel",
@@ -97,7 +98,7 @@ export default function CustomerLayout() {
               <Compass size={size} color={color} />
             ),
           }}
-        /> */}
+        />
         <Tabs.Screen
           name="activity"
           options={{

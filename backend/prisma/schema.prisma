@@ -110,7 +110,6 @@ model User {
   aadhaarVerified Boolean    @default(false)
   profileComplete Boolean    @default(false)
   status          UserStatus @default(ACTIVE)
-  fcmToken        String?
 
   refreshTokens   RefreshToken[]
   driverProfile   DriverProfile?
@@ -182,10 +181,6 @@ model DriverProfile {
   isOnline      Boolean @default(false)
   isAvailable   Boolean @default(false)
   strikes       Int     @default(0) // 3 strikes = suspension
-
-  currentLat     Float?
-  currentLng     Float?
-  lastLocationAt DateTime?
 
   kycStatus KYCStatus       @default(UNSUBMITTED)
   segment   VehicleSegment?
@@ -274,6 +269,10 @@ model Trip {
 
   // Trip OTP (generated on CONFIRMED)
   startOtp String?
+
+  customerNotifiedAt       DateTime?
+  driverAssignedNotifiedAt DateTime?
+  driverNotifiedAt         DateTime?
 
   // Relations
   waypoints Waypoint[]

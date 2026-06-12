@@ -124,6 +124,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   //   app.post("/send-otp", { preHandler: [otpRateLimiter] }, sendOtp);
 
   // ── Request logging (Pino) ────────────────────────────────────────────────
+
   app.addHook("onRequest", async (req) => {
     req.log = logger.child({ reqId: req.id, method: req.method, url: req.url });
   });

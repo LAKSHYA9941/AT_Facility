@@ -19,6 +19,15 @@ import {
   SkeletonDriverCard,
   SkeletonCard,
 } from "../../components/SkeletonLoader";
+import {
+  CheckCircle,
+  AlertTriangle,
+  CreditCard,
+  Car,
+  FileText,
+  Camera,
+  Landmark,
+} from "lucide-react-native";
 
 // ── Types ──────────────────────────────────────────────
 
@@ -56,12 +65,33 @@ type CustomerIdProof = {
 
 // ── Constants ──────────────────────────────────────────
 
-const ID_TYPE_META: Record<string, { label: string; emoji: string }> = {
-  AADHAAR: { label: "Aadhaar Card", emoji: "🪪" },
-  PAN: { label: "PAN Card", emoji: "💳" },
-  PASSPORT: { label: "Passport", emoji: "🛂" },
-  VOTER_ID: { label: "Voter ID", emoji: "🗳️" },
-  DRIVING_LICENCE: { label: "Driving Licence", emoji: "🚗" },
+const renderDocIcon = (docType: string, size = 16, color = "#1B4F8A") => {
+  switch (docType) {
+    case "AADHAAR":
+    case "PAN":
+    case "PASSPORT":
+    case "VOTER_ID":
+      return <CreditCard size={size} color={color} />;
+    case "DRIVING_LICENCE":
+    case "DRIVING_LICENSE":
+      return <Car size={size} color={color} />;
+    case "VEHICLE_RC":
+      return <FileText size={size} color={color} />;
+    case "BANK_DETAILS":
+      return <Landmark size={size} color={color} />;
+    case "SELFIE":
+      return <Camera size={size} color={color} />;
+    default:
+      return <FileText size={size} color={color} />;
+  }
+};
+
+const ID_TYPE_META: Record<string, { label: string }> = {
+  AADHAAR: { label: "Aadhaar Card" },
+  PAN: { label: "PAN Card" },
+  PASSPORT: { label: "Passport" },
+  VOTER_ID: { label: "Voter ID" },
+  DRIVING_LICENCE: { label: "Driving Licence" },
 };
 
 export default function VerifyScreen() {
@@ -233,7 +263,7 @@ export default function VerifyScreen() {
 
   const renderField = (
     label: string,
-    emoji: string,
+    docType: string,
     value: string | undefined,
     url: string | undefined,
   ) => {
@@ -259,7 +289,7 @@ export default function VerifyScreen() {
               justifyContent: "center",
             }}
           >
-            <Text style={{ fontSize: 20 }}>{emoji}</Text>
+            {renderDocIcon(docType, 20)}
           </View>
           <View style={{ flex: 1 }}>
             <Text
@@ -386,7 +416,11 @@ export default function VerifyScreen() {
         >
           {currentQueue.length === 0 && (
             <View className="flex-1 items-center justify-center py-24">
-              <Text style={{ fontSize: 48, marginBottom: 12 }}>✅</Text>
+              <CheckCircle
+                size={48}
+                color="#16a34a"
+                style={{ marginBottom: 12 }}
+              />
               <Text className="text-brand-text font-bold text-lg">
                 All clear!
               </Text>
@@ -445,7 +479,6 @@ export default function VerifyScreen() {
             idsQueue.map((customer, i) => {
               const meta = ID_TYPE_META[customer.idProofType || ""] || {
                 label: customer.idProofType || "ID Proof",
-                emoji: "🪪",
               };
               return (
                 <Animated.View
@@ -470,9 +503,16 @@ export default function VerifyScreen() {
                       <Text className="text-brand-sub text-xs mt-0.5">
                         {customer.phone}
                       </Text>
-                      <Text className="text-brand-sub text-xs">
-                        {meta.emoji} {meta.label}
-                      </Text>
+                      <View className="flex-row items-center gap-1.5 mt-0.5">
+                        {renderDocIcon(
+                          customer.idProofType || "AADHAAR",
+                          12,
+                          "#9CA3AF",
+                        )}
+                        <Text className="text-brand-sub text-xs">
+                          {meta.label}
+                        </Text>
+                      </View>
                     </View>
                   </View>
 
@@ -671,31 +711,31 @@ export default function VerifyScreen() {
               {/* Docs */}
               {renderField(
                 "Aadhaar Card",
-                "🪪",
+                "AADHAAR",
                 selectedDriver.aadhaarNumber,
                 selectedDriver.aadhaarUrl,
               )}
               {renderField(
                 "Driving License",
-                "🚗",
+                "DRIVING_LICENSE",
                 selectedDriver.dlNumber,
                 selectedDriver.dlUrl,
               )}
               {renderField(
                 "Vehicle RC",
-                "📄",
+                "VEHICLE_RC",
                 selectedDriver.rcNumber,
                 selectedDriver.rcUrl,
               )}
               {renderField(
                 "PAN Card",
-                "💳",
+                "PAN",
                 selectedDriver.panNumber,
                 selectedDriver.panUrl,
               )}
               {renderField(
                 "Bank Details",
-                "🏦",
+                "BANK_DETAILS",
                 selectedDriver.bankDetailsUrl
                   ? `A/C: ${selectedDriver.bankAccountNumber || "N/A"}\nName: ${selectedDriver.bankAccountName || "N/A"}\nIFSC: ${selectedDriver.bankIFSC || "N/A"}`
                   : undefined,
@@ -703,7 +743,7 @@ export default function VerifyScreen() {
               )}
               {renderField(
                 "Live Selfie",
-                "🤳",
+                "SELFIE",
                 undefined,
                 selectedDriver.selfieUrl,
               )}
@@ -732,7 +772,7 @@ export default function VerifyScreen() {
                       fontSize: 15,
                     }}
                   >
-                    {approvingKyc ? "Approving..." : "✅ Approve Driver"}
+                    {approvingKyc ? "Approving..." : "Approve Driver"}
                   </Text>
                 </TouchableOpacity>
 
@@ -753,7 +793,7 @@ export default function VerifyScreen() {
                       fontSize: 15,
                     }}
                   >
-                    🚫 Reject Driver
+                    Reject Driver
                   </Text>
                 </TouchableOpacity>
               </View>

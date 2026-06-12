@@ -13,9 +13,26 @@ export const driverRoutes = async (app: FastifyInstance) => {
     driverController.upsertVehicle,
   );
 
+  app.post(
+    "/status",
+    { preHandler: [authGuard, roleGuard(Role.DRIVER)] },
+    driverController.toggleStatus,
+  );
+
   app.get(
     "/vehicle",
     { preHandler: [authGuard, roleGuard(Role.DRIVER)] },
     driverController.getVehicle,
+  );
+  app.get(
+    "/earnings",
+    { preHandler: [authGuard, roleGuard(Role.DRIVER)] },
+    driverController.getEarnings,
+  );
+
+  app.get(
+    "/earnings/history",
+    { preHandler: [authGuard, roleGuard(Role.DRIVER)] },
+    driverController.getEarningsHistory,
   );
 };

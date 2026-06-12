@@ -20,6 +20,9 @@ import {
   X,
   Shield,
   FileText,
+  Bell,
+  MessageSquare,
+  LogOut,
 } from "lucide-react-native";
 
 type ToggleItem = { icon: string; label: string; sub: string; key: string };
@@ -33,12 +36,27 @@ type MenuItemType = {
 
 const TOGGLES: ToggleItem[] = [
   {
-    icon: "🔔",
+    icon: "bell",
     label: "Ride notifications",
     sub: "Sound alerts for new requests",
     key: "notifs",
   },
 ];
+
+const getMenuIcon = (name: string, color = "#1B4F8A") => {
+  switch (name) {
+    case "bell":
+      return <Bell size={18} color={color} />;
+    case "help":
+      return <MessageSquare size={18} color={color} />;
+    case "terms":
+      return <FileText size={18} color={color} />;
+    case "logout":
+      return <LogOut size={18} color="#ef4444" />;
+    default:
+      return <FileText size={18} color={color} />;
+  }
+};
 
 function ToggleRow({
   item,
@@ -52,7 +70,7 @@ function ToggleRow({
   return (
     <View className="flex-row items-center gap-3 px-5 py-3.5 border-b border-brand-border">
       <View className="w-9 h-9 rounded-xl bg-brand-input items-center justify-center">
-        <Text style={{ fontSize: 16 }}>{item.icon}</Text>
+        {getMenuIcon(item.icon)}
       </View>
       <View className="flex-1">
         <Text className="text-brand-text font-semibold text-sm">
@@ -79,7 +97,7 @@ function MenuRow({ item }: { item: MenuItemType }) {
       className="flex-row items-center gap-3 px-5 py-3.5 border-b border-brand-border"
     >
       <View className="w-9 h-9 rounded-xl bg-brand-input items-center justify-center">
-        <Text style={{ fontSize: 16 }}>{item.icon}</Text>
+        {getMenuIcon(item.icon, item.danger ? "#ef4444" : "#1B4F8A")}
       </View>
       <View className="flex-1">
         <Text
@@ -133,17 +151,17 @@ export default function DriverProfile() {
 
   const menuItems: MenuItemType[] = [
     {
-      icon: "💬",
+      icon: "help",
       label: "Help & support",
       onPress: () => setHelpVisible(true),
     },
     {
-      icon: "📋",
+      icon: "terms",
       label: "Terms & conditions",
       onPress: () => setTermsVisible(true),
     },
     {
-      icon: "🚪",
+      icon: "logout",
       label: "Log out",
       danger: true,
       onPress: logout,
@@ -278,7 +296,7 @@ export default function DriverProfile() {
           <ScrollView className="flex-1 px-5 pt-6">
             <View className="items-center mb-8">
               <View className="w-20 h-20 rounded-full bg-blue-50 items-center justify-center mb-3">
-                <Text style={{ fontSize: 36 }}>📞</Text>
+                <Phone size={36} color="#1B4F8A" />
               </View>
               <Text className="text-xl font-bold text-[#111827]">
                 Contact Us
