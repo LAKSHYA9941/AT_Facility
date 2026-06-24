@@ -30,7 +30,27 @@ export default function OTPScreen() {
     next[idx] = val;
     setOtp(next);
     if (val && idx < 5) inputs.current[idx + 1]?.focus();
-    if (!val && idx > 0) inputs.current[idx - 1]?.focus();
+  };
+
+  const handleKeyPress = (e: any, idx: number) => {
+    if (e.nativeEvent.key === "Backspace") {
+      const next = [...otp];
+      if (next[idx]) {
+        // Clear current box first
+        next[idx] = "";
+        setOtp(next);
+      } else if (idx > 0) {
+        // Move to previous box and clear it
+        next[idx - 1] = "";
+        setOtp(next);
+        inputs.current[idx - 1]?.focus();
+      }
+    }
+  };
+
+  const selectTextOnFocus = (idx: number) => {
+    // Force selection so next keystroke replaces the digit
+    inputs.current[idx]?.setNativeProps({ selection: { start: 0, end: 1 } });
   };
 
   const handleVerify = async () => {
@@ -95,6 +115,8 @@ export default function OTPScreen() {
                 keyboardType="number-pad"
                 value={digit}
                 onChangeText={(v) => handleChange(v, i)}
+                onKeyPress={(e) => handleKeyPress(e, i)}
+                onFocus={() => selectTextOnFocus(i)}
                 style={{ borderColor: digit ? "#6C47FF" : undefined }}
               />
             ))}

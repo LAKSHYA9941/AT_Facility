@@ -10,6 +10,7 @@ import {
   updateCustomPlan,
   myCustomPlans,
   assignDriver,
+  getAssignedToMe,
 } from "./custom-plans.controller";
 
 export async function customPlanRoutes(app: FastifyInstance) {
@@ -18,6 +19,13 @@ export async function customPlanRoutes(app: FastifyInstance) {
 
   // Customer & Driver: fetch own plans
   app.get("/custom-plans/my", { preHandler: [authGuard] }, myCustomPlans);
+
+  // Driver: fetch custom plans assigned to them by admin
+  app.get(
+    "/custom-plans/assigned-to-me",
+    { preHandler: [authGuard, roleGuard(Role.DRIVER)] },
+    getAssignedToMe,
+  );
 
   // Admin: list all plans (paginated + filtered)
   app.get(

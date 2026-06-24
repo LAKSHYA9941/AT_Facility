@@ -206,7 +206,8 @@ model DriverProfile {
   vehicle Vehicle?
 
   // Trip relations
-  tripsAsDriver Trip[] @relation("DriverTrips")
+  tripsAsDriver       Trip[]       @relation("DriverTrips")
+  assignedCustomPlans CustomPlan[] @relation("AssignedCustomPlans")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -466,6 +467,7 @@ model CustomPlan {
   budgetMax          Int // INR
   carType            VehicleSegment?
   hotelRequired      Boolean         @default(false)
+  hotelType          String?         // BUDGET | STANDARD | COMFORT_SUITE | DELUXE | LUXURY
   additionalNotes    String?
 
   // Admin workflow
@@ -479,9 +481,10 @@ model CustomPlan {
   payment Payment?
 
   // Driver assignment (admin sets after payment)
-  assignedDriverId   String? // driverProfile.id
-  driverEarning      Int?    // INR — what the driver gets
-  platformCommission Int?    // INR — what AT Facility keeps
+  assignedDriverId   String?        // driverProfile.id
+  assignedDriver     DriverProfile? @relation("AssignedCustomPlans", fields: [assignedDriverId], references: [id])
+  driverEarning      Int?           // INR — what the driver gets
+  platformCommission Int?           // INR — what AT Facility keeps
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

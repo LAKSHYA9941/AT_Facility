@@ -8,6 +8,7 @@ import {
   patchCustomPlan,
   fetchMyCustomPlans,
   assignDriverToCustomPlan as assignDriverService,
+  fetchAssignedCustomPlans,
 } from "./custom-plans.service";
 import {
   sendSuccess,
@@ -27,7 +28,15 @@ const submitSchema = z.object({
   budgetMin: z.number().int().min(500),
   budgetMax: z.number().int().min(500),
   carType: z.nativeEnum(VehicleSegment).optional(),
-  hotelRequired: z.boolean().default(false),
+  hotelRequired: z
+    .boolean()
+    .nullable()
+    .optional()
+    .transform((v) => v ?? false),
+  hotelType: z
+    .enum(["BUDGET", "STANDARD", "COMFORT_SUITE", "DELUXE", "LUXURY"])
+    .nullable()
+    .optional(),
   additionalNotes: z.string().max(500).optional(),
 });
 
@@ -114,6 +123,25 @@ export async function myCustomPlans(req: FastifyRequest, reply: FastifyReply) {
     const { userId } = req.user as { userId: string };
     const plans = await fetchMyCustomPlans(userId);
     return sendSuccess(reply, plans, "My custom plans fetched");
+  } catch (err: any) {
+    return sendError(reply, err.message);
+  }
+}
+
+export async function getAssignedToMe(
+  req: FastifyRequest,
+  reply: FastifyReply,
+) {
+  try {
+    const { userId } = req.user as { userId: string };
+    const { default: prisma } = await import("../../shared/db/prisma");
+    const profile = await prisma.driverProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!profile) return sendSuccess(reply, [], "No driver profile found");
+    const plans = await fetchAssignedCustomPlans(profile.id);
+    return sendSuccess(reply, plans, "Assigned custom plans fetched");
   } catch (err: any) {
     return sendError(reply, err.message);
   }

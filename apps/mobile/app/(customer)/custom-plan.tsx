@@ -32,6 +32,15 @@ const CAR_LABELS: Record<CarType, string> = {
   TEMPO: "Tempo\n₹25/km",
 };
 
+const HOTEL_TYPES = [
+  { value: "BUDGET", label: "Budget Rooms" },
+  { value: "STANDARD", label: "Standard Rooms" },
+  { value: "COMFORT_SUITE", label: "Comfort Suite" },
+  { value: "DELUXE", label: "Deluxe Rooms" },
+  { value: "LUXURY", label: "Luxury Rooms" },
+] as const;
+type HotelType = (typeof HOTEL_TYPES)[number]["value"];
+
 type FormState = {
   pickupLocation: string;
   destinations: string[];
@@ -40,6 +49,7 @@ type FormState = {
   budgetMax: number;
   carType: CarType | null;
   hotelRequired: boolean | null;
+  hotelType: HotelType | null;
   additionalNotes: string;
 };
 
@@ -51,6 +61,7 @@ const INITIAL_FORM: FormState = {
   budgetMax: 15000,
   carType: null,
   hotelRequired: null,
+  hotelType: null,
   additionalNotes: "",
 };
 
@@ -215,7 +226,8 @@ export default function CustomPlanScreen() {
     form.budgetMin > 0 &&
     form.budgetMax >= form.budgetMin &&
     form.carType !== null &&
-    form.hotelRequired !== null;
+    form.hotelRequired !== null &&
+    (!form.hotelRequired || form.hotelType !== null);
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -227,7 +239,8 @@ export default function CustomPlanScreen() {
         budgetMin: form.budgetMin,
         budgetMax: form.budgetMax,
         carType: form.carType,
-        hotelRequired: form.hotelRequired,
+        hotelRequired: form.hotelRequired ?? false,
+        hotelType: form.hotelType,
         additionalNotes: form.additionalNotes || undefined,
       });
       setSubmitted(true);
@@ -588,10 +601,13 @@ export default function CustomPlanScreen() {
               {/* Hotel */}
               <Text className={`${labelStyle} mb-2.5`}>Hotel needed?</Text>
               <View className="flex-row gap-3 mb-4">
-                {[true, false].map((val) => (
+                {([true, false] as const).map((val) => (
                   <TouchableOpacity
                     key={String(val)}
-                    onPress={() => update("hotelRequired", val)}
+                    onPress={() => {
+                      update("hotelRequired", val);
+                      if (!val) update("hotelType", null);
+                    }}
                     className={`flex-1 p-3.5 rounded-xl items-center border ${
                       form.hotelRequired === val
                         ? "bg-brand-primary border-brand-primary"
@@ -610,6 +626,49 @@ export default function CustomPlanScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {/* Hotel type picker */}
+              {form.hotelRequired && (
+                <View className="mb-4">
+                  <Text className={`${labelStyle} mb-2`}>
+                    Type of hotel room
+                  </Text>
+                  <View className="gap-2">
+                    {HOTEL_TYPES.map((ht) => (
+                      <TouchableOpacity
+                        key={ht.value}
+                        onPress={() => update("hotelType", ht.value)}
+                        className={`flex-row items-center p-3 rounded-xl border ${
+                          form.hotelType === ht.value
+                            ? "bg-brand-primary border-brand-primary"
+                            : "bg-white border-brand-border"
+                        }`}
+                      >
+                        <View
+                          className={`w-5 h-5 rounded-full border-2 mr-3 items-center justify-center ${
+                            form.hotelType === ht.value
+                              ? "border-white"
+                              : "border-brand-border"
+                          }`}
+                        >
+                          {form.hotelType === ht.value && (
+                            <View className="w-2.5 h-2.5 rounded-full bg-white" />
+                          )}
+                        </View>
+                        <Text
+                          className={`text-[14px] font-semibold ${
+                            form.hotelType === ht.value
+                              ? "text-white"
+                              : "text-gray-700"
+                          }`}
+                        >
+                          {ht.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </Animated.View>
           )}
 

@@ -1,3 +1,4 @@
+import "dotenv/config"; // ← must be FIRST — loads .env before any other import reads process.env
 import { buildApp } from "./app";
 import { prisma } from "./shared/db/prisma";
 import { redis } from "./shared/redis/redis";
@@ -5,10 +6,7 @@ import { LocationRedis } from "./shared/redis/redis";
 import { Role } from "./shared/types/enums";
 import { JWTPayload } from "./shared/types";
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
 import { logger } from "./shared/logger/logger";
-
-dotenv.config();
 
 // Start server entry point
 const start = async () => {

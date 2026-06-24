@@ -13,6 +13,7 @@ type CreateCustomPlanInput = {
   budgetMax: number;
   carType?: VehicleSegment;
   hotelRequired: boolean;
+  hotelType?: string | null;
   additionalNotes?: string;
 };
 
@@ -66,6 +67,19 @@ export async function fetchCustomPlans(filters: {
       orderBy: { createdAt: "desc" },
       include: {
         user: { select: { name: true, phone: true, role: true } },
+        assignedDriver: {
+          include: {
+            user: { select: { name: true, phone: true } },
+            vehicle: {
+              select: {
+                make: true,
+                model: true,
+                segment: true,
+                plateNumber: true,
+              },
+            },
+          },
+        },
       },
     }),
     prisma.customPlan.count({ where }),
@@ -87,6 +101,19 @@ export async function fetchCustomPlanById(id: string) {
     where: { id },
     include: {
       user: { select: { name: true, phone: true, email: true, role: true } },
+      assignedDriver: {
+        include: {
+          user: { select: { name: true, phone: true } },
+          vehicle: {
+            select: {
+              make: true,
+              model: true,
+              segment: true,
+              plateNumber: true,
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -111,6 +138,19 @@ export async function patchCustomPlan(
     },
     include: {
       user: { select: { name: true, phone: true } },
+      assignedDriver: {
+        include: {
+          user: { select: { name: true, phone: true } },
+          vehicle: {
+            select: {
+              make: true,
+              model: true,
+              segment: true,
+              plateNumber: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -166,8 +206,48 @@ export async function assignDriverToCustomPlan(
     },
     include: {
       user: { select: { name: true, phone: true } },
+      assignedDriver: {
+        include: {
+          user: { select: { name: true, phone: true } },
+          vehicle: {
+            select: {
+              make: true,
+              model: true,
+              segment: true,
+              plateNumber: true,
+            },
+          },
+        },
+      },
     },
   });
 
   return updated;
+}
+
+// ── Plans assigned to a driver by admin ─────────────────────────────────────
+
+export async function fetchAssignedCustomPlans(driverProfileId: string) {
+  const plans = await prisma.customPlan.findMany({
+    where: {
+      assignedDriverId: driverProfileId,
+      status: "ACCEPTED",
+    },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      pickupLocation: true,
+      destinations: true,
+      numberOfTravellers: true,
+      carType: true,
+      hotelRequired: true,
+      hotelType: true,
+      additionalNotes: true,
+      driverEarning: true,
+      createdAt: true,
+      updatedAt: true,
+      user: { select: { name: true, phone: true } },
+    },
+  });
+  return plans;
 }

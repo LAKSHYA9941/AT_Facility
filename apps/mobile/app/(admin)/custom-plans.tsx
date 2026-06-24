@@ -52,6 +52,18 @@ type CustomPlan = {
     phone: string;
     role: string;
   };
+  assignedDriver?: {
+    user: {
+      name: string | null;
+      phone: string;
+    };
+    vehicle?: {
+      make: string;
+      model: string;
+      segment: string;
+      plateNumber: string;
+    } | null;
+  } | null;
 };
 
 const STATUS_FILTERS: { label: string; value: PlanStatus | "ALL" }[] = [
@@ -400,21 +412,57 @@ function PlanDetailModal({
               </Text>
               {plan.assignedDriverId ? (
                 <View>
-                  <View className="flex-row items-center gap-1.5 mb-2">
-                    <CheckCircle size={14} color="#16a34a" />
-                    <Text className="text-sm text-green-700 font-semibold">
+                  <View className="flex-row items-center gap-1.5 mb-3 border-b border-gray-100 pb-3">
+                    <CheckCircle size={18} color="#16a34a" />
+                    <Text className="text-base text-green-700 font-bold">
                       Driver Assigned
                     </Text>
                   </View>
-                  <Text className="text-sm text-gray-700">
-                    Platform Commission: ₹{plan.platformCommission}
-                  </Text>
-                  <Text className="text-sm text-gray-700">
-                    Driver Earning: ₹{plan.driverEarning}
-                  </Text>
-                  <Text className="text-xs text-gray-400 mt-1">
-                    Total Quoted: ₹{plan.quotedAmount}
-                  </Text>
+
+                  <View className="mb-3">
+                    <Text className="text-[13px] text-gray-500 mb-0.5">
+                      Driver Info
+                    </Text>
+                    <Text className="text-[15px] font-semibold text-gray-900">
+                      {plan.assignedDriver?.user?.name ?? "Unknown"} •{" "}
+                      {plan.assignedDriver?.user?.phone}
+                    </Text>
+                    {plan.assignedDriver?.vehicle && (
+                      <Text className="text-[13px] text-gray-700 mt-0.5">
+                        {plan.assignedDriver.vehicle.make}{" "}
+                        {plan.assignedDriver.vehicle.model} (
+                        {plan.assignedDriver.vehicle.segment}) •{" "}
+                        {plan.assignedDriver.vehicle.plateNumber}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View className="flex-row justify-between border-t border-gray-100 pt-3">
+                    <View>
+                      <Text className="text-xs text-gray-500">
+                        Platform Commission
+                      </Text>
+                      <Text className="text-sm font-bold text-gray-900">
+                        ₹{plan.platformCommission}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className="text-xs text-gray-500">
+                        Driver Earning
+                      </Text>
+                      <Text className="text-sm font-bold text-gray-900">
+                        ₹{plan.driverEarning}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className="text-xs text-gray-500">
+                        Total Quoted
+                      </Text>
+                      <Text className="text-sm font-bold text-brand-primary">
+                        ₹{plan.quotedAmount}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               ) : showDriverAssignment ? (
                 <View>
