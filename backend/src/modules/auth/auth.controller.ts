@@ -62,6 +62,27 @@ export const authController = {
     }
   },
 
+  updateProfile: async (req: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const user = req.user as JWTPayload;
+      const { name, email, phone, otp } = req.body as {
+        name?: string;
+        email?: string;
+        phone?: string;
+        otp?: string;
+      };
+      const result = await authService.updateProfile(user.userId, {
+        name,
+        email,
+        phone,
+        otp,
+      });
+      return sendSuccess(reply, result, "Profile updated successfully");
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  },
+
   refresh: async (req: FastifyRequest, reply: FastifyReply) => {
     try {
       const { refreshToken, deviceId } = req.body as {
@@ -90,6 +111,16 @@ export const authController = {
       const user = req.user as JWTPayload;
       await authService.logoutAll(user.userId);
       return sendSuccess(reply, null, "Logged out from all devices");
+    } catch (err: any) {
+      return sendError(reply, err.message);
+    }
+  },
+
+  deleteAccount: async (req: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const user = req.user as JWTPayload;
+      await authService.deleteAccount(user.userId);
+      return sendSuccess(reply, null, "Account deleted successfully");
     } catch (err: any) {
       return sendError(reply, err.message);
     }

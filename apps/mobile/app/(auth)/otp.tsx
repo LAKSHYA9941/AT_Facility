@@ -60,6 +60,11 @@ export default function OTPScreen() {
       const result = await verifyOtp(phone, otp.join(""));
       const user = useAuthStore.getState().user;
 
+      // Clear the navigation stack so the back button doesn't go to login
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
+
       // Admin role always goes straight to dashboard — no profile/verification checks
       if (result.role === "ADMIN") {
         router.replace("/(admin)/dashboard");

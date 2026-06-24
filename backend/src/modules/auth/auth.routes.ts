@@ -34,6 +34,12 @@ export const authRoutes = async (app: FastifyInstance) => {
     authController.completeProfile,
   );
 
+  app.put(
+    "/profile",
+    { preHandler: [authGuard] },
+    authController.updateProfile,
+  );
+
   app.post(
     "/logout",
     { schema: { body: logoutSchema.body }, preHandler: [authGuard] },
@@ -45,4 +51,6 @@ export const authRoutes = async (app: FastifyInstance) => {
     { preHandler: [authGuard] },
     authController.logoutAll,
   );
+
+  app.delete("/me", { preHandler: [authGuard] }, authController.deleteAccount);
 };

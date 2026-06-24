@@ -6,6 +6,9 @@ import {
   Switch,
   ActivityIndicator,
   Linking,
+  Alert,
+  Modal,
+  TextInput,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -32,6 +35,7 @@ import {
   Tag,
   Heart,
   Lock,
+  X,
 } from "lucide-react-native";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -520,6 +524,57 @@ export default function AccountScreen() {
 
   const [activeTrip, setActiveTrip] = useState<ActiveTrip | null>(null);
   const [tripLoading, setTripLoading] = useState(true);
+
+  // Profile Edit States
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "" });
+  const [isOtpMode, setIsOtpMode] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const openEditModal = () => {
+    setEditForm({
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+    });
+    setIsOtpMode(false);
+    setOtp("");
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+      setIsUpdating(true);
+      const phoneChanged = editForm.phone && editForm.phone !== user?.phone;
+
+      if (phoneChanged && !isOtpMode) {
+        // Step 1: Phone changed, request OTP
+        await api.post("/api/auth/send-otp", { phone: editForm.phone });
+        setIsOtpMode(true);
+        setIsUpdating(false);
+        return;
+      }
+
+      // Step 2: Apply Update (with OTP if required)
+      await useAuthStore.getState().updateProfile({
+        name: editForm.name,
+        email: editForm.email,
+        phone: editForm.phone,
+        otp: isOtpMode ? otp : undefined,
+      });
+
+      Alert.alert("Success", "Profile updated successfully!");
+      setEditModalVisible(false);
+    } catch (e: any) {
+      Alert.alert(
+        "Error",
+        e.response?.data?.message || "Failed to update profile",
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  };
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   // ── Load active trip ──
@@ -605,33 +660,7 @@ export default function AccountScreen() {
     };
   }
 
-  const walletDisplay =
-    walletBalance != null
-      ? `₹${walletBalance.toLocaleString("en-IN")}`
-      : "₹340.00";
-
   const SECTIONS: { title: string; items: MenuItem[] }[] = [
-    {
-      title: "Payments",
-      items: [
-        {
-          Icon: CreditCard,
-          label: "Saved Cards",
-          sub: "Visa ···· 4242",
-        },
-        {
-          Icon: Wallet,
-          label: "Facility Wallet",
-          sub: `${walletDisplay} available`,
-        },
-        {
-          Icon: Tag,
-          label: "Promo Codes",
-          sub: "FACILITY20 active",
-          badge: "1",
-        },
-      ],
-    },
     {
       title: "Trips",
       items: [
@@ -763,6 +792,7 @@ export default function AccountScreen() {
             {/* Edit button */}
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={openEditModal}
               style={{
                 borderWidth: 1,
                 borderColor: "rgba(255,255,255,0.4)",
@@ -773,55 +803,6 @@ export default function AccountScreen() {
             >
               <Text style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
                 Edit
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Wallet strip */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginTop: 16,
-              backgroundColor: "rgba(255,255,255,0.12)",
-              borderRadius: 16,
-              paddingHorizontal: 16,
-              paddingVertical: 12,
-            }}
-          >
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-            >
-              <Wallet size={18} color="#fff" />
-              <View>
-                <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11 }}>
-                  Facility Wallet
-                </Text>
-                <Text
-                  style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}
-                >
-                  {walletDisplay}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: "#fff",
-                borderRadius: 20,
-                paddingHorizontal: 14,
-                paddingVertical: 7,
-              }}
-            >
-              <Text
-                style={{
-                  color: "#1B4F8A",
-                  fontWeight: "700",
-                  fontSize: 12,
-                }}
-              >
-                Add Money
               </Text>
             </TouchableOpacity>
           </View>
@@ -889,6 +870,40 @@ export default function AccountScreen() {
           </View>
         ))}
 
+        {/* ── DPDP Data Deletion ── */}
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert(
+              "Delete Account",
+              "Are you sure you want to permanently delete your account and all associated data? This action cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => useAuthStore.getState().deleteAccount(),
+                },
+              ],
+            );
+          }}
+          style={{
+            marginHorizontal: 20,
+            marginTop: 32,
+            backgroundColor: "#FEE2E2",
+            padding: 16,
+            borderRadius: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
+          <Trash2 size={20} color="#DC2626" />
+          <Text style={{ color: "#DC2626", fontWeight: "600", fontSize: 16 }}>
+            Delete My Account
+          </Text>
+        </TouchableOpacity>
+
         {/* App version */}
         <Text
           style={{
@@ -901,6 +916,208 @@ export default function AccountScreen() {
           At Facility v1.0.0 · © 2024
         </Text>
       </ScrollView>
+
+      {/* ── Edit Profile Modal ── */}
+      <Modal visible={isEditModalVisible} animationType="slide" transparent>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "flex-end",
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 24,
+              paddingBottom: insets.bottom + 24,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 24,
+              }}
+            >
+              <Text
+                style={{ fontSize: 20, fontWeight: "bold", color: "#1B4F8A" }}
+              >
+                {isOtpMode ? "Verify Phone Number" : "Edit Profile"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setEditModalVisible(false)}
+                style={{
+                  padding: 4,
+                  backgroundColor: "#F3F4F6",
+                  borderRadius: 20,
+                }}
+              >
+                <X size={20} color="#4B5563" />
+              </TouchableOpacity>
+            </View>
+
+            {!isOtpMode ? (
+              <>
+                <Text
+                  style={{
+                    color: "#4B5563",
+                    fontSize: 13,
+                    marginBottom: 6,
+                    fontWeight: "600",
+                  }}
+                >
+                  Full Name
+                </Text>
+                <TextInput
+                  value={editForm.name}
+                  onChangeText={(t) => setEditForm({ ...editForm, name: t })}
+                  style={{
+                    backgroundColor: "#F9FAFB",
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    marginBottom: 16,
+                    color: "#1F2937",
+                  }}
+                  placeholder="Enter your name"
+                />
+
+                <Text
+                  style={{
+                    color: "#4B5563",
+                    fontSize: 13,
+                    marginBottom: 6,
+                    fontWeight: "600",
+                  }}
+                >
+                  Email Address
+                </Text>
+                <TextInput
+                  value={editForm.email}
+                  onChangeText={(t) => setEditForm({ ...editForm, email: t })}
+                  style={{
+                    backgroundColor: "#F9FAFB",
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    marginBottom: 16,
+                    color: "#1F2937",
+                  }}
+                  placeholder="Enter your email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+
+                <Text
+                  style={{
+                    color: "#4B5563",
+                    fontSize: 13,
+                    marginBottom: 6,
+                    fontWeight: "600",
+                  }}
+                >
+                  Phone Number
+                </Text>
+                <TextInput
+                  value={editForm.phone}
+                  onChangeText={(t) => setEditForm({ ...editForm, phone: t })}
+                  style={{
+                    backgroundColor: "#F9FAFB",
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    marginBottom: 24,
+                    color: "#1F2937",
+                  }}
+                  placeholder="Enter your phone number"
+                  keyboardType="phone-pad"
+                />
+              </>
+            ) : (
+              <>
+                <Text
+                  style={{
+                    color: "#4B5563",
+                    fontSize: 14,
+                    marginBottom: 24,
+                    lineHeight: 20,
+                  }}
+                >
+                  We've sent a verification code to{" "}
+                  <Text style={{ fontWeight: "bold" }}>{editForm.phone}</Text>.
+                  Please enter it below to confirm your new phone number.
+                </Text>
+                <Text
+                  style={{
+                    color: "#4B5563",
+                    fontSize: 13,
+                    marginBottom: 6,
+                    fontWeight: "600",
+                  }}
+                >
+                  Verification Code
+                </Text>
+                <TextInput
+                  value={otp}
+                  onChangeText={setOtp}
+                  style={{
+                    backgroundColor: "#F9FAFB",
+                    borderWidth: 1,
+                    borderColor: "#E5E7EB",
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 20,
+                    marginBottom: 24,
+                    color: "#1F2937",
+                    textAlign: "center",
+                    letterSpacing: 8,
+                    fontWeight: "bold",
+                  }}
+                  placeholder="000000"
+                  keyboardType="number-pad"
+                  maxLength={6}
+                />
+              </>
+            )}
+
+            <TouchableOpacity
+              onPress={handleUpdateProfile}
+              disabled={isUpdating}
+              style={{
+                backgroundColor: "#1B4F8A",
+                borderRadius: 12,
+                paddingVertical: 16,
+                alignItems: "center",
+                opacity: isUpdating ? 0.7 : 1,
+              }}
+            >
+              {isUpdating ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text
+                  style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}
+                >
+                  {isOtpMode ? "Verify & Save" : "Save Changes"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

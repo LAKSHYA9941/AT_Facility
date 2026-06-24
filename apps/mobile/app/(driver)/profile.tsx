@@ -6,6 +6,7 @@ import {
   Switch,
   Modal,
   Linking,
+  Alert,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,6 +24,7 @@ import {
   Bell,
   MessageSquare,
   LogOut,
+  Trash2,
 } from "lucide-react-native";
 
 type ToggleItem = { icon: string; label: string; sub: string; key: string };
@@ -265,6 +267,32 @@ export default function DriverProfile() {
               <MenuRow key={item.label} item={item} />
             ))}
           </View>
+        </Animated.View>
+
+        {/* ── DPDP Data Deletion ── */}
+        <Animated.View entering={FadeInDown.delay(260).springify()}>
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert(
+                "Delete Account",
+                "Are you sure you want to permanently delete your account and all associated data? This action cannot be undone.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => useAuthStore.getState().deleteAccount(),
+                  },
+                ],
+              );
+            }}
+            className="mx-5 mt-8 bg-red-100 py-4 rounded-xl flex-row items-center justify-center gap-2"
+          >
+            <Trash2 size={20} color="#DC2626" />
+            <Text className="text-red-600 font-semibold text-base">
+              Delete My Account
+            </Text>
+          </TouchableOpacity>
         </Animated.View>
 
         <Text className="text-brand-sub text-xs text-center py-6">

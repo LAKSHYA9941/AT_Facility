@@ -112,6 +112,10 @@ export default function CompleteProfileScreen() {
     setLoading(true);
     try {
       await uploadIdProof(idType.value, frontImage, backImage || undefined);
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
+
       if (user?.role === "CUSTOMER") router.replace("/(customer)/plan-trip");
       if (user?.role === "DRIVER") router.replace("/(driver)/home");
       if (user?.role === "ADMIN") router.replace("/(admin)/dashboard");

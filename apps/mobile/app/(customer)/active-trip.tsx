@@ -142,7 +142,7 @@ export default function ActiveTripScreen() {
             return;
           }
           try {
-            await api.post(`/api/trips/${tripId}/cancel-customer`, {
+            await api.put(`/api/trips/${tripId}/cancel`, {
               reason: "User requested",
             });
             Alert.alert("Cancelled", "Trip cancelled successfully.");

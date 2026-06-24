@@ -31,8 +31,15 @@ type AuthStore = {
     otp: string,
   ) => Promise<{ isNewUser: boolean; role: Role }>;
   completeProfile: (name: string, email?: string) => Promise<void>;
+  updateProfile: (data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    otp?: string;
+  }) => Promise<void>;
   refresh: () => Promise<boolean>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
   uploadIdProof: (
     idProofType: string,
@@ -108,6 +115,20 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ user: data.data });
   },
 
+  updateProfile: async (data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    otp?: string;
+  }) => {
+    const res = await api.put("/api/auth/profile", data);
+    const updatedUser = res.data.data;
+
+    // Update local storage and store
+    await SecureStorage.setUser(updatedUser);
+    set({ user: updatedUser });
+  },
+
   refresh: async () => {
     try {
       const refreshToken = await SecureStorage.getRefreshToken();
@@ -148,7 +169,27 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } finally {
       await SecureStorage.clear();
       set({ user: null, isAuthenticated: false });
-      router.replace("/(auth)/login");
+
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
+      router.replace("/(onboarding)/welcome");
+    }
+  },
+
+  deleteAccount: async () => {
+    try {
+      await api.delete("/api/auth/me");
+    } catch (e) {
+      console.warn("Delete account API failed or already deleted", e);
+    } finally {
+      await SecureStorage.clear();
+      set({ user: null, isAuthenticated: false });
+
+      if (router.canDismiss()) {
+        router.dismissAll();
+      }
+      router.replace("/(onboarding)/welcome");
     }
   },
 

@@ -176,6 +176,69 @@ export const authService = {
     }
   },
 
+  // ── Update Profile ────────────────────────────────────────
+  updateProfile: async (
+    userId: string,
+    data: { name?: string; email?: string; phone?: string; otp?: string },
+  ) => {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error("User not found");
+
+    if (data.email && data.email !== user.email) {
+      const existing = await prisma.user.findUnique({
+        where: { email: data.email },
+      });
+      if (existing && existing.id !== userId) {
+        throw new Error("Email already in use");
+      }
+    }
+
+    if (data.phone && formatPhone(data.phone) !== user.phone) {
+      const newPhone = formatPhone(data.phone);
+
+      // Validate Indian phone number for drivers
+      if (user.role === Role.DRIVER && !isValidIndianPhone(newPhone)) {
+        throw new Error("Drivers must have a valid Indian phone number (+91)");
+      }
+
+      if (!isValidPhone(newPhone)) {
+        throw new Error("Invalid phone number format");
+      }
+
+      const existingPhone = await prisma.user.findUnique({
+        where: { phone: newPhone },
+      });
+      if (existingPhone && existingPhone.id !== userId) {
+        throw new Error("Phone number already in use");
+      }
+
+      if (!data.otp) {
+        throw new Error("OTP is required to change phone number");
+      }
+
+      // Verify OTP
+      const result = await verifyOTP(newPhone, data.otp);
+      if (!result.valid) {
+        throw new Error(result.reason);
+      }
+
+      data.phone = newPhone;
+    } else {
+      // Unchanged or not provided, remove phone from data
+      delete data.phone;
+    }
+
+    // Remove otp from data before passing to Prisma
+    if (data.otp !== undefined) delete data.otp;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+
+    return updatedUser;
+  },
+
   // ── Logout ────────────────────────────────────────────────
   logout: async (refreshToken: string) => {
     await revokeRefreshToken(refreshToken);
@@ -184,5 +247,80 @@ export const authService = {
   // ── Logout all devices ────────────────────────────────────
   logoutAll: async (userId: string) => {
     await revokeAllUserTokens(userId);
+  },
+
+  // ── DPDP Data Deletion ────────────────────────────────────
+  deleteAccount: async (userId: string) => {
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete all waypoints and payments for customer trips
+      await tx.waypoint.deleteMany({
+        where: { trip: { userId } },
+      });
+      await tx.payment.deleteMany({
+        where: { trip: { userId } },
+      });
+      // Delete Customer Trips
+      await tx.trip.deleteMany({
+        where: { userId },
+      });
+
+      // 2. Handle Driver specific data
+      const driver = await tx.driverProfile.findUnique({ where: { userId } });
+      if (driver) {
+        // Unassign driver from any trips (preserve customer trip history)
+        await tx.trip.updateMany({
+          where: { driverId: driver.id },
+          data: { driverId: null },
+        });
+        await tx.vehicle.deleteMany({ where: { driverId: driver.id } });
+        await tx.driverProfile.delete({ where: { userId } });
+      }
+
+      // 3. Delete Package Bookings
+      // Note: Payment deleteMany for packages handles related payments
+      const packages = await tx.packageBooking.findMany({
+        where: { userId },
+        select: { id: true },
+      });
+      const packageIds = packages.map((p) => p.id);
+      if (packageIds.length > 0) {
+        await tx.payment.deleteMany({
+          where: { packageId: { in: packageIds } },
+        });
+      }
+      await tx.packageBooking.deleteMany({ where: { userId } });
+
+      // 4. Delete Rentals
+      await tx.rentalExtraCharge.deleteMany({ where: { rental: { userId } } });
+      const rentals = await tx.rental.findMany({
+        where: { userId },
+        select: { id: true },
+      });
+      const rentalIds = rentals.map((r) => r.id);
+      if (rentalIds.length > 0) {
+        await tx.payment.deleteMany({ where: { rentalId: { in: rentalIds } } });
+      }
+      await tx.rental.deleteMany({ where: { userId } });
+
+      // 5. Delete Custom Plans
+      const plans = await tx.customPlan.findMany({
+        where: { submittedBy: userId },
+        select: { id: true },
+      });
+      const planIds = plans.map((p) => p.id);
+      if (planIds.length > 0) {
+        await tx.payment.deleteMany({
+          where: { customPlanId: { in: planIds } },
+        });
+      }
+      await tx.customPlan.deleteMany({ where: { submittedBy: userId } });
+
+      // 6. Delete Base User Data
+      await tx.notification.deleteMany({ where: { userId } });
+      await tx.refreshToken.deleteMany({ where: { userId } });
+
+      // 7. Finally delete the User
+      await tx.user.delete({ where: { id: userId } });
+    });
   },
 };

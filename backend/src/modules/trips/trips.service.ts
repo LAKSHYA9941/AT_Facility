@@ -388,6 +388,45 @@ export const tripsService = {
     customerId: string,
     reason: string,
   ) => {
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { payment: true, driver: { include: { user: true } } },
+    });
+
+    if (!trip) throw new Error("Trip not found");
+    if (trip.userId !== customerId) throw new Error("Unauthorized");
+
+    if (
+      trip.status !== TripStatus.PENDING_PAYMENT &&
+      trip.status !== TripStatus.CONFIRMED &&
+      trip.status !== TripStatus.DRIVER_ASSIGNED
+    ) {
+      throw new Error(
+        "Only pending, confirmed, or driver assigned trips can be cancelled",
+      );
+    }
+
+    if (
+      (trip.status === TripStatus.CONFIRMED ||
+        trip.status === TripStatus.DRIVER_ASSIGNED) &&
+      trip.payment?.razorpayPaymentId
+    ) {
+      const paymentsService =
+        new (require("../payments/payments.service").PaymentsService)();
+      const refundAmount = trip.payment.amount
+        ? trip.payment.amount * 0.95
+        : undefined; // 95% refund, 5% charge
+      await paymentsService.processRefund(
+        trip.payment.razorpayPaymentId,
+        refundAmount,
+      );
+
+      await prisma.payment.update({
+        where: { id: trip.payment.id },
+        data: { status: "REFUNDED" },
+      });
+    }
+
     const updatedTrip = await prisma.trip.update({
       where: { id: tripId },
       data: { status: TripStatus.CANCELLED },

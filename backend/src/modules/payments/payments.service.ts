@@ -56,8 +56,23 @@ export class PaymentsService {
       throw new Error("Invalid payment signature");
     }
 
+    // Save paymentId during markOrderAsPaid (we'll pass it)
     await this.markOrderAsPaid(orderId, paymentId);
     return true;
+  }
+
+  async processRefund(paymentId: string, amount?: number) {
+    try {
+      const refundOptions: any = {};
+      if (amount) {
+        refundOptions.amount = Math.round(amount * 100);
+      }
+      const refund = await razorpay.payments.refund(paymentId, refundOptions);
+      return refund;
+    } catch (err: any) {
+      console.error("Razorpay refund error:", err);
+      throw new Error(`Refund failed: ${err.message || "Unknown error"}`);
+    }
   }
 
   async createTripOrder(tripId: string, userId: string) {
@@ -130,7 +145,7 @@ export class PaymentsService {
 
     await prisma.payment.update({
       where: { tripId },
-      data: { status: "CAPTURED" },
+      data: { status: "CAPTURED", razorpayPaymentId: paymentId },
     });
 
     if (trip.user?.phone && trip.startOtp) {
@@ -326,7 +341,7 @@ export class PaymentsService {
     );
   }
 
-  private async markOrderAsFailed(orderId: string, paymentId: string) {
+  private async markOrderAsFailed(orderId: string, paymentId?: string) {
     const pkg = await prisma.packageBooking.findFirst({
       where: { razorpayOrderId: orderId },
     });
@@ -361,13 +376,12 @@ export class PaymentsService {
     const payment = await prisma.payment.findFirst({
       where: { razorpayOrderId: orderId },
     });
-    if (payment) {
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "FAILED", razorpayPaymentId: paymentId },
-      });
-      return;
-    }
+    if (!payment) return;
+
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "FAILED", razorpayPaymentId: paymentId },
+    });
   }
 
   // ── Custom Plan payments ──────────────────────────────────────────────────
