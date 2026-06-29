@@ -6,14 +6,25 @@ import {
   Alert,
   Linking,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import TopBar from "../../components/layout/TopBar";
 import { api } from "../../utils/api";
-import { Phone, CheckCircle, Info, Zap, User } from "lucide-react-native";
+import {
+  Phone,
+  CheckCircle,
+  Info,
+  Zap,
+  User,
+  CreditCard,
+} from "lucide-react-native";
 import { useMockStore, MockTripStatus } from "../../store/mock";
+import { useAuthStore } from "../../store/auth";
+
+const RazorpayCheckout: any = null;
 
 const STATUS_STEPS: MockTripStatus[] = [
   "CONFIRMED",
@@ -37,6 +48,87 @@ export default function ActiveTripScreen() {
   const { activeMockTrip, updateActiveMockTrip, isMockMode } = useMockStore();
   const isMockTrip =
     typeof tripId === "string" && tripId.startsWith("mock-trip-");
+
+  const user = useAuthStore((s) => s.user);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const razorpayAvailable = typeof RazorpayCheckout?.open === "function";
+
+  const handlePayBalance = async () => {
+    if (isMockTrip || isMockMode) {
+      setPaymentLoading(true);
+      await new Promise((r) => setTimeout(r, 1000));
+      updateActiveMockTrip({
+        amountPaidUpfront: activeMockTrip?.totalFare || trip?.totalFare || 0,
+        balanceRemaining: 0,
+      });
+      setPaymentLoading(false);
+      Alert.alert("Success", "Balance paid successfully!");
+      return;
+    }
+
+    if (!razorpayAvailable) {
+      Alert.alert(
+        "Dev Mode",
+        "Razorpay native module not available (Expo Go).",
+      );
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      const orderRes = await api.post("/api/payments/create-balance-order", {
+        tripId,
+      });
+      const { razorpayOrderId, amount, currency, razorpayKeyId } =
+        orderRes.data.data;
+
+      const razorpayOptions = {
+        description: "At Facility Balance Payment",
+        image: "",
+        currency: currency ?? "INR",
+        key: razorpayKeyId,
+        amount: String(amount),
+        name: "At Facility",
+        order_id: razorpayOrderId,
+        prefill: {
+          email: user?.email ?? "",
+          contact: user?.phone ?? "",
+          name: user?.name ?? "",
+        },
+        theme: { color: "#1B4F8A" },
+      };
+
+      const paymentData = await RazorpayCheckout.open(razorpayOptions);
+
+      const verifyRes = await api.post("/api/payments/verify-balance", {
+        tripId,
+        razorpayOrderId: paymentData.razorpay_order_id,
+        razorpayPaymentId: paymentData.razorpay_payment_id,
+        razorpaySignature: paymentData.razorpay_signature,
+      });
+
+      if (verifyRes.data.success) {
+        Alert.alert("Success", "Balance paid successfully!");
+        fetchTrip();
+      } else {
+        throw new Error("Verification failed");
+      }
+    } catch (e: any) {
+      if (
+        e?.code === "PAYMENT_CANCELLED" ||
+        e?.description === "Cancelled by user"
+      ) {
+        setPaymentLoading(false);
+        return;
+      }
+      Alert.alert(
+        "Error",
+        e.response?.data?.message ?? e.message ?? "Payment failed",
+      );
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
   const [trip, setTrip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -342,19 +434,42 @@ export default function ActiveTripScreen() {
             </Text>
           </View>
           <View className="flex-row justify-between mt-2 pt-2 border-t border-gray-100">
-            <Text className="font-bold text-gray-800">Balance to Driver</Text>
+            <Text className="font-bold text-gray-800">Balance</Text>
             <Text className="font-bold text-orange-500">
-              ₹{trip.totalFare - trip.amountPaidUpfront}
+              ₹
+              {trip.balanceRemaining ?? trip.totalFare - trip.amountPaidUpfront}
             </Text>
           </View>
           <View className="flex-row justify-between mt-2">
             <Text className="text-gray-600">Payment Method</Text>
             <Text className="font-bold text-gray-800">
-              {trip.totalFare - trip.amountPaidUpfront > 0
+              {(trip.balanceRemaining ??
+                trip.totalFare - trip.amountPaidUpfront) > 0
                 ? "Cash (to Driver)"
                 : "Online"}
             </Text>
           </View>
+
+          {/* Pay Balance Button */}
+          {(trip.balanceRemaining ?? trip.totalFare - trip.amountPaidUpfront) >
+            0 && (
+            <TouchableOpacity
+              onPress={handlePayBalance}
+              disabled={paymentLoading}
+              className={`mt-4 p-3 rounded-xl flex-row items-center justify-center ${paymentLoading ? "bg-gray-400" : "bg-brand-primary"}`}
+            >
+              {paymentLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <CreditCard size={18} color="#fff" />
+                  <Text className="text-white font-bold ml-2">
+                    Pay Balance Online
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Cancel Button */}

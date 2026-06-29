@@ -125,7 +125,9 @@ export default function DriverJobsScreen() {
 
         {jobs.length === 0 && kycStatus === "VERIFIED" ? (
           <View className="flex-1 items-center justify-center pb-20">
-            <Map size={48} color="#9ca3af" style={{ marginBottom: 16 }} />
+            <View className="mb-4">
+              <Map size={48} color="#9ca3af" />
+            </View>
             <Text className="text-gray-500 text-center px-10">
               No trips available right now. Stay online to see new jobs as they
               come in.
@@ -154,10 +156,25 @@ export default function DriverJobsScreen() {
                       {item.waypoints?.[0]?.address || item.pickupAddress}
                     </Text>
                   </View>
-                  <View className="bg-blue-50 px-2 py-1 rounded">
-                    <Text className="text-brand-primary font-bold text-xs">
-                      {item.vehicleSegment}
-                    </Text>
+                  <View className="flex-row items-center gap-2">
+                    <View className="bg-blue-50 px-2 py-1 rounded">
+                      <Text className="text-brand-primary font-bold text-xs">
+                        {item.vehicleSegment}
+                      </Text>
+                    </View>
+                    {item.pricingTier && (
+                      <View
+                        className={`px-2 py-1 rounded ${item.pricingTier === "ALL_INCLUSIVE" ? "bg-blue-100" : "bg-yellow-100"}`}
+                      >
+                        <Text
+                          className={`font-bold text-[10px] ${item.pricingTier === "ALL_INCLUSIVE" ? "text-blue-800" : "text-yellow-800"}`}
+                        >
+                          {item.pricingTier === "ALL_INCLUSIVE"
+                            ? "ALL INCLUSIVE"
+                            : "EXCLUSION"}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
 

@@ -1,10 +1,16 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CheckCircle2 } from "lucide-react-native";
+import { CheckCircle2, XCircle } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
+import {
+  ALL_INCLUSIVE_FEATURES,
+  EXCLUSION_FEATURES,
+  EXCLUSION_NOT_INCLUDED,
+} from "../../constants/pricing";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,12 +29,17 @@ type PaymentTierBreakdown = {
   balance: number;
 };
 
-type FleetOption = {
-  segment: string;
+type FleetOptionTier = {
   baseFare: number;
   driverAllowance: number;
   totalFare: number;
   paymentTiers: Record<PaymentTierKey, PaymentTierBreakdown>;
+};
+
+type FleetOption = {
+  segment: string;
+  allInclusive: FleetOptionTier;
+  exclusion: FleetOptionTier;
 };
 
 type FareEstimates = {
@@ -48,7 +59,7 @@ const SEGMENT_ORDER = [
   "SEDAN",
   "MINI_SUV",
   "SUV",
-  "TEMPO",
+  "TRAVELLER",
   "URBANIA",
 ] as const;
 
@@ -77,7 +88,7 @@ const SEGMENT_IMAGES: Record<string, any> = {
   SEDAN: require("../../assets/images/swift_dzire_icon.avif"),
   MINI_SUV: require("../../assets/images/ertiga_icon.avif"),
   SUV: require("../../assets/images/innova_crysta.avif"),
-  TEMPO: require("../../assets/images/tempo_traveller.avif"),
+  TRAVELLER: require("../../assets/images/tempo_traveller.avif"),
   URBANIA: require("../../assets/images/urbania_icon.webp"),
 };
 
@@ -85,9 +96,16 @@ export default function FleetSelectionScreen() {
   const router = useRouter();
   const rawParams = useLocalSearchParams();
 
-  // Expo Router bug: useLocalSearchParams drops data on state updates in some versions.
-  // Lock the params into state on initial mount so they survive re-renders.
-  const [params] = useState(rawParams);
+  // Use useLocalSearchParams directly. If the bug exists where it drops on re-render,
+  // we'll keep a fallback to the previous valid params.
+  const [params, setParams] = useState(rawParams);
+  const rawParamsStr = JSON.stringify(rawParams);
+
+  useEffect(() => {
+    if (Object.keys(rawParams).length > 0) {
+      setParams(rawParams);
+    }
+  }, [rawParamsStr]);
 
   const waypoints = useMemo<Waypoint[]>(() => {
     const raw = params.waypoints;
@@ -123,26 +141,55 @@ export default function FleetSelectionScreen() {
       pct100: { upfront: 0, balance: 0 },
     };
 
-    const baseEstimates = fareData?.estimates ? [...fareData.estimates] : [];
+    let baseEstimates = fareData?.estimates ? [...fareData.estimates] : [];
+
+    const defaultTierBreakdown = {
+      baseFare: 0,
+      driverAllowance: 0,
+      totalFare: 0,
+      paymentTiers: defaultTiers,
+    };
 
     const hasUrbania = baseEstimates.some((item) => item.segment === "URBANIA");
     if (!hasUrbania) {
       baseEstimates.push({
         segment: "URBANIA",
-        baseFare: 0,
-        driverAllowance: 0,
-        totalFare: 0,
-        paymentTiers: defaultTiers,
+        allInclusive: defaultTierBreakdown,
+        exclusion: defaultTierBreakdown,
       });
+    }
+
+    const hasTraveller = baseEstimates.some(
+      (item) => item.segment === "TRAVELLER",
+    );
+    if (!hasTraveller) {
+      baseEstimates.push({
+        segment: "TRAVELLER",
+        allInclusive: defaultTierBreakdown,
+        exclusion: defaultTierBreakdown,
+      });
+    }
+
+    if (passengerCount > 8) {
+      baseEstimates = baseEstimates.filter(
+        (item) => !["HATCHBACK", "SEDAN", "MINI_SUV"].includes(item.segment),
+      );
+    } else if (passengerCount > 4) {
+      baseEstimates = baseEstimates.filter(
+        (item) => !["HATCHBACK", "SEDAN"].includes(item.segment),
+      );
     }
 
     return baseEstimates.sort(
       (a, b) => getSegmentOrder(a.segment) - getSegmentOrder(b.segment),
     );
-  }, [fareData]);
+  }, [fareData, passengerCount]);
 
   const [selectedSegment, setSelectedSegment] = useState<FleetOption | null>(
     null,
+  );
+  const [pricingTier, setPricingTier] = useState<"ALL_INCLUSIVE" | "EXCLUSION">(
+    "ALL_INCLUSIVE",
   );
   const [paymentTier, setPaymentTier] = useState<PaymentTier>(25);
   const [loading, setLoading] = useState(false);
@@ -158,7 +205,7 @@ export default function FleetSelectionScreen() {
     !fareData;
 
   useEffect(() => {
-    if (isDataInvalid) {
+    if (Object.keys(params).length > 0 && isDataInvalid) {
       Alert.alert(
         "Missing details",
         "We couldn't load your trip details. Please start again.",
@@ -170,7 +217,7 @@ export default function FleetSelectionScreen() {
         ],
       );
     }
-  }, [isDataInvalid]);
+  }, [isDataInvalid, params]);
 
   useEffect(() => {
     if (!selectedSegment && fleet.length > 0) {
@@ -182,12 +229,23 @@ export default function FleetSelectionScreen() {
     if (!selectedSegment || isDataInvalid) return;
 
     if (
-      selectedSegment.segment === "TEMPO" ||
+      selectedSegment.segment === "TRAVELLER" ||
       selectedSegment.segment === "URBANIA"
     ) {
       Alert.alert(
-        "Request Received",
-        "A trip specialist will reach out to confirm availability and pricing for this vehicle.",
+        "Require Bus",
+        "For larger vehicles, please fill out the contact form on our website. A trip specialist will reach out to confirm availability.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Open Website",
+            onPress: () => {
+              Linking.openURL(
+                "https://at-facilities.vercel.app/contact?notes=Required%20BUS",
+              );
+            },
+          },
+        ],
       );
       return;
     }
@@ -197,6 +255,9 @@ export default function FleetSelectionScreen() {
       setLoading(true);
       const tierKey = tierToKey(paymentTier);
 
+      const tierProp =
+        pricingTier === "ALL_INCLUSIVE" ? "allInclusive" : "exclusion";
+
       const res = await api.post("/api/trips/create", {
         tripType,
         waypoints,
@@ -204,7 +265,8 @@ export default function FleetSelectionScreen() {
         endDate,
         passengerCount,
         vehicleSegment: selectedSegment.segment,
-        totalFare: selectedSegment.totalFare,
+        pricingTier,
+        totalFare: selectedSegment[tierProp].totalFare,
         selectedPercentage: paymentTier,
       });
 
@@ -213,9 +275,10 @@ export default function FleetSelectionScreen() {
         params: {
           tripId: res.data.data.tripId,
           amountPaidUpfront:
-            selectedSegment.paymentTiers[tierKey].upfront.toString(),
-          totalFare: selectedSegment.totalFare.toString(),
-          balance: selectedSegment.paymentTiers[tierKey].balance.toString(),
+            selectedSegment[tierProp].paymentTiers[tierKey].upfront.toString(),
+          totalFare: selectedSegment[tierProp].totalFare.toString(),
+          balance:
+            selectedSegment[tierProp].paymentTiers[tierKey].balance.toString(),
         },
       });
     } catch (error: any) {
@@ -228,14 +291,29 @@ export default function FleetSelectionScreen() {
     }
   };
 
+  if (Object.keys(params).length === 0) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
+        <TopBar title="Select Vehicle" onBack={() => router.back()} showBack />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#1B4F8A" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (isDataInvalid) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
         <TopBar title="Select Vehicle" onBack={() => router.back()} showBack />
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-gray-600 text-center">
+          <Text className="text-gray-600 text-center mb-4">
             We couldn't load the fleet options. Please go back and try
             estimating your trip again.
+          </Text>
+          {/* Debugging info to help if this occurs again */}
+          <Text className="text-[10px] text-gray-400 text-center">
+            {`Debug: tripType=${!!tripType}, startDate=${!!startDate}, endDate=${!!endDate}, pax=${passengerCount}, waypoints=${waypoints.length}, fareData=${!!fareData}`}
           </Text>
         </View>
       </SafeAreaView>
@@ -246,6 +324,8 @@ export default function FleetSelectionScreen() {
   const dropLabel =
     waypoints[waypoints.length - 1]?.address?.split(",")[0] ?? "Destination";
   const tierKey = tierToKey(paymentTier);
+  const tierProp =
+    pricingTier === "ALL_INCLUSIVE" ? "allInclusive" : "exclusion";
 
   const routeDisplay =
     tripType === "ROUND_TRIP"
@@ -265,6 +345,33 @@ export default function FleetSelectionScreen() {
           </Text>
         </View>
 
+        <View className="flex-row bg-[#F3F4F6] rounded-xl p-1 mb-6">
+          <TouchableOpacity
+            onPress={() => setPricingTier("ALL_INCLUSIVE")}
+            className={`flex-1 py-3 items-center rounded-lg ${
+              pricingTier === "ALL_INCLUSIVE" ? "bg-white" : ""
+            }`}
+          >
+            <Text
+              className={`font-bold text-sm ${pricingTier === "ALL_INCLUSIVE" ? "text-[#1B4F8A]" : "text-gray-500"}`}
+            >
+              All-Inclusive
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setPricingTier("EXCLUSION")}
+            className={`flex-1 py-3 items-center rounded-lg ${
+              pricingTier === "EXCLUSION" ? "bg-white" : ""
+            }`}
+          >
+            <Text
+              className={`font-bold text-sm ${pricingTier === "EXCLUSION" ? "text-[#1B4F8A]" : "text-gray-500"}`}
+            >
+              Exclusion
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -273,7 +380,7 @@ export default function FleetSelectionScreen() {
           {fleet.map((vehicle) => {
             const isSelected = selectedSegment?.segment === vehicle.segment;
             const showOnRequest =
-              vehicle.segment === "TEMPO" || vehicle.segment === "URBANIA";
+              vehicle.segment === "TRAVELLER" || vehicle.segment === "URBANIA";
 
             return (
               <TouchableOpacity
@@ -323,7 +430,7 @@ export default function FleetSelectionScreen() {
                 <Text style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
                   {showOnRequest
                     ? "Available on request"
-                    : `₹${vehicle.totalFare}`}
+                    : `₹${vehicle[tierProp].totalFare}`}
                 </Text>
               </TouchableOpacity>
             );
@@ -340,10 +447,10 @@ export default function FleetSelectionScreen() {
                 Base Fare ({fareData.effectiveKm} km min)
               </Text>
               <Text className="font-semibold">
-                {selectedSegment.segment === "TEMPO" ||
+                {selectedSegment.segment === "TRAVELLER" ||
                 selectedSegment.segment === "URBANIA"
                   ? "—"
-                  : `₹${selectedSegment.baseFare}`}
+                  : `₹${selectedSegment[tierProp].baseFare}`}
               </Text>
             </View>
             <View className="flex-row justify-between mb-2">
@@ -351,10 +458,10 @@ export default function FleetSelectionScreen() {
                 Driver Allowance ({fareData.days} days)
               </Text>
               <Text className="font-semibold">
-                {selectedSegment.segment === "TEMPO" ||
+                {selectedSegment.segment === "TRAVELLER" ||
                 selectedSegment.segment === "URBANIA"
                   ? "—"
-                  : `₹${selectedSegment.driverAllowance}`}
+                  : `₹${selectedSegment[tierProp].driverAllowance}`}
               </Text>
             </View>
             <View className="flex-row justify-between mt-3 pt-3 border-t border-gray-100">
@@ -362,11 +469,43 @@ export default function FleetSelectionScreen() {
                 Total Fare
               </Text>
               <Text className="font-bold text-lg text-brand-primary">
-                {selectedSegment.segment === "TEMPO" ||
+                {selectedSegment.segment === "TRAVELLER" ||
                 selectedSegment.segment === "URBANIA"
                   ? "Available on request"
-                  : `₹${selectedSegment.totalFare}`}
+                  : `₹${selectedSegment[tierProp].totalFare}`}
               </Text>
+            </View>
+
+            {/* Feature Checklists */}
+            <View className="mt-4 pt-4 border-t border-gray-100">
+              <Text className="font-bold text-sm text-gray-800 mb-2">
+                What's Included
+              </Text>
+              {(pricingTier === "ALL_INCLUSIVE"
+                ? ALL_INCLUSIVE_FEATURES
+                : EXCLUSION_FEATURES
+              ).map((feature, i) => (
+                <View key={i} className="flex-row items-center mb-1.5">
+                  <CheckCircle2 size={14} color="#10B981" />
+                  <Text className="text-xs text-gray-600 ml-2">{feature}</Text>
+                </View>
+              ))}
+
+              {pricingTier === "EXCLUSION" && (
+                <View className="mt-2">
+                  <Text className="font-bold text-sm text-gray-800 mb-2">
+                    Not Included
+                  </Text>
+                  {EXCLUSION_NOT_INCLUDED.map((feature, i) => (
+                    <View key={i} className="flex-row items-center mb-1.5">
+                      <XCircle size={14} color="#EF4444" />
+                      <Text className="text-xs text-gray-400 ml-2 line-through">
+                        {feature}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -380,10 +519,11 @@ export default function FleetSelectionScreen() {
               {[25, 50, 100].map((tier) => {
                 const tierKeyOption = tierToKey(tier as PaymentTier);
                 const disabledTier =
-                  selectedSegment.segment === "TEMPO" ||
+                  selectedSegment.segment === "TRAVELLER" ||
                   selectedSegment.segment === "URBANIA";
                 const upfront =
-                  selectedSegment.paymentTiers?.[tierKeyOption]?.upfront ?? 0;
+                  selectedSegment[tierProp].paymentTiers?.[tierKeyOption]
+                    ?.upfront ?? 0;
                 const isActive = paymentTier === tier;
 
                 return (
@@ -432,10 +572,10 @@ export default function FleetSelectionScreen() {
               })}
             </View>
             <Text className="text-xs text-gray-500 text-center">
-              {selectedSegment.segment === "TEMPO" ||
+              {selectedSegment.segment === "TRAVELLER" ||
               selectedSegment.segment === "URBANIA"
                 ? "Our team will confirm availability and pricing manually."
-                : `Balance of ₹${selectedSegment.paymentTiers?.[tierKey]?.balance ?? 0} paid directly to driver during trip.`}
+                : `Balance of ₹${selectedSegment[tierProp].paymentTiers?.[tierKey]?.balance ?? 0} paid directly to driver during trip.`}
             </Text>
           </View>
         )}

@@ -29,7 +29,7 @@ import { useMockStore, MOCK_WAYPOINTS } from "../../store/mock";
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const RAZORPAY_KEY = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? "";
+// No hardcoded key needed. Key is fetched from backend order payload.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
@@ -100,14 +100,14 @@ export default function CheckoutScreen() {
     try {
       // Step 1: Create order on backend
       const orderRes = await api.post("/api/payments/create-order", { tripId });
-      const { orderId, amount, currency } = orderRes.data.data;
+      const { orderId, amount, currency, key } = orderRes.data.data;
 
       // Step 2: Open Razorpay checkout sheet
       const razorpayOptions = {
         description: "At Facility Trip Payment",
         image: "", // logo url if available
         currency: currency ?? "INR",
-        key: RAZORPAY_KEY,
+        key: key,
         amount: String(amount), // amount in paise
         name: "At Facility",
         order_id: orderId,
@@ -188,15 +188,13 @@ export default function CheckoutScreen() {
   const handlePayment = () => {
     if (isMock) {
       handleMockPayment();
-    } else if (RAZORPAY_KEY && razorpayAvailable) {
+    } else if (razorpayAvailable) {
       handleRazorpayPayment();
     } else {
       // Native module unavailable (Expo Go) or no key — use bypass
       Alert.alert(
         "Dev Mode",
-        razorpayAvailable
-          ? "Razorpay key not configured. Using bypass payment for development."
-          : "Razorpay native module not available (Expo Go). Using bypass payment.",
+        "Razorpay native module not available (Expo Go). Using bypass payment.",
         [
           { text: "Cancel", style: "cancel", onPress: () => {} },
           { text: "Proceed (Dev)", onPress: handleBypassPayment },
@@ -244,35 +242,6 @@ export default function CheckoutScreen() {
             <Zap size={14} color="#92400E" fill="#92400E" />
             <Text style={{ fontSize: 12, color: "#92400E", fontWeight: "700" }}>
               Mock Payment — No real charge will be made
-            </Text>
-          </View>
-        )}
-
-        {!isMock && !RAZORPAY_KEY && (
-          <View
-            style={{
-              backgroundColor: "#fef2f2",
-              borderRadius: 10,
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              borderWidth: 1,
-              borderColor: "#fca5a5",
-              marginBottom: 16,
-              gap: 8,
-            }}
-          >
-            <Zap size={14} color="#b91c1c" fill="#b91c1c" />
-            <Text
-              style={{
-                fontSize: 12,
-                color: "#b91c1c",
-                fontWeight: "700",
-                flex: 1,
-              }}
-            >
-              Dev mode: Razorpay key not set. Payment will use bypass.
             </Text>
           </View>
         )}
@@ -390,16 +359,16 @@ export default function CheckoutScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontWeight: "700", color: "#111827", fontSize: 14 }}>
-              {isMock
-                ? "Mock Payment"
-                : RAZORPAY_KEY
-                  ? "Razorpay"
-                  : "Dev Bypass"}
+              {loading
+                ? "Processing..."
+                : razorpayAvailable
+                  ? `Pay ₹${amountPaidUpfront}`
+                  : `Bypass Payment (₹${amountPaidUpfront})`}
             </Text>
             <Text style={{ color: "#6B7280", fontSize: 12, marginTop: 2 }}>
               {isMock
                 ? "Simulated — no real charge"
-                : RAZORPAY_KEY
+                : razorpayAvailable
                   ? "UPI, Cards, Wallets & more"
                   : "Development bypass mode"}
             </Text>

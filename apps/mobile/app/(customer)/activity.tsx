@@ -235,17 +235,7 @@ export default function ActivityScreen() {
   };
 
   const handlePayBalance = (item: any) => {
-    // Navigate to checkout with balance-as-upfront so user goes through the proper payment flow
-    router.push({
-      pathname: "/(customer)/checkout",
-      params: {
-        tripId: item.id,
-        totalFare: String(item.totalFare ?? 0),
-        amountPaidUpfront: String(item.balanceRemaining ?? 0),
-        balance: "0",
-        vehicleSegment: item.vehicleSegment ?? "SEDAN",
-      },
-    });
+    router.push(`/(customer)/active-trip?tripId=${item.id}`);
   };
 
   return (

@@ -19,7 +19,7 @@ import { useAuthStore } from "../../store/auth";
 import RazorpayCheckout from "react-native-razorpay";
 import { Check, X } from "lucide-react-native";
 
-const RAZORPAY_KEY = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID ?? "";
+// No hardcoded key needed. Key is fetched from backend order payload.
 
 const CAR_TYPES = ["HATCHBACK", "SEDAN", "MINI_SUV", "SUV", "TEMPO"] as const;
 type CarType = (typeof CAR_TYPES)[number];
@@ -146,13 +146,18 @@ export default function CustomPlanScreen() {
           planId,
         },
       );
-      const { orderId, amount: amountPaise, currency } = orderRes.data.data;
+      const {
+        orderId,
+        amount: amountPaise,
+        currency,
+        key,
+      } = orderRes.data.data;
 
       const razorpayOptions = {
         description: "At Facility Custom Plan Payment",
         image: "",
         currency: currency ?? "INR",
-        key: RAZORPAY_KEY,
+        key: key,
         amount: String(amountPaise),
         name: "At Facility",
         order_id: orderId,

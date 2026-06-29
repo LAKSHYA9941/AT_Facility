@@ -5,10 +5,13 @@ type Props = {
   className?: string;
 };
 
-export default function Card({ children, className }: Props) {
+export default function Card({
+  children,
+  className,
+}: Props): React.JSX.Element {
   return (
     <View
-      className={`bg-brand-card rounded-3xl p-6 shadow-sm ${className ?? ""}`}
+      className={`bg-brand-card rounded-3xl p-6 ${className ?? ""}`}
       style={{
         shadowColor: "#1B4F8A",
         shadowOffset: { width: 0, height: 4 },

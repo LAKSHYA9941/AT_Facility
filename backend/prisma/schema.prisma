@@ -15,6 +15,11 @@ enum TripType {
   ROUND_TRIP
 }
 
+enum PricingTier {
+  ALL_INCLUSIVE
+  EXCLUSION
+}
+
 enum Role {
   CUSTOMER
   DRIVER
@@ -95,6 +100,11 @@ enum CustomPlanStatus {
   QUOTED
   ACCEPTED
   REJECTED
+}
+
+enum PaymentType {
+  UPFRONT
+  BALANCE
 }
 
 // ==================== CORE USER ====================
@@ -261,6 +271,7 @@ model Trip {
   endDate        DateTime
   passengerCount Int
   vehicleSegment VehicleSegment
+  pricingTier    PricingTier    @default(ALL_INCLUSIVE)
 
   // Financials
   totalFare         Float
@@ -277,7 +288,7 @@ model Trip {
 
   // Relations
   waypoints Waypoint[]
-  payment   Payment?
+  payments  Payment[]
   user      User           @relation("CustomerTrips", fields: [userId], references: [id])
   driver    DriverProfile? @relation("DriverTrips", fields: [driverId], references: [id])
 
@@ -301,7 +312,7 @@ model Waypoint {
 
 model Payment {
   id        String          @id @default(cuid())
-  tripId    String?         @unique
+  tripId    String?
   trip      Trip?           @relation(fields: [tripId], references: [id])
   packageId String?         @unique
   package   PackageBooking? @relation(fields: [packageId], references: [id])
@@ -310,13 +321,18 @@ model Payment {
   customPlanId String?      @unique
   customPlan   CustomPlan?  @relation(fields: [customPlanId], references: [id])
 
+  type            PaymentType     @default(UPFRONT)
   razorpayOrderId String?
-  status          String  @default("INITIATED")
+  status          String          @default("INITIATED")
+  method          PaymentMethod?
   amount          Float?
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   razorpayPaymentId String?  @unique
+
+  @@unique([tripId, type])
+  @@index([razorpayOrderId])
 }
 
 // ==================== PACKAGES ====================

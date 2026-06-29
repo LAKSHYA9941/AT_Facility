@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import ScreenWrapper from "../../components/layout/ScreenWrapper";
@@ -43,7 +44,10 @@ export default function PhoneScreen() {
       await sendOtp(phone);
       router.push({ pathname: "/(auth)/otp", params: { phone } });
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || "Failed to send OTP");
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || err.message || "Failed to send OTP",
+      );
     } finally {
       setLoading(false);
     }

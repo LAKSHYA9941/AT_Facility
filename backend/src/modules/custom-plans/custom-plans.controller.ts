@@ -1,4 +1,3 @@
-// backend/src/modules/custom-plans/custom-plans.controller.ts
 import { FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
@@ -10,12 +9,9 @@ import {
   assignDriverToCustomPlan as assignDriverService,
   fetchAssignedCustomPlans,
 } from "./custom-plans.service";
-import {
-  sendSuccess,
-  sendError,
-  sendNotFound,
-} from "../../shared/utils/response";
+import { sendSuccess } from "../../shared/utils/response";
 import { VehicleSegment } from "@prisma/client";
+import { AppError } from "../../shared/utils/errors";
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -67,101 +63,80 @@ const assignDriverSchema = z.object({
 export async function submitCustomPlan(
   req: FastifyRequest,
   reply: FastifyReply,
-) {
-  try {
-    const body = submitSchema.parse(req.body);
-    const { userId, role } = req.user as { userId: string; role: string };
-    const plan = await createCustomPlan(userId, role as any, body);
-    return sendSuccess(reply, plan, "Custom plan submitted successfully", 201);
-  } catch (err: any) {
-    return sendError(reply, err.message);
-  }
+): Promise<void> {
+  const body = submitSchema.parse(req.body);
+  const { userId, role } = req.user as { userId: string; role: string };
+  const plan = await createCustomPlan(userId, role as any, body);
+  return sendSuccess(reply, plan, "Custom plan submitted successfully", 201);
 }
 
 export async function listCustomPlans(
   req: FastifyRequest,
   reply: FastifyReply,
-) {
-  try {
-    const query = listQuerySchema.parse(req.query);
-    const result = await fetchCustomPlans(query);
-    return sendSuccess(reply, result, "Custom plans fetched");
-  } catch (err: any) {
-    return sendError(reply, err.message);
-  }
+): Promise<void> {
+  const query = listQuerySchema.parse(req.query);
+  const result = await fetchCustomPlans(query);
+  return sendSuccess(reply, result, "Custom plans fetched");
 }
 
 export async function getCustomPlanById(
   req: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply,
-) {
-  try {
-    const plan = await fetchCustomPlanById(req.params.id);
-    if (!plan) return sendNotFound(reply, "Custom plan not found");
-    return sendSuccess(reply, plan, "Custom plan fetched");
-  } catch (err: any) {
-    return sendError(reply, err.message);
+): Promise<void> {
+  const plan = await fetchCustomPlanById(req.params.id);
+  if (!plan) {
+    throw new AppError("Custom plan not found", 404);
   }
+  return sendSuccess(reply, plan, "Custom plan fetched");
 }
 
 export async function updateCustomPlan(
   req: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply,
-) {
-  try {
-    const { userId } = req.user as { userId: string };
-    const body = updateSchema.parse(req.body);
-    const plan = await patchCustomPlan(req.params.id, userId, body);
-    return sendSuccess(reply, plan, "Custom plan updated");
-  } catch (err: any) {
-    return sendError(reply, err.message);
-  }
+): Promise<void> {
+  const { userId } = req.user as { userId: string };
+  const body = updateSchema.parse(req.body);
+  const plan = await patchCustomPlan(req.params.id, userId, body);
+  return sendSuccess(reply, plan, "Custom plan updated");
 }
 
-export async function myCustomPlans(req: FastifyRequest, reply: FastifyReply) {
-  try {
-    const { userId } = req.user as { userId: string };
-    const plans = await fetchMyCustomPlans(userId);
-    return sendSuccess(reply, plans, "My custom plans fetched");
-  } catch (err: any) {
-    return sendError(reply, err.message);
-  }
+export async function myCustomPlans(
+  req: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const { userId } = req.user as { userId: string };
+  const plans = await fetchMyCustomPlans(userId);
+  return sendSuccess(reply, plans, "My custom plans fetched");
 }
 
 export async function getAssignedToMe(
   req: FastifyRequest,
   reply: FastifyReply,
-) {
-  try {
-    const { userId } = req.user as { userId: string };
-    const { default: prisma } = await import("../../shared/db/prisma");
-    const profile = await prisma.driverProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-    if (!profile) return sendSuccess(reply, [], "No driver profile found");
-    const plans = await fetchAssignedCustomPlans(profile.id);
-    return sendSuccess(reply, plans, "Assigned custom plans fetched");
-  } catch (err: any) {
-    return sendError(reply, err.message);
+): Promise<void> {
+  const { userId } = req.user as { userId: string };
+  const { default: prisma } = await import("../../shared/db/prisma");
+  const profile = await prisma.driverProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  if (!profile) {
+    return sendSuccess(reply, [], "No driver profile found");
   }
+  const plans = await fetchAssignedCustomPlans(profile.id);
+  return sendSuccess(reply, plans, "Assigned custom plans fetched");
 }
 
 export async function assignDriver(
   req: FastifyRequest<{ Params: { id: string } }>,
   reply: FastifyReply,
-) {
-  try {
-    const { userId } = req.user as { userId: string };
-    const body = assignDriverSchema.parse(req.body);
-    const plan = await assignDriverService(
-      req.params.id,
-      userId,
-      body.driverProfileId,
-      body.platformCommission,
-    );
-    return sendSuccess(reply, plan, "Driver assigned to custom plan");
-  } catch (err: any) {
-    return sendError(reply, err.message);
-  }
+): Promise<void> {
+  const { userId } = req.user as { userId: string };
+  const body = assignDriverSchema.parse(req.body);
+  const plan = await assignDriverService(
+    req.params.id,
+    userId,
+    body.driverProfileId,
+    body.platformCommission,
+  );
+  return sendSuccess(reply, plan, "Driver assigned to custom plan");
 }

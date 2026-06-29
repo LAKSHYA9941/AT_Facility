@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, Text, View, TextInput } from "react-native";
+import { ScrollView, Text, View, TextInput, Alert } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import ScreenWrapper from "../../components/layout/ScreenWrapper";
 import AppLogo from "../../components/ui/AppLogo";
@@ -21,7 +21,10 @@ export default function LoginScreen() {
       await sendOtp(phone);
       router.push({ pathname: "/(auth)/otp", params: { phone } });
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || "Failed to send OTP");
+      Alert.alert(
+        "Development Notice",
+        "Login with phone is coming soon. Use bypass to test app flows.",
+      );
     } finally {
       setLoading(false);
     }

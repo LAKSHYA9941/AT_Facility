@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import ScreenWrapper from "../../components/layout/ScreenWrapper";
@@ -84,7 +85,10 @@ export default function OTPScreen() {
         if (result.role === "DRIVER") router.replace("/(driver)/home");
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || "Invalid OTP");
+      Alert.alert(
+        "Error",
+        err.response?.data?.message || err.message || "Invalid OTP",
+      );
     } finally {
       setLoading(false);
     }

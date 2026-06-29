@@ -11,6 +11,7 @@ import { customerRoutes } from "./modules/customer/customer.routes";
 import { driverRoutes } from "./modules/driver/driver.routes";
 import { activityRoutes } from "./modules/activity/activity.routes";
 import { customPlanRoutes } from "./modules/custom-plans/custom-plans.routes";
+import { geoRoutes } from "./modules/geo/geo.routes";
 
 export const registerRoutes = async (app: FastifyInstance) => {
   app.register(authRoutes, { prefix: "/api/auth" });
@@ -25,4 +26,5 @@ export const registerRoutes = async (app: FastifyInstance) => {
   app.register(driverRoutes, { prefix: "/api/driver" });
   app.register(activityRoutes, { prefix: "/api" });
   app.register(customPlanRoutes, { prefix: "/api" });
+  app.register(geoRoutes, { prefix: "/api/geo" });
 };

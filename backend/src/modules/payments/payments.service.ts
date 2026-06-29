@@ -1,8 +1,10 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import prisma from "../../shared/db/prisma";
-import { PaymentStatus } from "../../shared/types/enums";
+import { PaymentStatus, PaymentMethod } from "../../shared/types/enums";
+import { PaymentType } from "@prisma/client";
 import { messagingService } from "../notifications/messaging.service";
+import { AppError } from "../../shared/utils/errors";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -15,7 +17,12 @@ export class PaymentsService {
     currency: string = "INR",
     receipt: string,
     notes: any = {},
-  ) {
+  ): Promise<{
+    orderId: string;
+    amount: number;
+    currency: string;
+    key: string | undefined;
+  }> {
     const options = {
       amount: Math.round(amount * 100), // paise
       currency,
@@ -40,28 +47,34 @@ export class PaymentsService {
 
     return {
       orderId: order.id,
-      amount: order.amount,
+      amount:
+        typeof order.amount === "number"
+          ? order.amount
+          : parseInt(order.amount, 10),
       currency: order.currency,
       key: process.env.RAZORPAY_KEY_ID,
     };
   }
 
-  async verifySignature(orderId: string, paymentId: string, signature: string) {
+  async verifySignature(
+    orderId: string,
+    paymentId: string,
+    signature: string,
+  ): Promise<boolean> {
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
       .update(orderId + "|" + paymentId)
       .digest("hex");
 
     if (generatedSignature !== signature) {
-      throw new Error("Invalid payment signature");
+      throw new AppError("Invalid payment signature", 400);
     }
 
-    // Save paymentId during markOrderAsPaid (we'll pass it)
     await this.markOrderAsPaid(orderId, paymentId);
     return true;
   }
 
-  async processRefund(paymentId: string, amount?: number) {
+  async processRefund(paymentId: string, amount?: number): Promise<any> {
     try {
       const refundOptions: any = {};
       if (amount) {
@@ -71,30 +84,48 @@ export class PaymentsService {
       return refund;
     } catch (err: any) {
       console.error("Razorpay refund error:", err);
-      throw new Error(`Refund failed: ${err.message || "Unknown error"}`);
+      throw new AppError(
+        `Refund failed: ${err.message || "Unknown error"}`,
+        400,
+      );
     }
   }
 
-  async createTripOrder(tripId: string, userId: string) {
+  async createTripOrder(
+    tripId: string,
+    userId: string,
+  ): Promise<{
+    razorpayOrderId: string;
+    amount: number;
+    currency: string;
+    key: string | undefined;
+  }> {
     const trip = await prisma.trip.findUnique({ where: { id: tripId } });
-    if (!trip) throw new Error("Trip not found");
+    if (!trip) throw new AppError("Trip not found", 404);
     if (trip.status !== "PENDING_PAYMENT")
-      throw new Error("Trip is not pending payment");
-    if (trip.userId !== userId) throw new Error("Unauthorized");
+      throw new AppError("Trip is not pending payment", 400);
+    if (trip.userId !== userId) throw new AppError("Unauthorized", 403);
 
     const amountPaise = Math.round(trip.amountPaidUpfront * 100);
     const options = {
       amount: amountPaise,
       currency: "INR",
       receipt: `trip_${trip.id.replace(/-/g, "").substring(0, 20)}`,
+      notes: { tripId, type: "UPFRONT", userId },
     };
 
     const order = await razorpay.orders.create(options);
 
     await prisma.payment.upsert({
-      where: { tripId },
+      where: {
+        tripId_type: {
+          tripId,
+          type: PaymentType.UPFRONT,
+        },
+      },
       create: {
         tripId,
+        type: PaymentType.UPFRONT,
         razorpayOrderId: order.id,
         amount: trip.amountPaidUpfront,
         status: "INITIATED",
@@ -119,14 +150,14 @@ export class PaymentsService {
     orderId: string,
     paymentId: string,
     signature: string,
-  ) {
+  ): Promise<boolean> {
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
       .update(orderId + "|" + paymentId)
       .digest("hex");
 
     if (generatedSignature !== signature) {
-      throw new Error("Invalid payment signature");
+      throw new AppError("Invalid payment signature", 400);
     }
 
     const currentTrip = await prisma.trip.findUnique({
@@ -144,8 +175,13 @@ export class PaymentsService {
     });
 
     await prisma.payment.update({
-      where: { tripId },
-      data: { status: "CAPTURED", razorpayPaymentId: paymentId },
+      where: {
+        tripId_type: {
+          tripId,
+          type: PaymentType.UPFRONT,
+        },
+      },
+      data: { status: "PAID", razorpayPaymentId: paymentId },
     });
 
     if (trip.user?.phone && trip.startOtp) {
@@ -167,72 +203,153 @@ export class PaymentsService {
     return true;
   }
 
-  async bypassTripSignature(tripId: string, userId: string) {
+  async bypassVerify(tripId: string, userId: string): Promise<void> {
     const trip = await prisma.trip.findUnique({ where: { id: tripId } });
-    if (!trip) throw new Error("Trip not found");
-    if (trip.status !== "PENDING_PAYMENT") return true; // Already handled
-    if (trip.userId !== userId) throw new Error("Unauthorized");
+    if (!trip) throw new AppError("Trip not found", 404);
+    if (trip.userId !== userId) throw new AppError("Unauthorized", 403);
+    if (trip.status !== "PENDING_PAYMENT")
+      throw new AppError("Trip is not pending payment", 400);
 
-    const updatedTrip = await prisma.trip.update({
+    // Bypass verification logic
+    await prisma.trip.update({
       where: { id: tripId },
       data: { status: "CONFIRMED" },
-      include: { waypoints: { orderBy: { orderIndex: "asc" } }, user: true },
+    });
+  }
+
+  // Custom plans do NOT get split payment in Mode B.
+  // Custom plans are quote-based — admin sets the total price,
+  // customer pays 100% upfront. There is no balance concept.
+  // The balance flow is strictly for trips only.
+  async createBalanceOrder(
+    tripId: string,
+    userId: string,
+  ): Promise<{
+    razorpayOrderId: string;
+    razorpayKeyId: string;
+    amount: number;
+    currency: string;
+  }> {
+    const trip = await prisma.trip.findFirst({
+      where: { id: tripId, userId },
+      include: { payments: true },
     });
 
-    await prisma.payment.create({
-      data: {
-        tripId,
-        razorpayOrderId: `bypass_${Date.now()}`,
-        amount: trip.amountPaidUpfront,
-        status: "CAPTURED",
-      },
-    });
+    if (!trip) {
+      throw new AppError("Trip not found", 404);
+    }
 
-    if (updatedTrip.user?.phone && updatedTrip.startOtp) {
-      messagingService.sendCustomerBookingConfirmed(
-        updatedTrip.id,
-        updatedTrip.user.phone,
-        updatedTrip.startOtp,
+    if (trip.status !== "ACTIVE" && trip.status !== "COMPLETED") {
+      throw new AppError(
+        "Balance payment is only available for active or completed trips",
+        400,
       );
     }
-    const pickup = updatedTrip.waypoints[0]?.address || "Pickup";
-    const drop =
-      updatedTrip.waypoints[updatedTrip.waypoints.length - 1]?.address ||
-      "Drop";
-    messagingService.sendNewJobAvailable(
-      updatedTrip.id,
-      updatedTrip.vehicleSegment,
-      pickup,
-      drop,
+
+    if (trip.balanceRemaining <= 0) {
+      throw new AppError("No balance remaining on this trip", 400);
+    }
+
+    const existingBalancePayment = trip.payments.find(
+      (p) => p.type === PaymentType.BALANCE,
     );
 
-    return true;
-  }
+    if (existingBalancePayment) {
+      if (existingBalancePayment.status === "PAID") {
+        throw new AppError("Balance already paid", 409);
+      }
+      if (
+        existingBalancePayment.status === "PENDING" &&
+        existingBalancePayment.razorpayOrderId
+      ) {
+        return {
+          razorpayOrderId: existingBalancePayment.razorpayOrderId,
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID!,
+          amount: Math.round(trip.balanceRemaining * 100),
+          currency: "INR",
+        };
+      }
+    }
 
-  async bypassTripBalance(tripId: string, userId: string) {
-    const trip = await prisma.trip.findUnique({ where: { id: tripId } });
-    if (!trip) throw new Error("Trip not found");
-    if (trip.userId !== userId) throw new Error("Unauthorized");
-    if (trip.balanceRemaining <= 0) throw new Error("No balance remaining");
+    const amountPaise = Math.round(trip.balanceRemaining * 100);
+    const options = {
+      amount: amountPaise,
+      currency: "INR",
+      receipt: `balance_${tripId.slice(0, 8)}_${Date.now()}`,
+      notes: { tripId, type: "BALANCE", userId },
+    };
 
-    const updatedTrip = await prisma.trip.update({
-      where: { id: tripId },
-      data: { balanceRemaining: 0 },
-    });
+    const order = await razorpay.orders.create(options);
 
     await prisma.payment.create({
       data: {
         tripId,
-        razorpayOrderId: `bypass_bal_${Date.now()}`,
+        type: PaymentType.BALANCE,
+        razorpayOrderId: order.id,
         amount: trip.balanceRemaining,
-        status: "CAPTURED",
+        status: "PENDING",
+        method: PaymentMethod.UPI,
       },
     });
 
-    return updatedTrip;
+    return {
+      razorpayOrderId: order.id,
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID!,
+      amount: amountPaise,
+      currency: "INR",
+    };
   }
 
-  async handleWebhook(event: string, payload: any) {
+  async verifyBalanceSignature(params: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+    tripId: string;
+    userId: string;
+  }): Promise<{ success: boolean; tripId: string }> {
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature, tripId } =
+      params;
+
+    const body = `${razorpayOrderId}|${razorpayPaymentId}`;
+    const expected = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+      .update(body)
+      .digest("hex");
+
+    if (expected !== razorpaySignature) {
+      throw new AppError("Invalid payment signature", 400);
+    }
+
+    const existingPayment = await prisma.payment.findUnique({
+      where: { razorpayPaymentId },
+    });
+
+    if (existingPayment) {
+      return { success: true, tripId };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const balancePayment = await tx.payment.findFirst({
+        where: { razorpayOrderId, type: PaymentType.BALANCE },
+      });
+
+      if (balancePayment) {
+        await tx.payment.update({
+          where: { id: balancePayment.id },
+          data: { status: "PAID", razorpayPaymentId },
+        });
+      }
+
+      await tx.trip.update({
+        where: { id: tripId },
+        data: { balanceRemaining: 0 },
+      });
+    });
+
+    return { success: true, tripId };
+  }
+
+  async handleWebhook(event: string, payload: any): Promise<void> {
     const paymentId = payload?.payment?.entity?.id;
     if (!paymentId) return;
 
@@ -260,7 +377,10 @@ export class PaymentsService {
     }
   }
 
-  private async markOrderAsPaid(orderId: string, paymentId: string) {
+  private async markOrderAsPaid(
+    orderId: string,
+    paymentId: string,
+  ): Promise<void> {
     const pkg = await prisma.packageBooking.findFirst({
       where: { razorpayOrderId: orderId },
     });
@@ -291,7 +411,6 @@ export class PaymentsService {
       return;
     }
 
-    // Try finding payment directly by orderId
     const payment = await prisma.payment.findFirst({
       where: { razorpayOrderId: orderId },
       include: {
@@ -303,35 +422,50 @@ export class PaymentsService {
         },
       },
     });
-    if (payment) {
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "PAID", razorpayPaymentId: paymentId },
-      });
 
-      if (payment.trip && payment.trip.status === "PENDING_PAYMENT") {
-        await prisma.trip.update({
-          where: { id: payment.trip.id },
-          data: { status: "CONFIRMED" },
+    if (payment) {
+      if (payment.type === PaymentType.UPFRONT) {
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: "PAID", razorpayPaymentId: paymentId },
         });
 
-        if (payment.trip.user?.phone && payment.trip.startOtp) {
-          messagingService.sendCustomerBookingConfirmed(
+        if (payment.trip && payment.trip.status === "PENDING_PAYMENT") {
+          await prisma.trip.update({
+            where: { id: payment.trip.id },
+            data: { status: "CONFIRMED" },
+          });
+
+          if (payment.trip.user?.phone && payment.trip.startOtp) {
+            messagingService.sendCustomerBookingConfirmed(
+              payment.trip.id,
+              payment.trip.user.phone,
+              payment.trip.startOtp,
+            );
+          }
+          const pickup = payment.trip.waypoints[0]?.address || "Pickup";
+          const drop =
+            payment.trip.waypoints[payment.trip.waypoints.length - 1]
+              ?.address || "Drop";
+          messagingService.sendNewJobAvailable(
             payment.trip.id,
-            payment.trip.user.phone,
-            payment.trip.startOtp,
+            payment.trip.vehicleSegment,
+            pickup,
+            drop,
           );
         }
-        const pickup = payment.trip.waypoints[0]?.address || "Pickup";
-        const drop =
-          payment.trip.waypoints[payment.trip.waypoints.length - 1]?.address ||
-          "Drop";
-        messagingService.sendNewJobAvailable(
-          payment.trip.id,
-          payment.trip.vehicleSegment,
-          pickup,
-          drop,
-        );
+      } else if (payment.type === PaymentType.BALANCE) {
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: "PAID", razorpayPaymentId: paymentId },
+        });
+
+        if (payment.trip) {
+          await prisma.trip.update({
+            where: { id: payment.trip.id },
+            data: { balanceRemaining: 0 },
+          });
+        }
       }
       return;
     }
@@ -341,7 +475,10 @@ export class PaymentsService {
     );
   }
 
-  private async markOrderAsFailed(orderId: string, paymentId?: string) {
+  private async markOrderAsFailed(
+    orderId: string,
+    paymentId?: string,
+  ): Promise<void> {
     const pkg = await prisma.packageBooking.findFirst({
       where: { razorpayOrderId: orderId },
     });
@@ -372,7 +509,6 @@ export class PaymentsService {
       return;
     }
 
-    // Try finding payment directly by orderId
     const payment = await prisma.payment.findFirst({
       where: { razorpayOrderId: orderId },
     });
@@ -386,14 +522,22 @@ export class PaymentsService {
 
   // ── Custom Plan payments ──────────────────────────────────────────────────
 
-  async createCustomPlanOrder(planId: string, userId: string) {
+  async createCustomPlanOrder(
+    planId: string,
+    userId: string,
+  ): Promise<{
+    orderId: string;
+    amount: number;
+    currency: string;
+    key: string | undefined;
+  }> {
     const plan = await prisma.customPlan.findUnique({ where: { id: planId } });
-    if (!plan) throw new Error("Custom plan not found");
+    if (!plan) throw new AppError("Custom plan not found", 404);
     if (plan.status !== "QUOTED")
-      throw new Error("Plan is not in QUOTED status");
-    if (plan.submittedBy !== userId) throw new Error("Unauthorized");
+      throw new AppError("Plan is not in QUOTED status", 400);
+    if (plan.submittedBy !== userId) throw new AppError("Unauthorized", 403);
     if (!plan.quotedAmount || plan.quotedAmount <= 0)
-      throw new Error("No valid quoted amount");
+      throw new AppError("No valid quoted amount", 400);
 
     const amountPaise = Math.round(plan.quotedAmount * 100);
     const options = {
@@ -426,47 +570,23 @@ export class PaymentsService {
     orderId: string,
     paymentId: string,
     signature: string,
-  ) {
+  ): Promise<boolean> {
     const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
       .update(orderId + "|" + paymentId)
       .digest("hex");
 
     if (generatedSignature !== signature) {
-      throw new Error("Invalid payment signature");
+      throw new AppError("Invalid payment signature", 400);
     }
 
     // Update payment record
     await prisma.payment.updateMany({
       where: { customPlanId: planId, razorpayOrderId: orderId },
-      data: { status: "CAPTURED", razorpayPaymentId: paymentId },
+      data: { status: "PAID", razorpayPaymentId: paymentId },
     });
 
     // Update custom plan status to ACCEPTED
-    await prisma.customPlan.update({
-      where: { id: planId },
-      data: { status: "ACCEPTED" },
-    });
-
-    return true;
-  }
-
-  async bypassCustomPlanPayment(planId: string, userId: string) {
-    const plan = await prisma.customPlan.findUnique({ where: { id: planId } });
-    if (!plan) throw new Error("Custom plan not found");
-    if (plan.status !== "QUOTED")
-      throw new Error("Plan is not in QUOTED status");
-    if (plan.submittedBy !== userId) throw new Error("Unauthorized");
-
-    await prisma.payment.create({
-      data: {
-        customPlanId: planId,
-        razorpayOrderId: `bypass_cp_${Date.now()}`,
-        amount: plan.quotedAmount ?? 0,
-        status: "CAPTURED",
-      },
-    });
-
     await prisma.customPlan.update({
       where: { id: planId },
       data: { status: "ACCEPTED" },

@@ -445,17 +445,49 @@ export default function DriverHome() {
             }}
           >
             <View>
-              <Text
-                style={{
-                  color: "#16a34a",
-                  fontSize: 10,
-                  fontWeight: "800",
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                }}
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
               >
-                Active Job
-              </Text>
+                <Text
+                  style={{
+                    color: "#16a34a",
+                    fontSize: 10,
+                    fontWeight: "800",
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Active Job
+                </Text>
+                {activeTrip.pricingTier && (
+                  <View
+                    style={{
+                      backgroundColor:
+                        activeTrip.pricingTier === "ALL_INCLUSIVE"
+                          ? "#DBEAFE"
+                          : "#FEF3C7",
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 9,
+                        fontWeight: "700",
+                        color:
+                          activeTrip.pricingTier === "ALL_INCLUSIVE"
+                            ? "#1E40AF"
+                            : "#92400E",
+                      }}
+                    >
+                      {activeTrip.pricingTier === "ALL_INCLUSIVE"
+                        ? "All-Inclusive Fare"
+                        : "Exclusion Fare"}
+                    </Text>
+                  </View>
+                )}
+              </View>
               <Text
                 style={{
                   color: "#111827",

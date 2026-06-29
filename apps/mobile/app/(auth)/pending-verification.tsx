@@ -27,7 +27,9 @@ export default function PendingVerificationScreen() {
           entering={FadeInDown.delay(100).springify()}
           className="items-center mb-8"
         >
-          <ShieldAlert size={64} color="#1B4F8A" style={{ marginBottom: 16 }} />
+          <View className="mb-4">
+            <ShieldAlert size={64} color="#1B4F8A" />
+          </View>
           <Text className="text-[#1B4F8A] font-bold text-3xl mb-2 text-center">
             Verification in progress
           </Text>

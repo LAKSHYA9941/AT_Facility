@@ -213,7 +213,9 @@ export default function MapScreen() {
               justifyContent: "center",
             }}
           >
-            <Map size={48} color="#9CA3AF" style={{ marginBottom: 16 }} />
+            <View className="mb-4">
+              <Map size={48} color="#9CA3AF" />
+            </View>
             <Text style={{ color: "#9CA3AF", fontSize: 12 }}>
               Loading driver locations...
             </Text>
@@ -224,7 +226,9 @@ export default function MapScreen() {
         </View>
       ) : drivers.length === 0 ? (
         <View className="flex-1 items-center justify-center">
-          <Car size={56} color="#9CA3AF" style={{ marginBottom: 16 }} />
+          <View className="mb-4">
+            <Car size={56} color="#9CA3AF" />
+          </View>
           <Text className="text-brand-text font-bold text-lg">
             No drivers online
           </Text>
