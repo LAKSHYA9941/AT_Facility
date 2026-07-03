@@ -14,9 +14,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { useAuthStore } from "../../store/auth";
-import { useMockStore } from "../../store/mock";
-import { api } from "../../utils/api";
+import { useAuthStore } from "../../../store/auth";
+import { useMockStore } from "../../../store/mock";
+import { api } from "../../../utils/api";
 import {
   Phone,
   ChevronRight,

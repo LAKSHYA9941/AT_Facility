@@ -1,0 +1,139 @@
+import { Tabs, useRouter } from "expo-router";
+import { Compass, Activity, User, Map, FileText } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View, Text, TouchableOpacity, BackHandler } from "react-native";
+import { useEffect, useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
+import { api } from "../../../utils/api";
+import { useAuthStore } from "../../../store/auth";
+
+export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const [hasPendingBalance, setHasPendingBalance] = useState(false);
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchTrips = async () => {
+      try {
+        const res = await api.get("/api/trips/my");
+        const trips = res.data.data.trips || res.data.data;
+        const pending = (Array.isArray(trips) ? trips : []).some(
+          (t: any) =>
+            t.balanceRemaining > 0 &&
+            t.status !== "PENDING_PAYMENT" &&
+            t.status !== "CANCELLED" &&
+            t.status !== "COMPLETED",
+        );
+        setHasPendingBalance(pending);
+      } catch (e) {}
+    };
+    fetchTrips();
+  }, [user]);
+
+  // Only exit the app when back is pressed on a root tab screen.
+  // Inner stack screens (destination detail, checkout, etc.) are handled
+  // by the Stack navigator's built-in back behaviour.
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        BackHandler.exitApp();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+      return () => subscription.remove();
+    }, []),
+  );
+
+  return (
+    <Tabs
+      screenOptions={{
+        tabBarStyle: {
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "#DDE3ED",
+          borderTopWidth: 1,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
+          paddingTop: 6,
+        },
+        tabBarActiveTintColor: "#1B4F8A",
+        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarLabelStyle: { fontSize: 10, fontWeight: "600" },
+        // Move the banner into the header instead of wrapping Tabs
+        header: hasPendingBalance
+          ? () => (
+              <TouchableOpacity
+                style={{
+                  paddingTop: insets.top,
+                  backgroundColor: "#fff7ed",
+                  paddingBottom: 12,
+                  paddingHorizontal: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#fdba74",
+                }}
+                onPress={() => router.push("/(customer)/activity")}
+              >
+                <Text
+                  style={{
+                    color: "#c2410c",
+                    fontWeight: "bold",
+                    textAlign: "center",
+                    marginTop: 8,
+                  }}
+                >
+                  You have a pending balance for a trip. Tap here to pay.
+                </Text>
+              </TouchableOpacity>
+            )
+          : undefined,
+        headerShown: hasPendingBalance,
+      }}
+    >
+      <Tabs.Screen
+        name="plan-trip"
+        options={{
+          title: "Plan Trip",
+          tabBarIcon: ({ color, size }) => <Map size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="custom-plan"
+        options={{
+          title: "Custom Plan",
+          tabBarIcon: ({ color, size }) => (
+            <FileText size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="travel"
+        options={{
+          title: "Travel",
+          tabBarIcon: ({ color, size }) => (
+            <Compass size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="activity"
+        options={{
+          title: "Activity",
+          tabBarIcon: ({ color, size }) => (
+            <Activity size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: "Account",
+          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+        }}
+      />
+    </Tabs>
+  );
+}

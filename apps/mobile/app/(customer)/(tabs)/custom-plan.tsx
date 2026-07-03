@@ -13,9 +13,9 @@ import {
 } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { router } from "expo-router";
-import { api } from "../../utils/api";
+import { api } from "../../../utils/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAuthStore } from "../../store/auth";
+import { useAuthStore } from "../../../store/auth";
 import RazorpayCheckout from "react-native-razorpay";
 import { Check, X } from "lucide-react-native";
 

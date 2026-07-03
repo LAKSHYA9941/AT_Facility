@@ -3,11 +3,11 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ImageBackground,
   Linking,
   Alert,
   StatusBar,
 } from "react-native";
+import { Image } from "expo-image";
 import { useLocalSearchParams, router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -64,41 +64,47 @@ export default function DestinationDetailScreen() {
 
       {/* ── Hero Image ──────────────────────────────────────────────────── */}
       <View style={{ height: 320 }}>
-        <ImageBackground
+        {/* expo-image — avif support, caching, smooth transition */}
+        <Image
           source={{ uri: destination.imageUrl }}
-          style={{ flex: 1 }}
-          resizeMode="cover"
+          style={{ width: "100%", height: "100%" }}
+          contentFit="cover"
+          transition={400}
+          cachePolicy="memory-disk"
+        />
+
+        {/* Overlay */}
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.35)",
+          }}
+        />
+
+        {/* Top: back button */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ top: insets.top + 12, left: 16 }}
+          className="absolute w-10 h-10 rounded-full bg-black/40 items-center justify-center"
+          activeOpacity={0.8}
         >
-          {/* Overlay */}
-          <View
-            style={{
-              position: "absolute",
-              inset: 0,
-              backgroundColor: "rgba(0,0,0,0.35)",
-            }}
-          />
+          <ArrowLeft size={20} color="#fff" />
+        </TouchableOpacity>
 
-          {/* Top: back button */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={{ top: insets.top + 12, left: 16 }}
-            className="absolute w-10 h-10 rounded-full bg-black/40 items-center justify-center"
-            activeOpacity={0.8}
-          >
-            <ArrowLeft size={20} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Bottom: name + state */}
-          <View className="absolute bottom-0 left-0 right-0 p-5">
-            <Text className="text-white text-2xl font-bold leading-tight">
-              {destination.name}
-            </Text>
-            <View className="flex-row items-center gap-1.5 mt-1">
-              <MapPin size={13} color="rgba(255,255,255,0.85)" />
-              <Text className="text-white/85 text-sm">{destination.state}</Text>
-            </View>
+        {/* Bottom: name + state */}
+        <View className="absolute bottom-0 left-0 right-0 p-5">
+          <Text className="text-white text-2xl font-bold leading-tight">
+            {destination.name}
+          </Text>
+          <View className="flex-row items-center gap-1.5 mt-1">
+            <MapPin size={13} color="rgba(255,255,255,0.85)" />
+            <Text className="text-white/85 text-sm">{destination.state}</Text>
           </View>
-        </ImageBackground>
+        </View>
       </View>
 
       {/* ── Scrollable Content ──────────────────────────────────────────── */}

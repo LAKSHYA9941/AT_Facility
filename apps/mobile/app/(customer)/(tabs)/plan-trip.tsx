@@ -20,10 +20,13 @@ import {
   Navigation2,
   Users,
 } from "lucide-react-native";
-import LocationAutocomplete from "../../components/LocationAutocomplete";
-import { useCurrentLocation } from "../../hooks/useCurrentLocation";
-import { getDistanceBetweenPoints, GeoapifyPlace } from "../../utils/geoapify";
-import { api } from "../../utils/api";
+import LocationAutocomplete from "../../../components/LocationAutocomplete";
+import { useCurrentLocation } from "../../../hooks/useCurrentLocation";
+import {
+  getDistanceBetweenPoints,
+  GeoapifyPlace,
+} from "../../../utils/geoapify";
+import { api } from "../../../utils/api";
 
 export default function PlanTripScreen(): React.JSX.Element {
   const router = useRouter();

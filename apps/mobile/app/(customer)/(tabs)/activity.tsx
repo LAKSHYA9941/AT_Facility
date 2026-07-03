@@ -10,10 +10,8 @@ import { useState, useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { router } from "expo-router";
-import { api } from "../../utils/api";
-import { Car, Compass, Key } from "lucide-react-native";
-
-const TABS = ["Rides", "Packages", "Rentals"];
+import { api } from "../../../utils/api";
+import { Car } from "lucide-react-native";
 
 const STATUS_STYLE: Record<
   string,
@@ -152,53 +150,10 @@ function TripRow({
   );
 }
 
-function PackageRow({ item, type }: { item: any; type: "PACKAGE" | "RENTAL" }) {
-  const s = STATUS_STYLE[item.status] || {
-    bg: "bg-gray-50",
-    text: "text-gray-700",
-    label: item.status,
-  };
-  const dateStr = new Date(item.createdAt).toLocaleDateString();
-
-  const title =
-    type === "PACKAGE"
-      ? item.package?.title
-      : item.vehicle?.make + " " + item.vehicle?.model;
-  const sub =
-    type === "PACKAGE" ? `${item.numPeople} adults` : `${item.totalDays} days`;
-  const price = type === "PACKAGE" ? item.totalPrice : item.baseTotalPrice;
-  const IconComponent = type === "PACKAGE" ? Compass : Key;
-
-  return (
-    <Animated.View
-      entering={FadeInDown.springify()}
-      className="flex-row items-center gap-3 px-5 py-4 border-b border-brand-border"
-    >
-      <View className="w-11 h-11 rounded-2xl bg-brand-input items-center justify-center">
-        <IconComponent size={20} color="#1B4F8A" />
-      </View>
-      <View className="flex-1">
-        <Text className="text-brand-text font-bold text-sm">{title}</Text>
-        <Text className="text-brand-sub text-xs mt-0.5">{sub}</Text>
-        <Text className="text-brand-sub text-xs mt-0.5">{dateStr}</Text>
-        <View className={`self-start mt-1.5 px-2 py-0.5 rounded-full ${s.bg}`}>
-          <Text className={`text-xs font-semibold ${s.text}`}>{s.label}</Text>
-        </View>
-      </View>
-      <Text className="text-brand-primary font-bold text-sm">
-        ₹{price?.toLocaleString() || "0"}
-      </Text>
-    </Animated.View>
-  );
-}
-
 export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState<any[]>([]);
-  const [packages, setPackages] = useState<any[]>([]);
-  const [rentals, setRentals] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -208,22 +163,9 @@ export default function ActivityScreen() {
     try {
       setLoading(true);
       // /api/trips/my — customer trip history
-      const [tripsRes, pkgsRes, rentalsRes] = await Promise.allSettled([
-        api.get("/api/trips/my"),
-        api.get("/api/packages/bookings/my"),
-        api.get("/api/rentals/my"),
-      ]);
-
-      if (tripsRes.status === "fulfilled") {
-        const d = tripsRes.value.data.data;
-        setTrips(Array.isArray(d) ? d : (d?.trips ?? []));
-      }
-      if (pkgsRes.status === "fulfilled") {
-        setPackages(pkgsRes.value.data.data ?? []);
-      }
-      if (rentalsRes.status === "fulfilled") {
-        setRentals(rentalsRes.value.data.data ?? []);
-      }
+      const res = await api.get("/api/trips/my");
+      const d = res.data.data;
+      setTrips(Array.isArray(d) ? d : (d?.trips ?? []));
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -254,71 +196,27 @@ export default function ActivityScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
-      <View className="flex-row border-b border-brand-border">
-        {TABS.map((t, i) => (
-          <TouchableOpacity
-            key={t}
-            onPress={() => setTab(i)}
-            className="flex-1 py-3 items-center"
-            style={{
-              borderBottomWidth: 2,
-              borderBottomColor: tab === i ? "#1B4F8A" : "transparent",
-            }}
-          >
-            <Text
-              className={`text-sm font-semibold ${
-                tab === i ? "text-brand-primary" : "text-brand-sub"
-              }`}
-            >
-              {t}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
       {/* Content */}
       <ScrollView showsVerticalScrollIndicator={false}>
         {loading ? (
           <ActivityIndicator size="large" color="#1B4F8A" className="mt-10" />
         ) : (
           <>
-            {tab === 0 &&
-              trips.map((item) => (
-                <TripRow
-                  key={item.id}
-                  item={item}
-                  onPayBalance={handlePayBalance}
-                />
-              ))}
-            {tab === 1 &&
-              packages.map((item) => (
-                <PackageRow key={item.id} item={item} type="PACKAGE" />
-              ))}
-            {tab === 2 &&
-              rentals.map((item) => (
-                <PackageRow key={item.id} item={item} type="RENTAL" />
-              ))}
-            {((tab === 0 && trips.length === 0) ||
-              (tab === 1 && packages.length === 0) ||
-              (tab === 2 && rentals.length === 0)) && (
+            {trips.map((item) => (
+              <TripRow
+                key={item.id}
+                item={item}
+                onPayBalance={handlePayBalance}
+              />
+            ))}
+            {trips.length === 0 && (
               <View className="items-center mt-16 px-8">
-                {tab === 0 ? (
-                  <Car size={48} color="#9CA3AF" />
-                ) : tab === 1 ? (
-                  <Compass size={48} color="#9CA3AF" />
-                ) : (
-                  <Key size={48} color="#9CA3AF" />
-                )}
+                <Car size={48} color="#9CA3AF" />
                 <Text className="text-brand-text font-bold text-base mt-3">
-                  No history yet
+                  No trips yet
                 </Text>
                 <Text className="text-brand-sub text-sm text-center mt-1">
-                  {tab === 0
-                    ? "Your completed trips will appear here"
-                    : tab === 1
-                      ? "Your package bookings will appear here"
-                      : "Your rental bookings will appear here"}
+                  Your completed trips will appear here
                 </Text>
               </View>
             )}
