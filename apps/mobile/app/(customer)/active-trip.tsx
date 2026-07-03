@@ -23,8 +23,7 @@ import {
 } from "lucide-react-native";
 import { useMockStore, MockTripStatus } from "../../store/mock";
 import { useAuthStore } from "../../store/auth";
-
-const RazorpayCheckout: any = null;
+import RazorpayCheckout from "react-native-razorpay";
 
 const STATUS_STEPS: MockTripStatus[] = [
   "CONFIRMED",
@@ -442,12 +441,7 @@ export default function ActiveTripScreen() {
           </View>
           <View className="flex-row justify-between mt-2">
             <Text className="text-gray-600">Payment Method</Text>
-            <Text className="font-bold text-gray-800">
-              {(trip.balanceRemaining ??
-                trip.totalFare - trip.amountPaidUpfront) > 0
-                ? "Cash (to Driver)"
-                : "Online"}
-            </Text>
+            <Text className="font-bold text-gray-800">Online</Text>
           </View>
 
           {/* Pay Balance Button */}

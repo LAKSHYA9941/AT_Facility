@@ -11,9 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import TopBar from "../../components/layout/TopBar";
 import { api } from "../../utils/api";
-// react-native-razorpay requires a custom dev build (expo run:android).
-// In Expo Go, always use bypass payment.
-const RazorpayCheckout: any = null;
+import RazorpayCheckout from "react-native-razorpay";
 import {
   ShieldCheck,
   Zap,

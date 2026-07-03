@@ -11,6 +11,8 @@
     "bundler": "metro",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.atfacilities.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Allow AT Facility to access your location to pick you up."
       }
@@ -22,7 +24,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.laksh28.atfacilities",
+      "package": "com.atfacilities.app",
+      "versionCode": 1,
       "navigationBar": {
         "backgroundColor": "#FFFFFF"
       },

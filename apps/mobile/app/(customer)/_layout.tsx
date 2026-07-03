@@ -1,8 +1,15 @@
 import { Tabs, useRouter } from "expo-router";
 import { Compass, Activity, User, Map, FileText } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { View, Text, TouchableOpacity, Platform } from "react-native";
-import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Platform,
+  BackHandler,
+} from "react-native";
+import { useEffect, useState, useCallback } from "react";
+import { useFocusEffect } from "expo-router";
 import { api } from "../../utils/api";
 import { useAuthStore } from "../../store/auth";
 
@@ -30,6 +37,21 @@ export default function CustomerLayout() {
     };
     fetchTrips();
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        // Exit the app instead of popping the navigation stack to the login screen
+        BackHandler.exitApp();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress,
+      );
+      return () => subscription.remove();
+    }, []),
+  );
 
   return (
     <Tabs
@@ -120,6 +142,7 @@ export default function CustomerLayout() {
       <Tabs.Screen name="checkout" options={{ href: null }} />
       <Tabs.Screen name="trip-confirmed" options={{ href: null }} />
       <Tabs.Screen name="active-trip" options={{ href: null }} />
+      <Tabs.Screen name="destination/[slug]" options={{ href: null }} />
     </Tabs>
   );
 }

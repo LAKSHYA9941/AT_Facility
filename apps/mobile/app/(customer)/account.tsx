@@ -662,37 +662,14 @@ export default function AccountScreen() {
 
   const SECTIONS: { title: string; items: MenuItem[] }[] = [
     {
-      title: "Trips",
-      items: [
-        {
-          Icon: MapPin,
-          label: "Saved Addresses",
-          sub: "Home, Office",
-        },
-        {
-          Icon: Heart,
-          label: "Favourite Drivers",
-          sub: "3 drivers",
-        },
-        {
-          Icon: Bell,
-          label: "Ride Notifications",
-          toggle: true,
-        },
-      ],
-    },
-    {
       title: "Account",
       items: [
         idVerificationItem,
-        { Icon: Shield, label: "Privacy & Safety" },
         {
-          Icon: Globe,
-          label: "Language",
-          sub: "English",
+          Icon: HelpCircle,
+          label: "Help & Support",
+          onPress: () => Linking.openURL("mailto:support@atfacilities.com"),
         },
-        { Icon: Star, label: "Rate the App" },
-        { Icon: HelpCircle, label: "Help & Support" },
       ],
     },
     {
@@ -708,6 +685,19 @@ export default function AccountScreen() {
           Icon: Trash2,
           label: "Delete Account",
           danger: true,
+          onPress: () =>
+            Alert.alert(
+              "Delete Account",
+              "Are you sure you want to delete your account? This action cannot be undone.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete",
+                  style: "destructive",
+                  onPress: () => Alert.alert("Account deletion requested"),
+                },
+              ],
+            ),
         },
       ],
     },
