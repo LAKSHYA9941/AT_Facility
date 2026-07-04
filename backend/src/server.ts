@@ -14,13 +14,13 @@ const start = async () => {
     const requiredEnvVars = [
       "DATABASE_URL",
       "JWT_ACCESS_SECRET",
+      "JWT_REFRESH_SECRET",
       "AWS_BUCKET_NAME",
       "AWS_ACCESS_KEY_ID",
       "AWS_SECRET_ACCESS_KEY",
       "AWS_REGION",
       "RAZORPAY_KEY_ID",
       "RAZORPAY_KEY_SECRET",
-      "GOOGLE_MAPS_API_KEY",
     ];
     const missing = requiredEnvVars.filter((k) => !process.env[k]);
     if (missing.length > 0) {

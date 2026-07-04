@@ -75,19 +75,11 @@ jobs:
         run: npx tsc --noEmit
 
   deploy:
-    name: Deploy to Railway
+    name: Deploy to Render
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway
-        run: railway up --service atfacility-backend
-        working-directory: backend
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Trigger Render Deploy Hook
+        run: curl -s "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"

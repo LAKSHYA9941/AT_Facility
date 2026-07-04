@@ -1,9 +1,13 @@
 import axios from "axios";
 import { OTPRedis } from "../../shared/redis/redis";
 import { generateOTP } from "../../shared/utils/otp";
+import { logger } from "../../shared/logger/logger";
 
 const MAX_ATTEMPTS = 3;
 const OTP_TTL = 300; // 5 minutes
+
+/** Check once at startup whether MSG91 credentials are available */
+const hasMSG91 = !!(process.env.MSG91_API_KEY && process.env.MSG91_TEMPLATE_ID);
 
 export const sendOTP = async (phone: string): Promise<void> => {
   const otp = generateOTP(6);
@@ -11,14 +15,15 @@ export const sendOTP = async (phone: string): Promise<void> => {
   // store in Redis with TTL
   await OTPRedis.set(phone, otp, OTP_TTL);
 
-  if (process.env.NODE_ENV === "development") {
-    // in dev just log it — no SMS cost
-    console.log(`\n[OTP] Code for ${phone}: ${otp}\n`);
-    return;
+  if (hasMSG91) {
+    await sendViaMSG91(phone, otp);
+  } else {
+    // No MSG91 creds → log OTP (safe for dev / staging / free-tier)
+    logger.warn(
+      { phone, otp },
+      "⚠️  MSG91 not configured — OTP logged instead of sent via SMS",
+    );
   }
-
-  // MSG91 SMS send in production
-  await sendViaMSG91(phone, otp);
 };
 
 const sendViaMSG91 = async (phone: string, otp: string): Promise<void> => {

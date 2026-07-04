@@ -1,8 +1,8 @@
 // backend/src/app.ts
-// Full replacement — adds tuned rate limiting, security headers, and Sentry.
+// Fastify app setup — rate limiting, security headers, CORS, JWT, logging.
 //
-// New npm installs needed:
-//   npm install @fastify/rate-limit @fastify/helmet @sentry/node
+// npm installs needed:
+//   npm install @fastify/rate-limit @fastify/helmet
 //   npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner   (if not already)
 
 import Fastify, { FastifyInstance } from "fastify";
@@ -11,7 +11,7 @@ import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
-import * as Sentry from "@sentry/node";
+
 import {
   serializerCompiler,
   validatorCompiler,
@@ -22,16 +22,6 @@ import { redis } from "./shared/redis/redis";
 import { logger } from "./shared/logger/logger";
 
 export async function buildApp(): Promise<FastifyInstance> {
-  // ── Sentry (init before anything else) ──────────────────────────────────
-  if (process.env.SENTRY_DSN) {
-    Sentry.init({
-      dsn: process.env.SENTRY_DSN,
-      environment: process.env.NODE_ENV ?? "development",
-      tracesSampleRate: 0.1, // 10% of requests — keeps free quota comfortable
-    });
-    logger.info("Sentry error tracking initialised");
-  }
-
   const app = Fastify({
     logger: false, // We use Pino separately
     trustProxy: true, // Required behind Cloud Run / load balancer

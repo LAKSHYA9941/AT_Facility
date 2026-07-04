@@ -1,4 +1,4 @@
-const Razorpay = require("razorpay");
+import Razorpay from "razorpay";
 
 const razorpay = new Razorpay({
   key_id: "rzp_test_SonRUhUvdcVa2E",

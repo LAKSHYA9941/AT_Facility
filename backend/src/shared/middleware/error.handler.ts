@@ -1,5 +1,5 @@
 import { FastifyError, FastifyRequest, FastifyReply } from "fastify";
-import * as Sentry from "@sentry/node";
+
 import { logger } from "../logger/logger";
 import { AppError } from "../utils/errors";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
@@ -99,16 +99,6 @@ export async function errorHandler(
     stack: statusCode === 500 ? err.stack : undefined,
     userId,
   });
-
-  // Send 500s to Sentry
-  if (statusCode >= 500 && process.env.SENTRY_DSN) {
-    Sentry.withScope((scope) => {
-      scope.setTag("endpoint", `${req.method} ${req.url}`);
-      scope.setTag("statusCode", String(statusCode));
-      if (userId) scope.setUser({ id: userId });
-      Sentry.captureException(err);
-    });
-  }
 
   return reply.code(statusCode).send({
     success: false,
