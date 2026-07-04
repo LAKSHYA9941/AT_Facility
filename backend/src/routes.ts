@@ -14,6 +14,11 @@ import { customPlanRoutes } from "./modules/custom-plans/custom-plans.routes";
 import { geoRoutes } from "./modules/geo/geo.routes";
 
 export const registerRoutes = async (app: FastifyInstance) => {
+  // Health check — used by Render to verify the service is alive
+  app.get("/health", async (_req, reply) => {
+    return reply.send({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   app.register(authRoutes, { prefix: "/api/auth" });
   app.register(kycRoutes, { prefix: "/api/kyc" });
   app.register(adminRoutes, { prefix: "/api/admin" });
