@@ -1,10 +1,11 @@
 import axios from "axios";
 import { SecureStorage } from "./secureStorage";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.147:4000";
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || "https://at-facility.onrender.com";
 export const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
     "ngrok-skip-browser-warning": "true", // add this
