@@ -29,7 +29,12 @@
       "navigationBar": {
         "backgroundColor": "#FFFFFF"
       },
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -65,7 +70,12 @@
       "reactCompiler": true
     },
     "extra": {
-      "geoapifyKey": "EXPO_PUBLIC_GEOAPIFY_KEY"
-    }
+      "geoapifyKey": "EXPO_PUBLIC_GEOAPIFY_KEY",
+      "router": {},
+      "eas": {
+        "projectId": "a73880e0-7411-4371-a3f1-bceb9df0165f"
+      }
+    },
+    "owner": "laksh28"
   }
 }

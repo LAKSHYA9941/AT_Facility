@@ -5,7 +5,7 @@ const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL || "https://at-facility.onrender.com";
 export const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000,
+  timeout: 70000,
   headers: {
     "Content-Type": "application/json",
     "ngrok-skip-browser-warning": "true", // add this
