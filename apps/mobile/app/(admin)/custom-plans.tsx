@@ -739,7 +739,7 @@ export default function CustomPlansScreen() {
         ListFooterComponent={
           loading && plans.length > 0 ? (
             <ActivityIndicator color="#1B4F8A" className="my-4" />
-          ) : null
+          ) : undefined
         }
       />
 

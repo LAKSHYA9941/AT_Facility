@@ -15,7 +15,7 @@ export default function Index() {
   }
 
   if (user.role === "CUSTOMER") {
-    return <Redirect href="/(customer)/plan-trip" />;
+    return <Redirect href="/(customer)/(tabs)/plan-trip" />;
   }
   if (user.role === "DRIVER") {
     return <Redirect href="/(driver)/home" />;

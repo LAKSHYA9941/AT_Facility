@@ -116,7 +116,8 @@ export default function CompleteProfileScreen() {
         router.dismissAll();
       }
 
-      if (user?.role === "CUSTOMER") router.replace("/(customer)/plan-trip");
+      if (user?.role === "CUSTOMER")
+        router.replace("/(customer)/(tabs)/plan-trip");
       if (user?.role === "DRIVER") router.replace("/(driver)/home");
       if (user?.role === "ADMIN") router.replace("/(admin)/dashboard");
     } catch (err: any) {

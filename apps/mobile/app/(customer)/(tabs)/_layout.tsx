@@ -75,7 +75,7 @@ export default function TabsLayout() {
                   borderBottomWidth: 1,
                   borderBottomColor: "#fdba74",
                 }}
-                onPress={() => router.push("/(customer)/activity")}
+                onPress={() => router.push("/(customer)/(tabs)/activity")}
               >
                 <Text
                   style={{

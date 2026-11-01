@@ -22,7 +22,6 @@ export default function ScreenWrapper({
     >
       <StatusBar
         barStyle={variant === "light" ? "dark-content" : "light-content"}
-        backgroundColor={variant === "light" ? "#EEF2F7" : "#1B4F8A"}
       />
       {children}
     </View>

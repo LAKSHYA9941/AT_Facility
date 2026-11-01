@@ -4,11 +4,9 @@
     "slug": "atfacilities",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.jpeg",
+    "icon": "./assets/images/icon.png",
     "scheme": "atfacilities",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "bundler": "metro",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.atfacilities.app",
@@ -20,15 +18,11 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
-        "foregroundImage": "./assets/images/icon.jpeg"
+        "foregroundImage": "./assets/images/icon.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.atfacilities.app",
       "versionCode": 1,
-      "navigationBar": {
-        "backgroundColor": "#FFFFFF"
-      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -37,7 +31,7 @@
       ]
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -45,7 +39,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icon.jpeg",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

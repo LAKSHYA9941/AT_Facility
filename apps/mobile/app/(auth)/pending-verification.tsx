@@ -10,7 +10,8 @@ export default function PendingVerificationScreen() {
   const user = useAuthStore((s) => s.user);
 
   const handleExplore = () => {
-    if (user?.role === "CUSTOMER") router.replace("/(customer)/plan-trip");
+    if (user?.role === "CUSTOMER")
+      router.replace("/(customer)/(tabs)/plan-trip");
     if (user?.role === "DRIVER") router.replace("/(driver)/home");
     if (user?.role === "ADMIN") router.replace("/(admin)/dashboard");
   };

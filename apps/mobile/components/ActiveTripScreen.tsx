@@ -310,11 +310,7 @@ export default function ActiveTripScreen({
 
   return (
     <View className="flex-1 bg-brand-bg">
-      <StatusBar
-        barStyle="dark-content"
-        translucent
-        backgroundColor="transparent"
-      />
+      <StatusBar barStyle="dark-content" />
 
       {/* ═══ MAP LAYER ═══════════════════════════════════════════ */}
       <MapView

@@ -17,7 +17,7 @@ import { useAuthStore } from "../../store/auth";
 
 export default function OTPScreen() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const inputs = useRef<TextInput[]>([]);
+  const inputs = useRef<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const { phone, isAdmin } = useLocalSearchParams<{

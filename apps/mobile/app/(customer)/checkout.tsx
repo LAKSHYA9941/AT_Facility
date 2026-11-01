@@ -66,7 +66,7 @@ export default function CheckoutScreen() {
   const handleMockPayment = async () => {
     setLoading(true);
     setPaymentState("processing");
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(() => r(undefined), 1200));
 
     setActiveMockTrip({
       tripId: typeof tripId === "string" ? tripId : `mock-trip-${Date.now()}`,

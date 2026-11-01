@@ -55,7 +55,7 @@ export default function ActiveTripScreen() {
   const handlePayBalance = async () => {
     if (isMockTrip || isMockMode) {
       setPaymentLoading(true);
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(() => r(undefined), 1000));
       updateActiveMockTrip({
         amountPaidUpfront: activeMockTrip?.totalFare || trip?.totalFare || 0,
         balanceRemaining: 0,
@@ -178,7 +178,7 @@ export default function ActiveTripScreen() {
             [
               {
                 text: "Done",
-                onPress: () => router.replace("/(customer)/plan-trip"),
+                onPress: () => router.replace("/(customer)/(tabs)/plan-trip"),
               },
             ],
           );
@@ -229,7 +229,7 @@ export default function ActiveTripScreen() {
           if (isMockTrip || isMockMode) {
             // Mock cancel — just go back home
             Alert.alert("Cancelled", "Mock trip cancelled.");
-            router.replace("/(customer)/plan-trip");
+            router.replace("/(customer)/(tabs)/plan-trip");
             return;
           }
           try {
@@ -237,7 +237,7 @@ export default function ActiveTripScreen() {
               reason: "User requested",
             });
             Alert.alert("Cancelled", "Trip cancelled successfully.");
-            router.replace("/(customer)/plan-trip");
+            router.replace("/(customer)/(tabs)/plan-trip");
           } catch (e) {
             Alert.alert("Error", "Failed to cancel trip.");
           }
@@ -260,7 +260,7 @@ export default function ActiveTripScreen() {
     <SafeAreaView className="flex-1 bg-gray-50" edges={["top"]}>
       <TopBar
         title="Trip Details"
-        onBack={() => router.push("/(customer)/plan-trip")}
+        onBack={() => router.push("/(customer)/(tabs)/plan-trip")}
         showBack
       />
 

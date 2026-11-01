@@ -3,23 +3,23 @@ import { CheckCircle2 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  RefreshControl,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
-  ScrollView,
-  RefreshControl,
 } from "react-native";
 import Animated, {
   FadeInDown,
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSpring,
-  SharedValue,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { MOCK_DRIVER, useMockStore } from "../../store/mock";
 import { api } from "../../utils/api";
-import { useMockStore, MOCK_DRIVER } from "../../store/mock";
 
 export default function TripConfirmedScreen() {
   const { tripId } = useLocalSearchParams();
@@ -203,7 +203,7 @@ export default function TripConfirmedScreen() {
 
             <TouchableOpacity
               className="w-full bg-[#EEF2F7] py-4 rounded-xl items-center"
-              onPress={() => router.replace("/(customer)/plan-trip")}
+              onPress={() => router.replace("/(customer)/(tabs)/plan-trip")}
             >
               <Text className="text-[#1B4F8A] font-bold text-base">
                 Back to Home

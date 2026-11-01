@@ -380,7 +380,7 @@ export default function AdminUsersScreen() {
         ListFooterComponent={
           loading && users.length > 0 ? (
             <ActivityIndicator className="my-4" color="#1B4F8A" />
-          ) : null
+          ) : undefined
         }
       />
 

@@ -56,11 +56,7 @@ export default function DestinationDetailScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="light-content"
-      />
+      <StatusBar barStyle="light-content" />
 
       {/* ── Hero Image ──────────────────────────────────────────────────── */}
       <View style={{ height: 320 }}>
